@@ -372,7 +372,7 @@
                     <Run Text="诏无言" Foreground="#0078D4" FontWeight="SemiBold" FontSize="11"/>
                     <Run Text=" | 目录迁移工具 v1.1.0" Foreground="Gray" FontSize="11"/>
                 </TextBlock>
-                <TextBlock Text="开源项目 | Windows 符号链接迁移方案" 
+                <TextBlock Text="玲珑星核 | Windows 符号链接迁移方案" 
                           HorizontalAlignment="Right" 
                           VerticalAlignment="Center"
                           Foreground="Gray" 

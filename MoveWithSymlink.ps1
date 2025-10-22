@@ -198,7 +198,10 @@ try {
             $nonEmpty = $false
             try { $nonEmpty = @(Get-ChildItem -LiteralPath $targetPath -Force -ErrorAction SilentlyContinue | Select-Object -First 1).Count -gt 0 } catch { }
             if ($nonEmpty -and -not ($targetLeafName -ieq $sourceLeafForTarget)) {
+                $oldPath = $targetPath
                 $targetPath = Join-Path -Path $targetPath -ChildPath $sourceLeafForTarget
+                Write-Host "⚠️  目标目录非空且不以源目录名结尾" -ForegroundColor Yellow
+                Write-Host "   自动调整目标路径: $oldPath -> $targetPath" -ForegroundColor Yellow
             }
         } else {
             throw "目标路径已存在且不是目录: $targetPath"
@@ -209,6 +212,15 @@ try {
     if ([string]::IsNullOrEmpty($targetParent)) { throw '无法解析目标目录的上级路径。' }
     New-DirectoryIfMissing -DirectoryPath $targetParent
     New-DirectoryIfMissing -DirectoryPath $targetPath
+
+    # 检查最终目标目录是否为空（在路径调整之后）
+    if (Test-Path -LiteralPath $targetPath) {
+        $targetHasContent = $false
+        try { $targetHasContent = @(Get-ChildItem -LiteralPath $targetPath -Force -ErrorAction SilentlyContinue | Select-Object -First 1).Count -gt 0 } catch { }
+        if ($targetHasContent) {
+            throw "目标目录已存在且不为空，禁止迁移: $targetPath"
+        }
+    }
 
     # 防止互为子目录或相同路径
     $srcRooted = [System.IO.Path]::GetFullPath($sourcePath)
