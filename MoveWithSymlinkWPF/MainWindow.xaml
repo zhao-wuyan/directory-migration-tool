@@ -323,6 +323,9 @@
                                         IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
                                         Visibility="{Binding MigrationCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
+                                <Button Content="查看结果" Command="{Binding ViewResultCommand}"
+                                        Visibility="{Binding MigrationCompleted, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -340,9 +343,26 @@
                                 <TextBlock Text="迁移结果" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center"/>
                             </StackPanel>
                             
-                            <Border Background="#F8F8F8" Padding="15" CornerRadius="3">
+                            <Border Background="#F8F8F8" Padding="15" CornerRadius="3" Margin="0,0,0,10">
                                 <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
                             </Border>
+                            
+                            <!-- 显示完整日志 -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <Border Background="#F8F8F8" Padding="10" Height="300" CornerRadius="3">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding LogMessages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" 
+                                                              TextWrapping="Wrap" Margin="0,2"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <Button Content="完成" Command="{Binding ResetCommand}"
