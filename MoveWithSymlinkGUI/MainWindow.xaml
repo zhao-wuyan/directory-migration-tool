@@ -1,0 +1,298 @@
+<Window
+    x:Class="MoveWithSymlinkGUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:MoveWithSymlinkGUI"
+    xmlns:vm="using:MoveWithSymlinkGUI.ViewModels"
+    mc:Ignorable="d"
+    Title="目录迁移工具 - Directory Migration Tool">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="24,16">
+            <StackPanel>
+                <TextBlock Text="目录迁移工具" FontSize="28" FontWeight="Bold"/>
+                <TextBlock Text="使用符号链接透明迁移大型目录" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Content -->
+        <Grid Grid.Row="1" Padding="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Step Navigator -->
+            <Border Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8" Padding="16" Margin="0,0,16,0">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="步骤" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="1"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource TextFillColorDisabledBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="1" Invert="True"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <TextBlock Text="1. 选择路径" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="2"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource TextFillColorDisabledBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="2" Invert="True"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <TextBlock Text="2. 扫描分析" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="3"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource TextFillColorDisabledBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="3" Invert="True"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <TextBlock Text="3. 执行迁移" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource AccentFillColorDefaultBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="4"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <FontIcon Glyph="&#xE73E;" FontSize="16" Foreground="{ThemeResource TextFillColorDisabledBrush}">
+                            <FontIcon.Visibility>
+                                <Binding Path="CurrentStep">
+                                    <Binding.Converter>
+                                        <local:StepVisibilityConverter Step="4" Invert="True"/>
+                                    </Binding.Converter>
+                                </Binding>
+                            </FontIcon.Visibility>
+                        </FontIcon>
+                        <TextBlock Text="4. 完成" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Step Content -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16">
+                    
+                    <!-- Step 1: Path Selection -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            CornerRadius="8" Padding="24"
+                            Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=1}">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="选择源目录和目标目录" FontSize="20" FontWeight="SemiBold"/>
+                            
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="源目录（要迁移的目录）" FontWeight="SemiBold"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding SourcePath, Mode=TwoWay}" PlaceholderText="例如: C:\Users\YourName\Pictures"/>
+                                    <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseSourceCommand}" Margin="8,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="目标目录（迁移到的位置）" FontWeight="SemiBold"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding TargetPath, Mode=TwoWay}" PlaceholderText="例如: D:\Data\Pictures"/>
+                                    <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseTargetCommand}" Margin="8,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="高级选项" FontWeight="SemiBold"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="大文件阈值 (MB):" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                    <NumberBox Grid.Row="0" Grid.Column="1" Value="{Binding LargeFileThresholdMB, Mode=TwoWay}" 
+                                              Minimum="1" Maximum="10240" SpinButtonPlacementMode="Inline" Width="200" HorizontalAlignment="Left"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="复制线程数:" VerticalAlignment="Center" Margin="0,8,12,0"/>
+                                    <NumberBox Grid.Row="1" Grid.Column="1" Value="{Binding RobocopyThreads, Mode=TwoWay}" 
+                                              Minimum="1" Maximum="128" SpinButtonPlacementMode="Inline" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <InfoBar IsOpen="{Binding HasValidationError}" Severity="Error" Message="{Binding ValidationMessage}" Margin="0,8,0,0"/>
+                            <InfoBar IsOpen="{Binding ValidationMessage, Converter={StaticResource StringToBoolConverter}}" 
+                                    Severity="Warning" Message="{Binding ValidationMessage}" Margin="0,8,0,0"
+                                    Visibility="{Binding HasValidationError, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                                <Button Content="下一步" Command="{Binding ValidateAndProceedCommand}" 
+                                       Style="{StaticResource AccentButtonStyle}"
+                                       IsEnabled="{Binding IsValidating, Converter={StaticResource InverseBoolConverter}}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Step 2: Scan -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            CornerRadius="8" Padding="24"
+                            Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=2}">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="扫描分析" FontSize="20" FontWeight="SemiBold"/>
+                            
+                            <TextBlock Text="将扫描源目录并分析文件信息，这可能需要几分钟时间。" TextWrapping="Wrap"/>
+
+                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                                   CornerRadius="4" Padding="16" MinHeight="120">
+                                <TextBlock Text="{Binding StatsMessage}" TextWrapping="Wrap" FontFamily="Consolas"/>
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                                <Button Content="上一步" Command="{Binding BackToStep1Command}" 
+                                       IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"/>
+                                <Button Content="开始扫描" Command="{Binding ScanCommand}" 
+                                       Style="{StaticResource AccentButtonStyle}"
+                                       IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                                       Visibility="{Binding ScanCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                <Button Content="下一步" Command="{Binding ProceedToMigrationCommand}" 
+                                       Style="{StaticResource AccentButtonStyle}"
+                                       Visibility="{Binding ScanCompleted, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Step 3: Migration -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            CornerRadius="8" Padding="24"
+                            Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=3}">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="执行迁移" FontSize="20" FontWeight="SemiBold"/>
+                            
+                            <TextBlock Text="{Binding PhaseDescription}" FontWeight="SemiBold" FontSize="16"/>
+                            
+                            <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" Height="8"/>
+                            <TextBlock Text="{Binding ProgressMessage}" TextWrapping="Wrap"/>
+
+                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                                   CornerRadius="4" Padding="16" Height="300">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding LogMessages}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" 
+                                                          TextWrapping="Wrap" Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                                <Button Content="上一步" Command="{Binding BackToStep2Command}" 
+                                       IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
+                                       Visibility="{Binding MigrationCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                <Button Content="取消" Command="{Binding CancelMigrationCommand}" 
+                                       Visibility="{Binding IsMigrating, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <Button Content="开始迁移" Command="{Binding StartMigrationCommand}" 
+                                       Style="{StaticResource AccentButtonStyle}"
+                                       IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
+                                       Visibility="{Binding MigrationCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                <Button Content="查看结果" Command="{Binding ViewResultCommand}" 
+                                       Style="{StaticResource AccentButtonStyle}"
+                                       Visibility="{Binding MigrationCompleted, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Step 4: Result -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            CornerRadius="8" Padding="24"
+                            Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
+                        <StackPanel Spacing="16">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <FontIcon Glyph="&#xE73E;" FontSize="32" Foreground="Green" 
+                                         Visibility="{Binding MigrationSuccess, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <FontIcon Glyph="&#xE711;" FontSize="32" Foreground="Red" 
+                                         Visibility="{Binding MigrationSuccess, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                <TextBlock Text="迁移结果" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                                   CornerRadius="4" Padding="16">
+                                <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                                <Button Content="完成" Command="{Binding ResetCommand}" Style="{StaticResource AccentButtonStyle}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
+
