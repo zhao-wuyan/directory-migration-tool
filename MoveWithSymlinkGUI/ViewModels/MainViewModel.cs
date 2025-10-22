@@ -262,18 +262,32 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                ResultMessage = $"❌ 迁移失败: {result.ErrorMessage}\n" +
-                               (result.WasRolledBack ? "已回滚至原始状态" : "");
+                ResultMessage = $"❌ 迁移失败\n\n" +
+                               $"错误信息: {result.ErrorMessage}\n\n" +
+                               (result.WasRolledBack ? "✓ 已回滚至原始状态\n" : "") +
+                               "请查看下方日志了解详细信息。";
             }
 
-            // 不自动跳转，让用户查看日志
+            // 如果失败，不自动跳转，让用户查看日志；如果成功，自动跳转到结果页面
+            if (result.Success)
+            {
+                CurrentStep = 4;
+            }
         }
         catch (Exception ex)
         {
             MigrationSuccess = false;
             MigrationCompleted = true;
-            ResultMessage = $"❌ 发生错误: {ex.Message}";
-            LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] ❌ {ex.Message}");
+            ResultMessage = $"❌ 发生异常错误\n\n" +
+                           $"错误信息: {ex.Message}\n\n" +
+                           (ex.StackTrace != null ? $"堆栈跟踪:\n{ex.StackTrace}\n\n" : "") +
+                           "请查看下方日志了解详细信息。";
+            LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] ❌ 异常: {ex.Message}");
+            if (ex.StackTrace != null)
+            {
+                LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] 堆栈: {ex.StackTrace}");
+            }
+            // 发生异常时不自动跳转，让用户查看日志
         }
         finally
         {

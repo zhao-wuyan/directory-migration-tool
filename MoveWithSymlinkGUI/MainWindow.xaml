@@ -284,6 +284,24 @@
                                 <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
                             </Border>
 
+                            <!-- 显示完整日志 -->
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="执行日志" FontWeight="SemiBold"/>
+                                <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                                       CornerRadius="4" Padding="16" Height="300">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding LogMessages}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" 
+                                                              TextWrapping="Wrap" Margin="0,2"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+
                             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
                                 <Button Content="完成" Command="{Binding ResetCommand}" Style="{StaticResource AccentButtonStyle}"/>
                             </StackPanel>

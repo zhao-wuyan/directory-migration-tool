@@ -6,11 +6,59 @@ param(
     [int]$SampleMilliseconds = 1000
 )
 
+#region 自动申请管理员权限
 function Test-Administrator {
     $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
+
+# 如果不是管理员，重新以管理员身份启动脚本
+if (-not (Test-Administrator)) {
+    Write-Host '检测到当前不是管理员权限，正在请求提升权限...' -ForegroundColor Yellow
+    
+    # 构建参数列表
+    $argList = @()
+    $argList += '-NoExit'
+    $argList += '-File'
+    $argList += "`"$($MyInvocation.MyCommand.Path)`""
+    
+    # 传递所有原始参数
+    if ($PSBoundParameters.ContainsKey('Source')) {
+        $argList += '-Source'
+        $argList += "`"$Source`""
+    }
+    if ($PSBoundParameters.ContainsKey('Target')) {
+        $argList += '-Target'
+        $argList += "`"$Target`""
+    }
+    if ($PSBoundParameters.ContainsKey('LargeFileThresholdMB')) {
+        $argList += '-LargeFileThresholdMB'
+        $argList += $LargeFileThresholdMB
+    }
+    if ($PSBoundParameters.ContainsKey('RobocopyThreads')) {
+        $argList += '-RobocopyThreads'
+        $argList += $RobocopyThreads
+    }
+    if ($PSBoundParameters.ContainsKey('SampleMilliseconds')) {
+        $argList += '-SampleMilliseconds'
+        $argList += $SampleMilliseconds
+    }
+    
+    try {
+        $process = Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -Verb RunAs -PassThru
+        exit
+    }
+    catch {
+        Write-Error "无法以管理员身份启动脚本: $_"
+        Write-Host '按任意键退出...'
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+        exit 1
+    }
+}
+
+Write-Host '✓ 已获得管理员权限' -ForegroundColor Green
+#endregion
 
 function Get-CanonicalPath([string]$Path) {
     try {
@@ -167,11 +215,6 @@ try {
     $dstRooted = [System.IO.Path]::GetFullPath($targetPath)
     if ($srcRooted.TrimEnd('\') -ieq $dstRooted.TrimEnd('\')) { throw '源与目标路径不能相同。' }
     if ($dstRooted.StartsWith($srcRooted, [System.StringComparison]::OrdinalIgnoreCase)) { throw '目标不能位于源目录内部。' }
-
-    # 权限提示（非管理员可能会导致 mklink 失败，除非启用开发者模式）
-    if (-not (Test-Administrator)) {
-        Write-Warning '当前非管理员。若未启用“开发者模式”，创建符号链接可能失败。'
-    }
 
     $thresholdBytes = [int64]$LargeFileThresholdMB * 1MB
     Write-Host '[2/6] 扫描源目录以计算大小与大文件数量...' -ForegroundColor Yellow

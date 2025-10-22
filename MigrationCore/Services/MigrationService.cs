@@ -95,6 +95,39 @@ public class MigrationService
             if (sourceWarning != null)
                 logProgress?.Report($"⚠️ {sourceWarning}");
 
+            // 获取源目录名称（用于可能的目标路径调整）
+            string sourceLeafForTarget = Path.GetFileName(_config.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            
+            // 若目标路径是一个已存在的非空文件夹，且不以源目录名结尾，则自动拼接源目录名
+            if (Directory.Exists(_config.TargetPath))
+            {
+                string targetLeafName = Path.GetFileName(_config.TargetPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (string.IsNullOrEmpty(targetLeafName))
+                {
+                    targetLeafName = new DirectoryInfo(_config.TargetPath).Name;
+                }
+                
+                // 检查目标目录是否非空
+                bool isNonEmpty = false;
+                try
+                {
+                    isNonEmpty = Directory.EnumerateFileSystemEntries(_config.TargetPath).Any();
+                }
+                catch
+                {
+                    // 忽略错误，继续处理
+                }
+                
+                // 如果目标目录非空，且目标目录名不等于源目录名，则自动拼接
+                if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))
+                {
+                    string newTargetPath = Path.Combine(_config.TargetPath, sourceLeafForTarget);
+                    logProgress?.Report($"⚠️ 目标目录非空且不以源目录名结尾");
+                    logProgress?.Report($"   自动调整目标路径: {_config.TargetPath} -> {newTargetPath}");
+                    _config.TargetPath = newTargetPath;
+                }
+            }
+
             // 验证目标路径
             var (isValidTarget, targetError) = PathValidator.ValidateTargetPath(_config.TargetPath);
             if (!isValidTarget)
@@ -164,6 +197,18 @@ public class MigrationService
         CancellationToken cancellationToken)
     {
         logProgress?.Report("开始复制文件 (robocopy)...");
+
+        // 报告初始进度
+        progress?.Report(new MigrationProgress
+        {
+            CurrentPhase = 3,
+            PhaseDescription = "复制文件",
+            PercentComplete = 0,
+            CopiedBytes = 0,
+            TotalBytes = stats.TotalBytes,
+            SpeedBytesPerSecond = 0,
+            Message = $"准备复制 {FileStatsService.FormatBytes(stats.TotalBytes)}..."
+        });
 
         var robocopyArgs = new List<string>
         {
@@ -261,6 +306,18 @@ public class MigrationService
                 logProgress?.Report($"⚠️ 警告: 目标大小仅为源的 {ratio:P1}，请确认复制是否完整");
             }
         }
+
+        // 报告最终100%进度
+        progress?.Report(new MigrationProgress
+        {
+            CurrentPhase = 3,
+            PhaseDescription = "复制文件",
+            PercentComplete = 100,
+            CopiedBytes = finalSize,
+            TotalBytes = stats.TotalBytes,
+            SpeedBytesPerSecond = 0,
+            Message = $"复制完成: {FileStatsService.FormatBytes(finalSize)}"
+        });
 
         logProgress?.Report($"复制完成，最终大小: {FileStatsService.FormatBytes(finalSize)}");
     }
@@ -382,13 +439,17 @@ public class MigrationService
     {
         logProgress?.Report($"[{phase}/6] {description}");
 
-        progress?.Report(new MigrationProgress
+        // 只在非复制阶段报告基于阶段的进度，复制阶段由 CopyFilesAsync 自己报告
+        if (phase != 3)
         {
-            CurrentPhase = phase,
-            PhaseDescription = description,
-            PercentComplete = (phase - 1) * 100.0 / 6,
-            Message = description
-        });
+            progress?.Report(new MigrationProgress
+            {
+                CurrentPhase = phase,
+                PhaseDescription = description,
+                PercentComplete = (phase - 1) * 100.0 / 6,
+                Message = description
+            });
+        }
     }
 }
 
