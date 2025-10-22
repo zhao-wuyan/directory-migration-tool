@@ -12,6 +12,40 @@ Write-Host "  Advanced Publish - MoveWithSymlink WPF" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
+# Read and update version
+Write-Host "Reading version information..." -ForegroundColor Yellow
+$versionFile = "version.json"
+if (-not (Test-Path $versionFile)) {
+    Write-Error "Version file not found: $versionFile"
+    exit 1
+}
+
+$versionData = Get-Content $versionFile | ConvertFrom-Json
+$currentVersion = "$($versionData.major).$($versionData.minor).$($versionData.patch)"
+Write-Host "Current version: $currentVersion" -ForegroundColor Green
+
+# Increment patch version
+$versionData.patch++
+$newVersion = "$($versionData.major).$($versionData.minor).$($versionData.patch)"
+Write-Host "New version: $newVersion" -ForegroundColor Cyan
+
+# Save updated version
+$versionData | ConvertTo-Json | Set-Content $versionFile
+Write-Host "Version file updated" -ForegroundColor Green
+
+# Update .csproj file
+Write-Host "Updating project file with new version..." -ForegroundColor Yellow
+$csprojFile = "MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj"
+$csprojContent = Get-Content $csprojFile -Raw
+
+$csprojContent = $csprojContent -replace '<Version>[\d.]+</Version>', "<Version>$newVersion</Version>"
+$csprojContent = $csprojContent -replace '<AssemblyVersion>[\d.]+</AssemblyVersion>', "<AssemblyVersion>$newVersion.0</AssemblyVersion>"
+$csprojContent = $csprojContent -replace '<FileVersion>[\d.]+</FileVersion>', "<FileVersion>$newVersion.0</FileVersion>"
+
+$csprojContent | Set-Content $csprojFile -NoNewline
+Write-Host "Project file updated with version $newVersion" -ForegroundColor Green
+Write-Host ""
+
 # Check .NET SDK
 Write-Host "Checking .NET SDK version..." -ForegroundColor Yellow
 $dotnetVersion = dotnet --version
@@ -46,15 +80,24 @@ function Publish-Profile {
         return $false
     }
     
-    # Get file info
+    # Get file info and rename with version
     $publishDir = "MoveWithSymlinkWPF\bin\publish\$ProfileName"
-    $exeFile = Get-Item "$publishDir\目录迁移工具.exe" -ErrorAction SilentlyContinue
+    $originalExe = "$publishDir\目录迁移工具.exe"
+    $versionedExe = "$publishDir\目录迁移工具-v$newVersion.exe"
+    
+    # Rename exe with version
+    if (Test-Path $originalExe) {
+        Move-Item -Path $originalExe -Destination $versionedExe -Force
+    }
+    
+    $exeFile = Get-Item $versionedExe -ErrorAction SilentlyContinue
     
     if ($exeFile) {
         $exeSize = [math]::Round($exeFile.Length/1MB, 2)
         Write-Host "✓ Success! " -ForegroundColor Green -NoNewline
-        Write-Host "File size: $exeSize MB" -ForegroundColor Yellow
-        Write-Host "Location: $publishDir\" -ForegroundColor Gray
+        Write-Host "File: 目录迁移工具-v$newVersion.exe" -ForegroundColor Yellow
+        Write-Host "  Size: $exeSize MB" -ForegroundColor Gray
+        Write-Host "  Location: $publishDir\" -ForegroundColor Gray
     }
     
     Write-Host ""
@@ -101,6 +144,10 @@ if (-not $success) {
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  发布完成！" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+Write-Host "版本号: " -NoNewline
+Write-Host "v$newVersion" -ForegroundColor Magenta
 Write-Host ""
 
 Write-Host "配置说明:" -ForegroundColor Cyan
