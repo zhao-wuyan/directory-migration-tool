@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2024-10-22
+
+### Fixed
+- **进度显示优化** - 重新设计了6步流程的进度分配
+  - 第1步（路径验证）：0-5%
+  - 第2步（扫描）：5-10%
+  - 第3步（复制）：10-90%（占80%，最耗时）
+  - 第4步（创建链接）：90-93%
+  - 第5步（健康检查）：93-96%
+  - 第6步（清理）：96-100%
+  - 修复了之前复制完成就显示100%的问题
+  - 现在进度条准确反映整体完成度
+
+### Changed
+- **MigrationService.cs**
+  - `CopyFilesAsync`: 复制进度映射到10-90%范围
+  - `ReportPhase`: 使用switch表达式精确分配各阶段进度
+  - `ExecuteMigrationAsync`: 在完成时报告最终100%
+- **MoveWithSymlink.ps1**
+  - `Start-RobocopyWithProgress`: 复制进度映射到10-90%
+  - 为每个步骤添加了Write-Progress调用显示准确进度
+
+### Documentation
+- 新增 `修复说明-进度显示优化.md` 详细说明修改逻辑
+
 ## [2.0.0] - 2024-10-22
 
 ### Added - GUI Version (WinUI 3)
@@ -146,6 +171,7 @@ All notable changes to this project will be documented in this file.
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 2.0.1 | 2024-10-22 | Progress display optimization (6-step flow) |
 | 2.0.0 | 2024-10-22 | WinUI 3 GUI version with MVVM architecture |
 | 1.0.0 | Initial | PowerShell CLI version |
 
@@ -183,7 +209,7 @@ The PowerShell CLI version (`MoveWithSymlink.ps1`) continues to work as before. 
 ### Version 2.0.0
 - GUI requires administrator privileges (or Developer Mode)
 - Large directory scans (>1 million files) may take significant time
-- Progress percentage may jump near completion due to robocopy behavior
+- ~~Progress percentage may jump near completion due to robocopy behavior~~ (Fixed in 2.0.1)
 - Log window does not auto-scroll to bottom (requires manual scroll)
 
 ### Workarounds

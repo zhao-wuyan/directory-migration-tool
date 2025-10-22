@@ -1,5 +1,5 @@
 {
-  "major": 1,
+  "major": 2,
   "minor": 0,
   "patch": 1,
   "description": "版本号管理文件 - 每次打包时自动递增 patch 版本号"

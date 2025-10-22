@@ -138,7 +138,9 @@ function Start-RobocopyWithProgress([string]$SourceDir, [string]$TargetDir, [lon
         $deltaTime = ($elapsed - $prevTime).TotalSeconds
         $speed = if ($deltaTime -gt 0) { [double]$deltaBytes / $deltaTime } else { 0 }
 
-        $percent = if ($ExpectedBytes -gt 0) { [math]::Min(100, [math]::Floor(($copied * 100.0) / $ExpectedBytes)) } else { 0 }
+        # 复制阶段占10%-90%，即80%的总进度
+        $copyPercent = if ($ExpectedBytes -gt 0) { [math]::Min(100, [math]::Floor(($copied * 100.0) / $ExpectedBytes)) } else { 0 }
+        $percent = 10 + ($copyPercent * 0.8)  # 映射到10-90%
 
         $eta = ''
         if ($speed -gt 0 -and $ExpectedBytes -gt 0) {
@@ -155,16 +157,16 @@ function Start-RobocopyWithProgress([string]$SourceDir, [string]$TargetDir, [lon
                 (Format-Bytes $numericSpeed),
                 $eta)        
         $intPercent = [int]$percent
-        Write-Progress -Activity 'Copying files (robocopy)' -Status $status -PercentComplete $intPercent
+        Write-Progress -Activity '[3/6] Copying files (robocopy)' -Status $status -PercentComplete $intPercent
 
         $prevBytes = $copied
         $prevTime = $elapsed
     } while (-not $robocopy.HasExited)
 
-    # Flush final progress
+    # 复制完成显示90%
     $finalBytes = Get-DirectorySizeBytes -DirectoryPath $TargetDir
-    $finalStatus = ('100% | {0} / {1}' -f (Format-Bytes $finalBytes), (Format-Bytes $ExpectedBytes))
-    Write-Progress -Activity 'Copying files (robocopy)' -Status $finalStatus -Completed
+    $finalStatus = ('90% | {0} / {1}' -f (Format-Bytes $finalBytes), (Format-Bytes $ExpectedBytes))
+    Write-Progress -Activity '[3/6] Copying files (robocopy)' -Status $finalStatus -PercentComplete 90
 
     return $robocopy.ExitCode
 }
@@ -182,6 +184,7 @@ function Format-Bytes([long]$Bytes) {
 
 try {
     Write-Host '[1/6] 解析源/目标路径...' -ForegroundColor Yellow
+    Write-Progress -Activity '[1/6] 解析源/目标路径' -Status '验证路径...' -PercentComplete 0
     $sourcePath = Get-CanonicalPath -Path $Source
     if (-not (Test-Path -LiteralPath $sourcePath)) { throw "源目录不存在: $sourcePath" }
     if (-not (Get-Item -LiteralPath $sourcePath).PsIsContainer) { throw "源路径不是目录: $sourcePath" }
@@ -230,6 +233,7 @@ try {
 
     $thresholdBytes = [int64]$LargeFileThresholdMB * 1MB
     Write-Host '[2/6] 扫描源目录以计算大小与大文件数量...' -ForegroundColor Yellow
+    Write-Progress -Activity '[2/6] 扫描源目录' -Status '计算大小与文件数量...' -PercentComplete 5
     $stats = Get-FileStats -DirectoryPath $sourcePath -LargeThresholdBytes $thresholdBytes
     $totalBytes = [int64]$stats.TotalBytes
     $totalFiles = [int]$stats.TotalFiles
@@ -256,11 +260,12 @@ try {
     $timestamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
     $backupPath = Join-Path -Path $parent -ChildPath ($name + '.bak_' + $timestamp)
 
-    Write-Host ("[4/6] 切换：备份源目录至 {0}" -f $backupPath) -ForegroundColor Yellow
+    Write-Host ("[4/6] 创建符号链接..." -f $backupPath) -ForegroundColor Yellow
+    Write-Progress -Activity '[4/6] 创建符号链接' -Status '备份源目录...' -PercentComplete 90
     Move-Item -LiteralPath $sourcePath -Destination $backupPath -Force
 
     $mklinkCmd = 'mklink /D ' + '"' + $sourcePath + '" ' + '"' + $targetPath + '"'
-    Write-Host ("[5/6] 创建符号链接: {0}" -f $mklinkCmd)
+    Write-Progress -Activity '[4/6] 创建符号链接' -Status '创建符号链接...' -PercentComplete 91
     $mklink = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c $mklinkCmd" -PassThru -Wait
     if ($mklink.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $sourcePath)) {
         Write-Warning '创建符号链接失败，开始回滚...'
@@ -270,6 +275,8 @@ try {
     }
 
     # 健康检查：链接存在且可访问
+    Write-Host '[5/6] 健康检查...' -ForegroundColor Yellow
+    Write-Progress -Activity '[5/6] 健康检查' -Status '验证符号链接...' -PercentComplete 93
     $linkItem = Get-Item -LiteralPath $sourcePath -ErrorAction SilentlyContinue
     if (-not $linkItem -or -not $linkItem.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint)) {
         Write-Warning '创建的对象不是重解析点（符号链接），开始回滚...'
@@ -279,8 +286,10 @@ try {
     }
 
     # 清理备份
-    Write-Host '[6/6] 验证成功，清理备份目录...' -ForegroundColor Yellow
+    Write-Host '[6/6] 清理备份目录...' -ForegroundColor Yellow
+    Write-Progress -Activity '[6/6] 清理备份' -Status '删除备份目录...' -PercentComplete 96
     try { Remove-Item -LiteralPath $backupPath -Recurse -Force } catch { }
+    Write-Progress -Activity '[6/6] 清理备份' -Status '完成' -PercentComplete 100 -Completed
 
     Write-Host ''
     Write-Host '迁移完成 ✅' -ForegroundColor Green

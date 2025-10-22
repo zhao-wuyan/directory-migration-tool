@@ -59,6 +59,15 @@ public class MigrationService
 
             result.Success = true;
             logProgress?.Report("✅ 迁移完成！");
+            
+            // 报告最终100%进度
+            progress?.Report(new MigrationProgress
+            {
+                CurrentPhase = 6,
+                PhaseDescription = "完成",
+                PercentComplete = 100,
+                Message = "迁移完成"
+            });
 
             return result;
         }
@@ -203,12 +212,12 @@ public class MigrationService
     {
         logProgress?.Report("开始复制文件 (robocopy)...");
 
-        // 报告初始进度
+        // 报告初始进度 - 复制阶段从10%开始
         progress?.Report(new MigrationProgress
         {
             CurrentPhase = 3,
             PhaseDescription = "复制文件",
-            PercentComplete = 0,
+            PercentComplete = 10,
             CopiedBytes = 0,
             TotalBytes = stats.TotalBytes,
             SpeedBytesPerSecond = 0,
@@ -265,7 +274,9 @@ public class MigrationService
             double deltaTime = (elapsed - prevTime).TotalSeconds;
             double speed = deltaTime > 0 ? deltaBytes / deltaTime : 0;
 
-            double percent = stats.TotalBytes > 0 ? Math.Min(100, (copiedBytes * 100.0) / stats.TotalBytes) : 0;
+            // 复制阶段占10%-90%，即80%的总进度
+            double copyPercent = stats.TotalBytes > 0 ? Math.Min(100, (copiedBytes * 100.0) / stats.TotalBytes) : 0;
+            double percent = 10 + (copyPercent * 0.8);  // 映射到10-90%
 
             TimeSpan? eta = null;
             if (speed > 0 && stats.TotalBytes > 0)
@@ -312,12 +323,12 @@ public class MigrationService
             }
         }
 
-        // 报告最终100%进度
+        // 报告复制完成进度（90%）
         progress?.Report(new MigrationProgress
         {
             CurrentPhase = 3,
             PhaseDescription = "复制文件",
-            PercentComplete = 100,
+            PercentComplete = 90,
             CopiedBytes = finalSize,
             TotalBytes = stats.TotalBytes,
             SpeedBytesPerSecond = 0,
@@ -447,11 +458,22 @@ public class MigrationService
         // 只在非复制阶段报告基于阶段的进度，复制阶段由 CopyFilesAsync 自己报告
         if (phase != 3)
         {
+            // 进度分配：1=0-5%, 2=5-10%, 3=10-90%, 4=90-93%, 5=93-96%, 6=96-100%
+            double percentComplete = phase switch
+            {
+                1 => 0,
+                2 => 5,
+                4 => 90,
+                5 => 93,
+                6 => 96,
+                _ => 0
+            };
+
             progress?.Report(new MigrationProgress
             {
                 CurrentPhase = phase,
                 PhaseDescription = description,
-                PercentComplete = (phase - 1) * 100.0 / 6,
+                PercentComplete = percentComplete,
                 Message = description
             });
         }
