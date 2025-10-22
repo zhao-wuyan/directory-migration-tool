@@ -18,9 +18,9 @@
     <Company>诏无言</Company>
     <Authors>诏无言</Authors>
     <Copyright>Copyright © 2025 诏无言</Copyright>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
     
     <!-- 体积优化：只保留中文语言资源 -->
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
