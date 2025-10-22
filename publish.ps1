@@ -1,8 +1,8 @@
 #!/usr/bin/env pwsh
-# Publish script for MoveWithSymlink GUI Application
+# Publish script for MoveWithSymlink WPF Application (Single-File EXE)
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Publishing MoveWithSymlink GUI" -ForegroundColor Cyan
+Write-Host "  Publishing MoveWithSymlink WPF" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -18,47 +18,53 @@ Write-Host ""
 
 # Clean previous publish
 Write-Host "Cleaning previous publish..." -ForegroundColor Yellow
-Remove-Item -Path "MoveWithSymlinkGUI\bin\publish" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "MoveWithSymlinkWPF\bin\publish" -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host ""
 
-# Publish the GUI application
-Write-Host "Publishing MoveWithSymlinkGUI as single-file executable..." -ForegroundColor Yellow
-dotnet publish MoveWithSymlinkGUI\MoveWithSymlinkGUI.csproj `
+# Publish the WPF application
+Write-Host "Publishing MoveWithSymlinkWPF as single-file executable..." -ForegroundColor Yellow
+dotnet publish MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj `
     -p:PublishProfile=win-x64 `
     -c Release
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to publish MoveWithSymlinkGUI"
+    Write-Error "Failed to publish MoveWithSymlinkWPF"
     exit 1
 }
 
-Write-Host "MoveWithSymlinkGUI published successfully" -ForegroundColor Green
+Write-Host "MoveWithSymlinkWPF published successfully" -ForegroundColor Green
 Write-Host ""
 
 # Get file info
-$exeFile = Get-Item "MoveWithSymlinkGUI\bin\publish\win-x64\MoveWithSymlinkGUI.exe"
+$exeFile = Get-Item "MoveWithSymlinkWPF\bin\publish\win-x64\目录迁移工具.exe"
 $exeSize = [math]::Round($exeFile.Length/1MB, 2)
 
 # Display output information
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Publish completed successfully!" -ForegroundColor Green
+Write-Host "  发布完成！" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Single-file executable: " -NoNewline
-Write-Host "MoveWithSymlinkGUI.exe" -ForegroundColor Yellow
-Write-Host "File size: " -NoNewline
+Write-Host "单文件可执行程序: " -NoNewline
+Write-Host "目录迁移工具.exe" -ForegroundColor Yellow
+Write-Host "文件大小: " -NoNewline
 Write-Host "$exeSize MB" -ForegroundColor Yellow
-Write-Host "Location: " -NoNewline
-Write-Host "MoveWithSymlinkGUI\bin\publish\win-x64\" -ForegroundColor Yellow
+Write-Host "位置: " -NoNewline
+Write-Host "MoveWithSymlinkWPF\bin\publish\win-x64\" -ForegroundColor Yellow
+Write-Host "作者: " -NoNewline
+Write-Host "诏无言" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "This is a fully self-contained executable that:" -ForegroundColor Cyan
-Write-Host "  ✓ Includes .NET 8.0 runtime" -ForegroundColor Green
-Write-Host "  ✓ Includes all dependencies" -ForegroundColor Green
-Write-Host "  ✓ Runs without installing .NET" -ForegroundColor Green
-Write-Host "  ✓ Single EXE file (no additional DLLs needed)" -ForegroundColor Green
+Write-Host "这是一个完全独立的 WPF 可执行程序：" -ForegroundColor Cyan
+Write-Host "  ✓ 包含 .NET 8.0 运行时" -ForegroundColor Green
+Write-Host "  ✓ 包含所有依赖项" -ForegroundColor Green
+Write-Host "  ✓ 无需安装 .NET" -ForegroundColor Green
+Write-Host "  ✓ 单个 EXE 文件" -ForegroundColor Green
+Write-Host "  ✓ 支持 Windows 10/11 (x64)" -ForegroundColor Green
+Write-Host "  ✓ 启动时自动申请管理员权限" -ForegroundColor Green
 Write-Host ""
-Write-Host "To run the application:" -ForegroundColor Cyan
-Write-Host "  .\MoveWithSymlinkGUI\bin\publish\win-x64\MoveWithSymlinkGUI.exe" -ForegroundColor White
+Write-Host "运行应用程序:" -ForegroundColor Cyan
+Write-Host "  方法1（推荐）: .\run.ps1" -ForegroundColor White
+Write-Host "  方法2: 双击 目录迁移工具.exe" -ForegroundColor White
 Write-Host ""
-Write-Host "Note: Administrator privileges or Developer Mode is required for creating symbolic links." -ForegroundColor Yellow
+Write-Host "复制 EXE 到当前目录:" -ForegroundColor Cyan
+Write-Host "  Copy-Item 'MoveWithSymlinkWPF\bin\publish\win-x64\目录迁移工具.exe' -Destination '.' -Force" -ForegroundColor White
 

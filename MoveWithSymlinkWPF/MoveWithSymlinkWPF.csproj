@@ -8,7 +8,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon />
-    <AssemblyName>MoveWithSymlinkWPF</AssemblyName>
+    <AssemblyName>目录迁移工具</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    
+    <!-- 产品信息 -->
+    <Product>目录迁移工具</Product>
+    <Title>目录迁移工具</Title>
+    <Description>智能目录迁移工具，自动创建符号链接</Description>
+    <Company>诏无言</Company>
+    <Authors>诏无言</Authors>
+    <Copyright>Copyright © 2025 诏无言</Copyright>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
