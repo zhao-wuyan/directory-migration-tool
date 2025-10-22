@@ -271,8 +271,8 @@
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="下一步" Command="{Binding ValidateAndProceedCommand}"
-                                        IsEnabled="{Binding IsValidating, Converter={StaticResource InverseBoolConverter}}"
+                                <Button Content="开始扫描" Command="{Binding StartScanFromStep1Command}"
+                                        IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>
@@ -293,9 +293,9 @@
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <Button Content="上一步" Command="{Binding BackToStep1Command}"
-                                        IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"/>
-                                <Button Content="开始扫描" Command="{Binding ScanAndProceedCommand}"
-                                        IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                                        IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"/>
+                                <Button Content="开始迁移" Command="{Binding StartMigrationFromStep2Command}"
+                                        IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>
@@ -327,16 +327,9 @@
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="上一步" Command="{Binding BackToStep2Command}"
-                                        IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
-                                        Visibility="{Binding MigrationCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                                 <Button Content="取消" Command="{Binding CancelMigrationCommand}"
                                         Visibility="{Binding IsMigrating, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                <Button Content="开始迁移" Command="{Binding StartMigrationCommand}"
-                                        IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
-                                        Visibility="{Binding MigrationCompleted, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
-                                <Button Content="查看结果" Command="{Binding ViewResultCommand}"
+                                <Button Content="完成" Command="{Binding ViewResultCommand}"
                                         Visibility="{Binding MigrationCompleted, Converter={StaticResource BoolToVisibilityConverter}}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
@@ -360,25 +353,8 @@
                                 <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
                             </Border>
                             
-                            <!-- 显示完整日志 -->
-                            <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <Border Background="#F8F8F8" Padding="10" Height="300" CornerRadius="3">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding LogMessages}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}" FontFamily="Consolas" FontSize="12" 
-                                                              TextWrapping="Wrap" Margin="0,2"/>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </Border>
-                            </StackPanel>
-                            
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="完成" Command="{Binding ResetCommand}"
+                                <Button Content="关闭" Command="{Binding CloseApplicationCommand}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
                         </StackPanel>

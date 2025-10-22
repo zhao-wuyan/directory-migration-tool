@@ -95,8 +95,9 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ValidateAndProceedAsync()
+    private async Task StartScanFromStep1Async()
     {
+        // 先进行验证
         IsValidating = true;
         HasValidationError = false;
         ValidationMessage = string.Empty;
@@ -138,22 +139,22 @@ public partial class MainViewModel : ObservableObject
                 }
             });
 
-            // 验证通过，进入下一步
+            // 验证通过，切换到步骤2并开始扫描
             CurrentStep = 2;
+            IsValidating = false;
+            
+            // 立即开始扫描
+            await ScanAsync();
         }
         catch (Exception ex)
         {
             HasValidationError = true;
             ValidationMessage = ex.Message;
-        }
-        finally
-        {
             IsValidating = false;
         }
     }
 
-    [RelayCommand]
-    private async Task ScanAndProceedAsync()
+    private async Task ScanAsync()
     {
         IsScanning = true;
         StatsMessage = "正在扫描...";
@@ -181,9 +182,6 @@ public partial class MainViewModel : ObservableObject
             {
                 throw new InvalidOperationException("目标磁盘空间不足！");
             }
-
-            // 进入下一步
-            CurrentStep = 3;
         }
         catch (Exception ex)
         {
@@ -193,6 +191,14 @@ public partial class MainViewModel : ObservableObject
         {
             IsScanning = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task StartMigrationFromStep2Async()
+    {
+        // 切换到步骤3并开始迁移
+        CurrentStep = 3;
+        await StartMigrationAsync();
     }
 
     [RelayCommand]
@@ -310,32 +316,13 @@ public partial class MainViewModel : ObservableObject
         CurrentStep = 1;
         HasValidationError = false;
         ValidationMessage = string.Empty;
-    }
-
-    [RelayCommand]
-    private void BackToStep2()
-    {
-        CurrentStep = 2;
-    }
-
-    [RelayCommand]
-    private void Reset()
-    {
-        CurrentStep = 1;
-        SourcePath = string.Empty;
-        TargetPath = string.Empty;
-        LargeFileThresholdMB = 1024;
-        RobocopyThreads = 8;
-        HasValidationError = false;
-        ValidationMessage = string.Empty;
         StatsMessage = string.Empty;
-        ProgressPercent = 0;
-        ProgressMessage = string.Empty;
-        PhaseDescription = string.Empty;
-        MigrationCompleted = false;
-        MigrationSuccess = false;
-        ResultMessage = string.Empty;
-        Application.Current.Dispatcher.Invoke(() => LogMessages.Clear());
+    }
+
+    [RelayCommand]
+    private void CloseApplication()
+    {
+        Application.Current.Shutdown();
     }
 }
 
