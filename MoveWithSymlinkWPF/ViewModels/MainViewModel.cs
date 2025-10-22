@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models;
 using MigrationCore.Services;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -118,11 +119,50 @@ public partial class MainViewModel : ObservableObject
                     ValidationMessage = sourceWarning;
                 }
 
+                // 获取源目录名称（用于可能的目标路径调整）
+                string sourceLeafForTarget = Path.GetFileName(SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                
+                // 若目标路径是一个已存在的非空文件夹，且不以源目录名结尾，则自动拼接源目录名
+                if (Directory.Exists(TargetPath))
+                {
+                    string targetLeafName = Path.GetFileName(TargetPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                    if (string.IsNullOrEmpty(targetLeafName))
+                    {
+                        targetLeafName = new DirectoryInfo(TargetPath).Name;
+                    }
+                    
+                    // 检查目标目录是否非空
+                    bool isNonEmpty = false;
+                    try
+                    {
+                        isNonEmpty = Directory.EnumerateFileSystemEntries(TargetPath).Any();
+                    }
+                    catch
+                    {
+                        // 忽略错误，继续处理
+                    }
+                    
+                    // 如果目标目录非空，且目标目录名不等于源目录名，则自动拼接
+                    if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))
+                    {
+                        string newTargetPath = Path.Combine(TargetPath, sourceLeafForTarget);
+                        ValidationMessage = $"目标目录非空，已自动调整为: {newTargetPath}";
+                        TargetPath = newTargetPath;
+                    }
+                }
+
                 // 验证目标路径
                 var (isValidTarget, targetError) = PathValidator.ValidateTargetPath(TargetPath);
                 if (!isValidTarget)
                 {
                     throw new InvalidOperationException(targetError);
+                }
+
+                // 检查最终目标目录是否为空（在路径调整之后）
+                var (isEmpty, emptyError) = PathValidator.IsTargetDirectoryEmpty(TargetPath);
+                if (!isEmpty)
+                {
+                    throw new InvalidOperationException(emptyError);
                 }
 
                 // 验证路径关系
@@ -135,7 +175,11 @@ public partial class MainViewModel : ObservableObject
                 // 权限检查
                 if (!PathValidator.IsAdministrator())
                 {
-                    ValidationMessage = "当前非管理员权限，若未启用开发者模式，创建符号链接可能失败";
+                    if (!string.IsNullOrEmpty(ValidationMessage))
+                    {
+                        ValidationMessage += "\n";
+                    }
+                    ValidationMessage += "当前非管理员权限，若未启用开发者模式，创建符号链接可能失败";
                 }
             });
 

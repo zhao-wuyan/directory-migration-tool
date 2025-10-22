@@ -133,6 +133,11 @@ public class MigrationService
             if (!isValidTarget)
                 throw new InvalidOperationException(targetError);
 
+            // 检查最终目标目录是否为空（在路径调整之后）
+            var (isEmpty, emptyError) = PathValidator.IsTargetDirectoryEmpty(_config.TargetPath);
+            if (!isEmpty)
+                throw new InvalidOperationException(emptyError);
+
             // 验证路径关系
             var (isValidRelation, relationError) = PathValidator.ValidatePathRelation(_config.SourcePath, _config.TargetPath);
             if (!isValidRelation)

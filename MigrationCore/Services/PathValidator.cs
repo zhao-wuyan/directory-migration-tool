@@ -90,6 +90,39 @@ public static class PathValidator
     }
 
     /// <summary>
+    /// 检查目标目录是否为空
+    /// </summary>
+    public static (bool IsEmpty, string? Error) IsTargetDirectoryEmpty(string targetPath)
+    {
+        try
+        {
+            if (!Directory.Exists(targetPath))
+            {
+                // 目录不存在，视为空目录（可以创建）
+                return (true, null);
+            }
+
+            // 检查目录是否包含任何文件或子目录
+            bool hasAnyContent = Directory.EnumerateFileSystemEntries(targetPath).Any();
+            
+            if (hasAnyContent)
+            {
+                return (false, "目标目录已存在且不为空，禁止迁移");
+            }
+
+            return (true, null);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return (false, "无权访问目标目录");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"检查目标目录失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 验证源和目标的关系
     /// </summary>
     public static (bool IsValid, string? Error) ValidatePathRelation(string sourcePath, string targetPath)
