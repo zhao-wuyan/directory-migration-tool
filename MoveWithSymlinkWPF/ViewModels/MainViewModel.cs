@@ -6,6 +6,8 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace MoveWithSymlinkWPF.ViewModels;
 
@@ -66,6 +68,25 @@ public partial class MainViewModel : ObservableObject
 
     private FileStats? _scannedStats;
     private CancellationTokenSource? _cancellationTokenSource;
+
+    public string VersionText { get; }
+
+    public MainViewModel()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var assemblyVersion = assembly.GetName().Version;
+        
+        // 使用 AssemblyVersion，格式为 major.minor.patch
+        if (assemblyVersion != null)
+        {
+            string version = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
+            VersionText = $"v{version}";
+        }
+        else
+        {
+            VersionText = "v1.0.0";
+        }
+    }
 
     [RelayCommand]
     private void BrowseSource()
