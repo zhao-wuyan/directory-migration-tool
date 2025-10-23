@@ -26,7 +26,7 @@ if (-not (Test-Path $versionFile)) {
     exit 1
 }
 
-$versionData = Get-Content $versionFile | ConvertFrom-Json
+$versionData = Get-Content $versionFile -Encoding UTF8 -Raw | ConvertFrom-Json
 $currentVersion = "$($versionData.major).$($versionData.minor).$($versionData.patch)"
 Write-Host "Current version: $currentVersion" -ForegroundColor Green
 
@@ -37,24 +37,24 @@ if (-not $SkipVersionIncrement) {
     Write-Host "New version: $newVersion" -ForegroundColor Cyan
     
     # Save updated version
-    $versionData | ConvertTo-Json | Set-Content $versionFile
+    $versionData | ConvertTo-Json | Set-Content $versionFile -Encoding UTF8
     Write-Host "Version file updated" -ForegroundColor Green
-    
-    # Update .csproj file
-    Write-Host "Updating project file with new version..." -ForegroundColor Yellow
-    $csprojFile = "MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj"
-    $csprojContent = Get-Content $csprojFile -Raw
-    
-    $csprojContent = $csprojContent -replace '<Version>[\d.]+</Version>', "<Version>$newVersion</Version>"
-    $csprojContent = $csprojContent -replace '<AssemblyVersion>[\d.]+</AssemblyVersion>', "<AssemblyVersion>$newVersion.0</AssemblyVersion>"
-    $csprojContent = $csprojContent -replace '<FileVersion>[\d.]+</FileVersion>', "<FileVersion>$newVersion.0</FileVersion>"
-    
-    $csprojContent | Set-Content $csprojFile -NoNewline
-    Write-Host "Project file updated with version $newVersion" -ForegroundColor Green
 } else {
     $newVersion = $currentVersion
     Write-Host "Skipping version increment, using current version: $newVersion" -ForegroundColor Yellow
 }
+
+# Always update .csproj file to sync with version.json
+Write-Host "Updating project file with version $newVersion..." -ForegroundColor Yellow
+$csprojFile = "MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj"
+$csprojContent = Get-Content $csprojFile -Encoding UTF8 -Raw
+
+$csprojContent = $csprojContent -replace '<Version>[\d.]+</Version>', "<Version>$newVersion</Version>"
+$csprojContent = $csprojContent -replace '<AssemblyVersion>[\d.]+</AssemblyVersion>', "<AssemblyVersion>$newVersion.0</AssemblyVersion>"
+$csprojContent = $csprojContent -replace '<FileVersion>[\d.]+</FileVersion>', "<FileVersion>$newVersion.0</FileVersion>"
+
+$csprojContent | Set-Content $csprojFile -Encoding UTF8 -NoNewline
+Write-Host "Project file updated with version $newVersion" -ForegroundColor Green
 Write-Host ""
 
 # Check .NET SDK

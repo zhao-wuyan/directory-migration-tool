@@ -18,9 +18,9 @@
     <Company>诏无言</Company>
     <Authors>诏无言</Authors>
     <Copyright>Copyright © 2025 诏无言</Copyright>
-    <Version>1.0.6</Version>
-    <AssemblyVersion>1.0.6.0</AssemblyVersion>
-    <FileVersion>1.0.6.0</FileVersion>
+    <Version>1.0.3</Version>
+    <AssemblyVersion>1.0.3.0</AssemblyVersion>
+    <FileVersion>1.0.3.0</FileVersion>
     
     <!-- 体积优化：只保留中文语言资源 -->
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
@@ -43,6 +43,15 @@
   <!-- 排除不必要的框架引用 -->
   <ItemGroup>
     <FrameworkReference Remove="Microsoft.WindowsDesktop.App.WinForms" />
+  </ItemGroup>
+
+  <!-- 包含 version.json 文件到发布输出 -->
+  <ItemGroup>
+    <None Include="..\version.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>version.json</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

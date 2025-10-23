@@ -2,12 +2,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models;
 using MigrationCore.Services;
+using MoveWithSymlinkWPF.Services;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using System.Diagnostics;
-using System.Reflection;
 
 namespace MoveWithSymlinkWPF.ViewModels;
 
@@ -73,19 +73,8 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var assemblyVersion = assembly.GetName().Version;
-        
-        // 使用 AssemblyVersion，格式为 major.minor.patch
-        if (assemblyVersion != null)
-        {
-            string version = $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
-            VersionText = $"v{version}";
-        }
-        else
-        {
-            VersionText = "v1.0.0";
-        }
+        // 从 version.json 或程序集获取版本号
+        VersionText = VersionService.GetVersion();
     }
 
     [RelayCommand]
