@@ -14,8 +14,8 @@
 
 ## 系统要求
 
-- Windows 10/11
-- .NET 8.0 Runtime
+- Windows 10/11 (x64)
+- .NET 8.0 Desktop Runtime（仅框架依赖版本需要）
 - 管理员权限（或启用开发者模式）
 - 目标推荐 NTFS 文件系统
 
@@ -49,16 +49,17 @@
 3) 构建/发布
 
 ```powershell
-# 还原与构建
-dotnet restore
-dotnet build MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj -c Release
-
-# 发布为单文件（使用发布配置）
-dotnet publish MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj -p:PublishProfile=win-x64 -c Release
-
-# 或使用脚本
+# 发布完整版（包含运行时，约 70-100 MB）
 .\publish.ps1
+
+# 发布轻量版（框架依赖，约 2-5 MB，需要系统安装 .NET 8.0）
+.\publish.ps1 -Mode lite
+
+# 同时发布两个版本
+.\publish.ps1 -Mode both
 ```
+
+详细发布说明请查看：[docs/发布版本说明.md](docs/发布版本说明.md)
 
 ## GUI 使用向导
 
