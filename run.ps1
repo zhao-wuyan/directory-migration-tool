@@ -1,28 +1,29 @@
 #!/usr/bin/env pwsh
-# Quick launch script for MoveWithSymlink WPF
-# 直接以管理员身份启动 WPF 应用
 
-$exePath = "MoveWithSymlinkWPF\bin\publish\win-x64\目录迁移工具.exe"
+# Check for published single-file executable first (fastest to run)
+$publishFiles = Get-ChildItem -Path "MoveWithSymlinkWPF\bin\publish\win-x64\目录迁移工具-v*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
 
-if (Test-Path $exePath) {
-    Write-Host "正在启动目录迁移工具（需要管理员权限）..." -ForegroundColor Cyan
-    Write-Host "如果弹出 UAC 对话框，请点击'是'以授予管理员权限" -ForegroundColor Yellow
+if ($publishFiles -and $publishFiles.Count -gt 0) {
+    $exePath = $publishFiles[0].FullName
+    Write-Host "Found published version: $($publishFiles[0].Name)" -ForegroundColor Green
+    Write-Host "Starting application (requires admin privileges)..." -ForegroundColor Cyan
+    Write-Host "Please click 'Yes' in the UAC dialog to grant admin privileges" -ForegroundColor Yellow
     
     try {
-        # 以管理员身份启动 WPF 应用
         Start-Process -FilePath $exePath -Verb RunAs
-        Write-Host "✓ 应用程序已启动（管理员模式）" -ForegroundColor Green
-    }
-    catch {
-        Write-Error "无法以管理员身份启动应用: $_"
-        Write-Host "请检查是否点击了 UAC 对话框中的'是'" -ForegroundColor Yellow
-        Read-Host "按 Enter 键退出"
+        Write-Host "Application started (admin mode)" -ForegroundColor Green
+    } catch {
+        Write-Error "Failed to start application: $_"
+        Read-Host "Press Enter to exit"
     }
 } else {
-    Write-Host "错误: 未找到可执行文件" -ForegroundColor Red
-    Write-Host "路径: $exePath" -ForegroundColor Yellow
-    Write-Host "请先运行发布脚本: .\publish.ps1" -ForegroundColor Yellow
+    # No published version, run with dotnet run
+    Write-Host "No published version found, running with 'dotnet run'..." -ForegroundColor Yellow
+    Write-Host "Note: This requires .NET SDK and will start without admin privileges" -ForegroundColor Yellow
+    Write-Host "For admin mode and standalone exe, run: .\publish.ps1" -ForegroundColor Cyan
     Write-Host ""
-    Read-Host "按 Enter 键退出"
+    
+    Set-Location "MoveWithSymlinkWPF"
+    dotnet run -c Release
+    Set-Location ..
 }
-
