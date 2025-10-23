@@ -1,6 +1,6 @@
-# 目录迁移工具 (Directory Migration Tool)
+# 目录迁移工具 (Directory Migration Tool) · WPF 版本
 
-一个使用符号链接透明迁移大型目录的 Windows 工具，支持 PowerShell CLI 和 WinUI 3 GUI 两种方式。
+一个使用符号链接透明迁移大型目录的 Windows 工具，支持 PowerShell CLI 和 WPF GUI 两种方式。
 
 ## 功能特性
 
@@ -32,20 +32,33 @@
 - `-RobocopyThreads`: 复制并行线程数（默认 8）
 - `-SampleMilliseconds`: 进度采样间隔（默认 1000ms）
 
-### 方式二: WinUI 3 GUI
+### 方式二: WPF GUI
 
-1. 构建项目:
-```bash
-cd MoveWithSymlinkGUI
-dotnet build -c Release
+1) 直接运行（推荐，自动申请管理员权限）
+
+```powershell
+.\MoveWithSymlinkWPF\bin\publish\win-x64\目录迁移工具.exe
 ```
 
-2. 运行应用:
-```bash
-dotnet run -c Release
+2) 使用启动脚本
+
+```powershell
+.\run.ps1
 ```
 
-或直接运行生成的 `MoveWithSymlinkGUI.exe`（需要管理员权限）
+3) 构建/发布
+
+```powershell
+# 还原与构建
+dotnet restore
+dotnet build MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj -c Release
+
+# 发布为单文件（使用发布配置）
+dotnet publish MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj -p:PublishProfile=win-x64 -c Release
+
+# 或使用脚本
+.\publish.ps1
+```
 
 ## GUI 使用向导
 
@@ -101,38 +114,37 @@ dotnet run -c Release
 - 使用 `robocopy` 进行文件复制
 - 使用 `mklink` 创建符号链接
 
-### C# GUI 版本
+### C# GUI 版本（WPF）
 - **.NET 8.0** 平台
-- **WinUI 3** 现代 UI 框架
+- **WPF** 框架（支持单文件自包含发布）
 - **MVVM 架构** (CommunityToolkit.Mvvm)
 - **核心库分离** (MigrationCore) 便于复用
 
 ### 项目结构
 ```
-MoveWithSymlink.sln
+moveFloder/
 ├── MigrationCore/              # 核心业务逻辑类库
 │   ├── Models/                 # 数据模型
-│   │   ├── MigrationConfig.cs
-│   │   ├── FileStats.cs
-│   │   ├── MigrationProgress.cs
-│   │   └── MigrationResult.cs
 │   └── Services/               # 服务层
-│       ├── MigrationService.cs # 核心迁移服务
-│       ├── PathValidator.cs    # 路径验证
-│       ├── FileStatsService.cs # 文件统计
-│       └── SymbolicLinkHelper.cs # 符号链接操作
+│       ├── FileStatsService.cs
+│       ├── MigrationService.cs
+│       ├── PathValidator.cs
+│       └── SymbolicLinkHelper.cs
 │
-├── MoveWithSymlinkGUI/         # WinUI 3 GUI 应用
+├── MoveWithSymlinkWPF/         # WPF GUI 应用
 │   ├── ViewModels/             # 视图模型
 │   │   └── MainViewModel.cs
 │   ├── Converters/             # XAML 转换器
-│   │   ├── BoolConverters.cs
-│   │   └── StepVisibilityConverter.cs
+│   │   └── BooleanConverters.cs
 │   ├── MainWindow.xaml         # 主窗口
 │   ├── App.xaml                # 应用程序
-│   └── Program.cs              # 入口点
+│   └── Properties/PublishProfiles/
+│       ├── win-x64.pubxml
+│       └── win-x64-fast.pubxml
 │
-└── MoveWithSymlink.ps1         # PowerShell CLI 版本
+├── MoveWithSymlink.ps1         # PowerShell CLI 版本
+├── publish.ps1                 # 发布脚本（WPF）
+└── run.ps1                     # 启动脚本（WPF）
 ```
 
 ## 注意事项
@@ -155,7 +167,6 @@ MoveWithSymlink.sln
 ### 前置要求
 - Visual Studio 2022 或更高版本
 - .NET 8.0 SDK
-- Windows App SDK 1.5+
 
 ### 构建步骤
 
@@ -169,9 +180,12 @@ MoveWithSymlink.sln
 dotnet restore
 dotnet build -c Release
 
-# 运行 GUI 应用
-cd MoveWithSymlinkGUI
+# 运行 WPF GUI（开发调试）
+cd MoveWithSymlinkWPF
 dotnet run -c Release
+
+# 发布为单文件（自包含）
+dotnet publish MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj -p:PublishProfile=win-x64 -c Release
 ```
 
 ## 示例场景
@@ -215,3 +229,10 @@ MIT License
 
 **警告**: 此工具会移动大量文件并创建符号链接，使用前请确保已备份重要数据！
 
+
+## 常见问题（WPF 版本）
+
+- 为什么 EXE 文件较大？自包含发布包含 .NET 运行时与依赖，通常 60–80MB。
+- 没有安装 .NET 可以运行吗？可以，自包含发布无需预装 .NET。
+- 是否需要管理员权限？是。应用含 UAC 清单，启动时会自动申请管理员权限。
+- 双击 EXE 与运行 `run.ps1` 有何区别？功能相同，脚本提供额外提示与错误处理，直接双击更简便。
