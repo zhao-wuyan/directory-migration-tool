@@ -168,6 +168,31 @@ public static class QuickMigrateConfigLoader
                             Enabled = false
                         }
                     }
+                },
+                new QuickMigrateProfile
+                {
+                    Id = "AbsoluteApp",
+                    Name = "绝对路径示例",
+                    Locator = new QuickMigrateLocator
+                    {
+                        Type = "absolutePath",
+                        Path = @"D:\Applications\AbsoluteApp"
+                    },
+                    Items = new List<QuickMigrateProfileItem>
+                    {
+                        new QuickMigrateProfileItem
+                        {
+                            DisplayName = "缓存目录",
+                            RelativePath = @"Cache",
+                            Enabled = true
+                        },
+                        new QuickMigrateProfileItem
+                        {
+                            DisplayName = "日志目录",
+                            RelativePath = @"Logs",
+                            Enabled = true
+                        }
+                    }
                 }
             },
             StandaloneSources = new List<QuickMigrateStandaloneSource>
