@@ -24,6 +24,9 @@ public partial class QuickMigrateViewModel : ObservableObject
     private bool _hasValidTasks = false;
 
     [ObservableProperty]
+    private bool _hasPendingTasks = false;
+
+    [ObservableProperty]
     private string _statusMessage = "正在加载配置...";
 
     [ObservableProperty]
@@ -240,6 +243,7 @@ public partial class QuickMigrateViewModel : ObservableObject
         }
 
         HasValidTasks = PendingTaskGroups.Any() || MigratedTaskGroups.Any();
+        HasPendingTasks = PendingTaskGroups.Any();
 
         if (!HasValidTasks)
         {

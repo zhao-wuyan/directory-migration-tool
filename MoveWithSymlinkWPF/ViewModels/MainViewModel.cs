@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models;
 using MigrationCore.Services;
 using MoveWithSymlinkWPF.Services;
+using MoveWithSymlinkWPF.Views;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -13,6 +14,15 @@ namespace MoveWithSymlinkWPF.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    [ObservableProperty]
+    private bool _isManualMode = true;
+
+    [ObservableProperty]
+    private bool _isQuickMigrateMode = false;
+
+    [ObservableProperty]
+    private object? _quickMigratePage;
+
     [ObservableProperty]
     private string _sourcePath = string.Empty;
 
@@ -76,9 +86,32 @@ public partial class MainViewModel : ObservableObject
         // 从 version.json 或程序集获取版本号
         VersionText = VersionService.GetVersion();
         
+        // 初始化一键迁移页面
+        QuickMigratePage = new QuickMigratePage();
+        
 #if DEBUG
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] MainViewModel initialized");
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Version: {VersionText}");
+#endif
+    }
+
+    [RelayCommand]
+    private void ShowManualMode()
+    {
+        IsManualMode = true;
+        IsQuickMigrateMode = false;
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Switched to Manual Mode");
+#endif
+    }
+
+    [RelayCommand]
+    private void ShowQuickMigrate()
+    {
+        IsManualMode = false;
+        IsQuickMigrateMode = true;
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Switched to Quick Migrate Mode");
 #endif
     }
 
