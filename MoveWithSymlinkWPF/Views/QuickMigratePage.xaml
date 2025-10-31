@@ -147,7 +147,7 @@
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
                                                             
-                                                            <!-- Row 1: Display Name and Status -->
+                                                            <!-- Row 1: Display Name and Actions -->
                                                             <Grid Grid.Row="0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
@@ -160,10 +160,13 @@
                                                                           FontSize="14"/>
                                                                 
                                                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <TextBlock Text="{Binding StatusMessage}" 
-                                                                              FontSize="12" 
-                                                                              Foreground="Gray"
-                                                                              Margin="0,0,10,0"/>
+                                                                    <Button Content="迁移" 
+                                                                            Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
+                                                                            Padding="8,4"
+                                                                            MinWidth="60"
+                                                                            Margin="5,0,0,0"/>
                                                                 </StackPanel>
                                                             </Grid>
                                                             

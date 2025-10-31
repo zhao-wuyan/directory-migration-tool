@@ -333,6 +333,62 @@ public partial class QuickMigrateViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task MigrateSingleTaskAsync(QuickMigrateTask task)
+    {
+        if (IsExecuting)
+            return;
+
+        // 验证目标路径
+        if (UseUnifiedTarget && string.IsNullOrWhiteSpace(UnifiedTargetRoot))
+        {
+            MessageBox.Show("请先选择统一目标根目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(task.TargetPath))
+        {
+            MessageBox.Show("目标路径无效", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"确定要迁移以下任务吗？\n\n源: {task.SourcePath}\n目标: {task.TargetPath}\n\n迁移后，源位置将创建符号链接指向目标位置。",
+            "确认迁移",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        IsExecuting = true;
+        CompletedCount = 0;
+        FailedCount = 0;
+        TotalCount = 1;
+        LogMessages.Clear();
+        AddLog($"开始迁移: {task.DisplayName}");
+
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        await ExecuteSingleMigrationTaskAsync(task);
+
+        if (task.Status == QuickMigrateTaskStatus.Completed)
+        {
+            AddLog("迁移操作完成");
+        }
+        else
+        {
+            AddLog("迁移操作失败");
+        }
+
+        IsExecuting = false;
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+
+        // 刷新任务列表
+        ScanAndBuildTasks();
+    }
+
+    [RelayCommand]
     private async Task RestoreTaskAsync(QuickMigrateTask task)
     {
         if (IsExecuting)
