@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Win32;
 using MigrationCore.Models;
 
@@ -15,13 +16,34 @@ public static class RegistryLocatorService
     /// <returns>安装根目录，如果定位失败返回 null</returns>
     public static string? LocateInstallRoot(QuickMigrateLocator locator)
     {
-        if (locator.Type != "registryDisplayIcon")
-        {
-            return null;
-        }
-
         try
         {
+            if (string.Equals(locator.Type, "absolutePath", StringComparison.OrdinalIgnoreCase))
+            {
+                string? absolutePath = locator.Path?.Trim();
+                if (string.IsNullOrEmpty(absolutePath))
+                    return null;
+
+                if (!Path.IsPathRooted(absolutePath))
+                    return null;
+
+                try
+                {
+                    absolutePath = Path.GetFullPath(absolutePath);
+                }
+                catch
+                {
+                    return null;
+                }
+
+                return Directory.Exists(absolutePath) ? absolutePath : null;
+            }
+
+            if (!string.Equals(locator.Type, "registryDisplayIcon", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             RegistryKey? baseKey = locator.Hive.ToUpperInvariant() switch
             {
                 "HKCU" => Registry.CurrentUser,

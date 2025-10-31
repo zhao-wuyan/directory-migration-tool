@@ -102,6 +102,11 @@ public class QuickMigrateLocator
     /// 注册表值名
     /// </summary>
     public string ValueName { get; set; } = "DisplayIcon";
+
+    /// <summary>
+    /// 绝对安装根目录（当 type 为 absolutePath 时使用）
+    /// </summary>
+    public string? Path { get; set; }
 }
 
 /// <summary>

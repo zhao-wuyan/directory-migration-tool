@@ -28,6 +28,18 @@
           "enabled": true
         }
       ]
+    },
+    {
+      "id": "linglong",
+      "name": "模型管理",
+      "locator": {
+        "type": "absolutePath",
+        "path": "C:\\LingLong"
+      },
+      "items": [
+        { "displayName": "模型管理", "relativePath": ".llmodels", "enabled": true },
+        { "displayName": "测试", "relativePath": "test", "enabled": true }
+      ]
     }
   ],
   "standaloneSources": [
