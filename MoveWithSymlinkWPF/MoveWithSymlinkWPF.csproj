@@ -54,4 +54,12 @@
     </None>
   </ItemGroup>
 
+  <!-- 嵌入 quick-migrate.json 作为资源 -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\quick-migrate.json">
+      <Link>Resources\quick-migrate.json</Link>
+      <LogicalName>quick-migrate.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

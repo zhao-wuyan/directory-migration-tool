@@ -1,0 +1,42 @@
+{
+  "defaults": {
+    "largeFileThresholdMB": 1024,
+    "robocopyThreads": 8,
+    "targetStrategy": "unified",
+    "unifiedTargetRoot": "E:\\Migrated",
+    "restoreKeepTarget": false
+  },
+  "profiles": [
+    {
+      "id": "NovaStudio",
+      "name": "示例应用",
+      "locator": {
+        "type": "registryDisplayIcon",
+        "hive": "HKCU",
+        "keyPath": "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\NovaStudio",
+        "valueName": "DisplayIcon"
+      },
+      "items": [
+        {
+          "displayName": "项目目录",
+          "relativePath": "comfyui\\models",
+          "enabled": true
+        },
+        {
+          "displayName": "模板目录",
+          "relativePath": "comfyui\\output",
+          "enabled": false
+        }
+      ]
+    }
+  ],
+  "standaloneSources": [
+    {
+      "displayName": "自定义资源库",
+      "absolutePath": "D:\\MyResources",
+      "enabled": true
+    }
+  ]
+}
+
+

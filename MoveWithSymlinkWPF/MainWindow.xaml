@@ -16,6 +16,8 @@
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
         <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
         <converters:StepVisibilityConverter x:Key="StepVisibilityConverter"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <converters:BoolToForegroundConverter x:Key="BoolToForegroundConverter"/>
         
         <Style TargetType="Button">
             <Setter Property="Padding" Value="15,8"/>
@@ -54,6 +56,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
                 <StackPanel Grid.Column="0">
@@ -61,7 +64,18 @@
                     <TextBlock Text="使用符号链接透明迁移大型目录" FontSize="14" Foreground="Gray"/>
                 </StackPanel>
                 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+                    <Button Content="手动模式" Command="{Binding ShowManualModeCommand}" 
+                            Padding="15,8" Margin="5,0"
+                            Background="{Binding IsManualMode, Converter={StaticResource BoolToColorConverter}}"
+                            Foreground="{Binding IsManualMode, Converter={StaticResource BoolToForegroundConverter}}"/>
+                    <Button Content="⏩ 一键迁移" Command="{Binding ShowQuickMigrateCommand}" 
+                            Padding="15,8" Margin="5,0"
+                            Background="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToColorConverter}}"
+                            Foreground="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToForegroundConverter}}"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="by 诏无言" FontSize="14" Foreground="#0078D4" FontStyle="Italic" FontWeight="SemiBold"/>
                     <TextBlock Text="{Binding VersionText}" FontSize="11" Foreground="Gray" HorizontalAlignment="Right" Margin="0,2,0,0"/>
                 </StackPanel>
@@ -75,8 +89,9 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
-            <!-- Step Navigator -->
-            <Border Grid.Column="0" Background="#F8F8F8" Padding="15" Margin="0,0,15,0" CornerRadius="5">
+            <!-- Step Navigator (Manual Mode Only) -->
+            <Border Grid.Column="0" Background="#F8F8F8" Padding="15" Margin="0,0,15,0" CornerRadius="5"
+                    Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
                     <TextBlock Text="步骤" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,15"/>
                     
@@ -194,8 +209,9 @@
                 </StackPanel>
             </Border>
             
-            <!-- Step Content -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <!-- Manual Mode Content -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"
+                          Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
                     
                     <!-- Step 1: Path Selection -->
@@ -362,6 +378,11 @@
                     
                 </StackPanel>
             </ScrollViewer>
+            
+            <!-- Quick Migrate Mode Content -->
+            <ContentControl Grid.Column="0" Grid.ColumnSpan="2" 
+                           Content="{Binding QuickMigratePage}"
+                           Visibility="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
         </Grid>
         
         <!-- Footer -->
