@@ -37,15 +37,15 @@
         "path": "C:\\LingLong"
       },
       "items": [
-        { "displayName": "模型管理", "relativePath": ".llmodels", "enabled": true },
+        { "displayName": "模型管理", "relativePath": ".llmodels", "enabled": false },
         { "displayName": "测试", "relativePath": "test", "enabled": true }
       ]
     }
   ],
   "standaloneSources": [
     {
-      "displayName": "自定义资源库",
-      "absolutePath": "D:\\MyResources",
+      "displayName": "模型管理",
+      "absolutePath": "C:\\LingLong\\.llmodels",
       "enabled": true
     }
   ]
