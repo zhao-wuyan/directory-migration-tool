@@ -75,11 +75,19 @@ public partial class MainViewModel : ObservableObject
     {
         // 从 version.json 或程序集获取版本号
         VersionText = VersionService.GetVersion();
+        
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] MainViewModel initialized");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Version: {VersionText}");
+#endif
     }
 
     [RelayCommand]
     private void BrowseSource()
     {
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BrowseSource command triggered");
+#endif
         var dialog = new OpenFolderDialog
         {
             Title = "选择源目录"
@@ -88,6 +96,9 @@ public partial class MainViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             SourcePath = dialog.FolderName;
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Source path selected: {SourcePath}");
+#endif
         }
     }
 
@@ -290,10 +301,7 @@ public partial class MainViewModel : ObservableObject
 
             var logProgress = new Progress<string>(msg =>
             {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] {msg}");
-                });
+                AddLog(msg);
             });
 
             var result = await service.ExecuteMigrationAsync(progress, logProgress, _cancellationTokenSource.Token);
@@ -331,14 +339,11 @@ public partial class MainViewModel : ObservableObject
                            $"错误信息: {ex.Message}\n\n" +
                            (ex.StackTrace != null ? $"堆栈跟踪:\n{ex.StackTrace}\n\n" : "") +
                            "请查看下方日志了解详细信息。";
-            Application.Current.Dispatcher.Invoke(() =>
+            AddLog($"❌ 异常: {ex.Message}");
+            if (ex.StackTrace != null)
             {
-                LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] ❌ 异常: {ex.Message}");
-                if (ex.StackTrace != null)
-                {
-                    LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] 堆栈: {ex.StackTrace}");
-                }
-            });
+                AddLog($"堆栈: {ex.StackTrace}");
+            }
             // 发生异常时不自动跳转，让用户查看日志
         }
         finally
@@ -377,6 +382,25 @@ public partial class MainViewModel : ObservableObject
     private void CloseApplication()
     {
         Application.Current.Shutdown();
+    }
+
+    private void AddLog(string message)
+    {
+        var formattedMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
+
+        try
+        {
+            Console.WriteLine(formattedMessage);
+        }
+        catch
+        {
+            // 忽略在无控制台环境下写入失败的情况
+        }
+
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            LogMessages.Add(formattedMessage);
+        });
     }
 }
 

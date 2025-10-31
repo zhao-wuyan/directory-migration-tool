@@ -64,10 +64,17 @@ public partial class QuickMigrateViewModel : ObservableObject
     {
         IsLoading = true;
         StatusMessage = "正在加载配置...";
+        
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] QuickMigrateViewModel: LoadConfigAsync started");
+#endif
 
         await Task.Run(() =>
         {
             _config = QuickMigrateConfigLoader.LoadConfig();
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config loaded: {(_config != null ? "Success" : "Failed")}");
+#endif
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -76,6 +83,9 @@ public partial class QuickMigrateViewModel : ObservableObject
                     HasConfig = false;
                     StatusMessage = "未找到配置文件 quick-migrate.json";
                     IsLoading = false;
+#if DEBUG
+                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config file not found");
+#endif
                     return;
                 }
 
@@ -83,6 +93,9 @@ public partial class QuickMigrateViewModel : ObservableObject
                 UseUnifiedTarget = _config.Defaults.TargetStrategy == "unified";
                 UnifiedTargetRoot = _config.Defaults.UnifiedTargetRoot;
 
+#if DEBUG
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config loaded successfully, scanning tasks...");
+#endif
                 // 扫描并构建任务列表
                 ScanAndBuildTasks();
 
@@ -100,14 +113,24 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private void ExportExampleConfig()
     {
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ExportExampleConfig command triggered");
+#endif
         try
         {
             var exampleConfig = QuickMigrateConfigLoader.CreateExampleConfig();
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
             string configPath = Path.Combine(exeDir, "quick-migrate-example.json");
             
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Export path: {configPath}");
+#endif
+            
             if (QuickMigrateConfigLoader.SaveConfig(exampleConfig, configPath))
             {
+#if DEBUG
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Example config exported successfully");
+#endif
                 MessageBox.Show(
                     $"示例配置已导出到：\n{configPath}\n\n请根据实际需求修改后，重命名为 quick-migrate.json",
                     "导出成功",
@@ -116,11 +139,18 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
             else
             {
+#if DEBUG
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Failed to export example config");
+#endif
                 MessageBox.Show("导出失败", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
         {
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Exception in ExportExampleConfig: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+#endif
             MessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -494,9 +524,20 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     private void AddLog(string message)
     {
+        var formattedMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
+
+        try
+        {
+            Console.WriteLine(formattedMessage);
+        }
+        catch
+        {
+            // 忽略在无控制台环境下写入失败的情况
+        }
+
         Application.Current.Dispatcher.Invoke(() =>
         {
-            LogMessages.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
+            LogMessages.Add(formattedMessage);
         });
     }
 }
