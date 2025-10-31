@@ -97,7 +97,7 @@
                                 Background="#0078D4" 
                                 Foreground="White" 
                                 FontWeight="SemiBold"
-                                Visibility="{Binding HasValidTasks, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <Button Content="取消" 
                                 Command="{Binding CancelExecutionCommand}"
                                 Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"/>

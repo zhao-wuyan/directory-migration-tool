@@ -9,7 +9,7 @@
   "profiles": [
     {
       "id": "NovaStudio",
-      "name": "示例应用",
+      "name": "智玲同学",
       "locator": {
         "type": "registryDisplayIcon",
         "hive": "HKCU",
@@ -18,14 +18,14 @@
       },
       "items": [
         {
-          "displayName": "项目目录",
+          "displayName": "comfyui模型目录",
           "relativePath": "comfyui\\models",
           "enabled": true
         },
         {
-          "displayName": "模板目录",
+          "displayName": "comfyui输出目录",
           "relativePath": "comfyui\\output",
-          "enabled": false
+          "enabled": true
         }
       ]
     }
