@@ -21,8 +21,6 @@ public static class QuickMigrateConfigLoader
     {
         try
         {
-            string json;
-
             if (string.IsNullOrEmpty(configPath))
             {
                 // 默认路径：可执行文件同目录
@@ -30,6 +28,8 @@ public static class QuickMigrateConfigLoader
                 configPath = Path.Combine(exeDir, ConfigFileName);
             }
 
+            string? json;
+            
             // 优先从外部文件加载（允许用户自定义）
             if (File.Exists(configPath))
             {
@@ -39,7 +39,7 @@ public static class QuickMigrateConfigLoader
             {
                 // 从嵌入资源加载默认配置
                 json = LoadEmbeddedConfig();
-                if (json == null)
+                if (string.IsNullOrEmpty(json))
                 {
                     return null;
                 }
@@ -64,6 +64,7 @@ public static class QuickMigrateConfigLoader
     /// <summary>
     /// 从嵌入资源加载配置
     /// </summary>
+    /// <returns>配置JSON字符串，如果加载失败则返回null</returns>
     private static string? LoadEmbeddedConfig()
     {
         try
@@ -136,7 +137,7 @@ public static class QuickMigrateConfigLoader
                 LargeFileThresholdMB = 1024,
                 RobocopyThreads = 8,
                 TargetStrategy = "unified",
-                UnifiedTargetRoot = "E:\\Migrated",
+                UnifiedTargetRoot = "D:\\Migrated",
                 RestoreKeepTarget = false
             },
             Profiles = new List<QuickMigrateProfile>

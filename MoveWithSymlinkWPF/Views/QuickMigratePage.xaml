@@ -25,15 +25,15 @@
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="3"/>
-            <Setter Property="Padding" Value="10"/>
-            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,4"/>
         </Style>
         
         <Style x:Key="GroupBoxStyle" TargetType="GroupBox">
             <Setter Property="BorderBrush" Value="#CCCCCC"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="0,0,0,15"/>
-            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
     </UserControl.Resources>
     
@@ -41,7 +41,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="200"/>
+            <RowDefinition Height="120" MinHeight="100" MaxHeight="200"/>
         </Grid.RowDefinitions>
         
         <!-- Header -->
@@ -170,7 +170,7 @@
                                                             <!-- Row 2: Paths -->
                                                             <Grid Grid.Row="1" Margin="0,5,0,0">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="60"/>
+                                                                    <ColumnDefinition Width="50"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <Grid.RowDefinitions>
@@ -178,20 +178,24 @@
                                                                     <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
                                                                 
-                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="源:" FontSize="11" Foreground="Gray"/>
+                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="源:" FontSize="11" Foreground="Gray" VerticalAlignment="Top" Margin="0,2,0,0"/>
                                                                 <TextBlock Grid.Row="0" Grid.Column="1" 
                                                                           Text="{Binding SourcePath}" 
                                                                           FontSize="11" 
                                                                           FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"/>
+                                                                          TextTrimming="CharacterEllipsis"
+                                                                          TextWrapping="NoWrap"
+                                                                          ToolTip="{Binding SourcePath}"/>
                                                                 
-                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,4,0,0" VerticalAlignment="Top"/>
                                                                 <TextBlock Grid.Row="1" Grid.Column="1" 
                                                                           Text="{Binding TargetPath}" 
                                                                           FontSize="11" 
                                                                           FontFamily="Consolas"
                                                                           TextTrimming="CharacterEllipsis"
-                                                                          Margin="0,2,0,0"/>
+                                                                          TextWrapping="NoWrap"
+                                                                          Margin="0,4,0,0"
+                                                                          ToolTip="{Binding TargetPath}"/>
                                                             </Grid>
                                                             
                                                             <!-- Row 3: Progress Bar (when executing) -->
@@ -299,7 +303,7 @@
                                                             <!-- Row 2: Paths -->
                                                             <Grid Grid.Row="1" Margin="0,5,0,0">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="60"/>
+                                                                    <ColumnDefinition Width="50"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <Grid.RowDefinitions>
@@ -308,26 +312,30 @@
                                                                     <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
                                                                 
-                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="链接:" FontSize="11" Foreground="Gray"/>
+                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="链接:" FontSize="11" Foreground="Gray" VerticalAlignment="Top" Margin="0,2,0,0"/>
                                                                 <TextBlock Grid.Row="0" Grid.Column="1" 
                                                                           Text="{Binding SourcePath}" 
                                                                           FontSize="11" 
                                                                           FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"/>
+                                                                          TextTrimming="CharacterEllipsis"
+                                                                          TextWrapping="NoWrap"
+                                                                          ToolTip="{Binding SourcePath}"/>
                                                                 
-                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,4,0,0" VerticalAlignment="Top"/>
                                                                 <TextBlock Grid.Row="1" Grid.Column="1" 
                                                                           Text="{Binding SymlinkTarget}" 
                                                                           FontSize="11" 
                                                                           FontFamily="Consolas"
                                                                           TextTrimming="CharacterEllipsis"
-                                                                          Margin="0,2,0,0"/>
+                                                                          TextWrapping="NoWrap"
+                                                                          Margin="0,4,0,0"
+                                                                          ToolTip="{Binding SymlinkTarget}"/>
                                                                 
-                                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="迁移:" FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="迁移:" FontSize="11" Foreground="Gray" Margin="0,4,0,0"/>
                                                                 <TextBlock Grid.Row="2" Grid.Column="1" 
                                                                           Text="{Binding MigratedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" 
                                                                           FontSize="11"
-                                                                          Margin="0,2,0,0"/>
+                                                                          Margin="0,4,0,0"/>
                                                             </Grid>
                                                             
                                                             <!-- Row 3: Status Message -->
