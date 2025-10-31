@@ -41,11 +41,11 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="120" MinHeight="100" MaxHeight="200"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
         <!-- Header -->
-        <Border Grid.Row="0" Background="#F8F8F8" Padding="15" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="#F8F8F8" Padding="10,8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -53,12 +53,12 @@
                 </Grid.RowDefinitions>
                 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⏩ 一键迁移" FontSize="20" FontWeight="Bold" Margin="0,0,15,0"/>
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="14" Foreground="Gray" VerticalAlignment="Center"/>
+                    <TextBlock Text="⏩ 一键迁移" FontSize="16" FontWeight="Bold" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="13" Foreground="Gray" VerticalAlignment="Center"/>
                 </StackPanel>
                 
                 <!-- Target Strategy -->
-                <Grid Grid.Row="1" Margin="0,10,0,0">
+                <Grid Grid.Row="1" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -358,26 +358,23 @@
             </TabItem>
         </TabControl>
         
-        <!-- Log Area -->
-        <Border Grid.Row="2" 
-                Background="#F8F8F8" 
-                BorderBrush="#E0E0E0" 
-                BorderThickness="0,1,0,0"
-                Padding="10">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+        <!-- Log Area (Collapsible) -->
+        <Expander Grid.Row="2" 
+                  IsExpanded="False"
+                  Background="#F8F8F8" 
+                  BorderBrush="#E0E0E0" 
+                  BorderThickness="0,1,0,0">
+            <Expander.Header>
+                <StackPanel Orientation="Horizontal" Margin="0,4">
                     <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,15,0"/>
                     <TextBlock Text="{Binding CompletedCount, StringFormat='完成: {0}'}" Margin="0,0,10,0"/>
                     <TextBlock Text="{Binding FailedCount, StringFormat='失败: {0}'}" Foreground="Red" Margin="0,0,10,0"/>
                     <TextBlock Text="{Binding TotalCount, StringFormat='总计: {0}'}" Foreground="Gray"/>
                 </StackPanel>
-                
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            </Expander.Header>
+            
+            <Border Height="150" Padding="10,5">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding LogMessages}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -390,8 +387,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-            </Grid>
-        </Border>
+            </Border>
+        </Expander>
     </Grid>
 </UserControl>
 
