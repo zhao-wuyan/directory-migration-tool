@@ -194,9 +194,21 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             if (UseUnifiedTarget && !string.IsNullOrEmpty(UnifiedTargetRoot))
             {
-                string sourceName = string.IsNullOrEmpty(task.RelativePath) ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) : task.RelativePath;
+                // 统一目标模式：使用用户选择的统一目标根目录
+                string sourceName = string.IsNullOrEmpty(task.RelativePath) 
+                    ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) 
+                    : task.RelativePath;
                 task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
             }
+            else if (!string.IsNullOrEmpty(_config.Defaults.UnifiedTargetRoot))
+            {
+                // 非统一模式但配置文件中有默认目标根目录：使用配置文件中的路径作为默认值
+                string sourceName = string.IsNullOrEmpty(task.RelativePath) 
+                    ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) 
+                    : task.RelativePath;
+                task.TargetPath = Path.Combine(_config.Defaults.UnifiedTargetRoot, sourceName);
+            }
+            // 如果两者都为空，TargetPath 保持为空，UI 会提示用户设置
         }
 
         // 检测迁移状态
@@ -280,6 +292,34 @@ public partial class QuickMigrateViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void BrowseTaskTarget(QuickMigrateTask task)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = $"选择 \"{task.DisplayName}\" 的目标目录"
+        };
+        
+        // 如果已有目标路径，使用其父目录作为初始位置
+        if (!string.IsNullOrEmpty(task.TargetPath))
+        {
+            try
+            {
+                string? parentDir = Path.GetDirectoryName(task.TargetPath);
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+                {
+                    dialog.InitialDirectory = parentDir;
+                }
+            }
+            catch { }
+        }
+
+        if (dialog.ShowDialog() == true)
+        {
+            task.TargetPath = dialog.FolderName;
+        }
+    }
+
+    [RelayCommand]
     private async Task StartQuickMigrationAsync()
     {
         if (!HasValidTasks || IsExecuting)
@@ -347,7 +387,11 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(task.TargetPath))
         {
-            MessageBox.Show("目标路径无效", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(
+                "目标路径未设置。\n\n请点击\"浏览...\"按钮选择目标目录，或在配置文件中指定 unifiedTargetRoot。",
+                "目标路径无效",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 

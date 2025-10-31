@@ -160,6 +160,16 @@
                                                                           FontSize="14"/>
                                                                 
                                                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <!-- 非统一模式下显示浏览按钮 -->
+                                                                    <Button Content="浏览..." 
+                                                                            Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            Visibility="{Binding DataContext.UseUnifiedTarget, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                                                            Padding="8,4"
+                                                                            MinWidth="60"
+                                                                            Margin="5,0,0,0"/>
+                                                                    
+                                                                    <!-- 迁移按钮 -->
                                                                     <Button Content="迁移" 
                                                                             Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
