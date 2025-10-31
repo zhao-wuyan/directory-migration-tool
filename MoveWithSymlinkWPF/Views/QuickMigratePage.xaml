@@ -13,6 +13,7 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
         
         <Style TargetType="Button">
             <Setter Property="Padding" Value="12,6"/>

@@ -30,19 +30,27 @@ public static class MigrationStateDetector
             // 源是符号链接，表示已迁移
             task.MigrationState = MigrationState.Migrated;
 
-            // 尝试获取符号链接目标
+            // 尝试获取符号链接实际指向的目标
+            string? actualTarget = null;
             try
             {
                 var dirInfo = new DirectoryInfo(sourcePath);
                 if (dirInfo.Exists && dirInfo.LinkTarget != null)
                 {
-                    task.SymlinkTarget = dirInfo.LinkTarget;
+                    actualTarget = dirInfo.LinkTarget;
+                    task.SymlinkTarget = actualTarget;
                     
                     // 如果任务没有设置目标路径，从符号链接读取
                     if (string.IsNullOrEmpty(targetPath))
                     {
-                        task.TargetPath = dirInfo.LinkTarget;
-                        targetPath = dirInfo.LinkTarget;
+                        task.TargetPath = actualTarget;
+                        targetPath = actualTarget;
+                    }
+                    else if (!string.Equals(Path.GetFullPath(targetPath), Path.GetFullPath(actualTarget), StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 配置中的目标路径与符号链接实际指向不一致，使用实际目标
+                        task.TargetPath = actualTarget;
+                        targetPath = actualTarget;
                     }
                 }
             }
@@ -51,8 +59,9 @@ public static class MigrationStateDetector
                 // 忽略错误
             }
 
-            // 检查目标是否存在
-            if (!string.IsNullOrEmpty(targetPath) && !Directory.Exists(targetPath))
+            // 检查符号链接实际指向的目标是否存在（优先使用实际目标）
+            string pathToCheck = actualTarget ?? targetPath ?? string.Empty;
+            if (!string.IsNullOrEmpty(pathToCheck) && !Directory.Exists(pathToCheck))
             {
                 task.MigrationState = MigrationState.Inconsistent;
                 task.StatusMessage = "符号链接存在但目标缺失";
