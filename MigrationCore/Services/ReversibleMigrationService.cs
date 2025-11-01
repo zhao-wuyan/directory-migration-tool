@@ -471,7 +471,8 @@ public class ReversibleMigrationService
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                process.Kill();
+                logProgress?.Report("正在终止 robocopy 进程及其子进程...");
+                KillProcessTree(process.Id);
                 throw new OperationCanceledException("用户取消操作");
             }
 
@@ -725,6 +726,41 @@ public class ReversibleMigrationService
                 PercentComplete = percentComplete,
                 Message = description
             });
+        }
+    }
+
+    /// <summary>
+    /// 终止进程及其所有子进程
+    /// </summary>
+    private static void KillProcessTree(int processId)
+    {
+        try
+        {
+            // 使用 taskkill /T (tree) /F (force) 终止进程树
+            var killProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "taskkill",
+                    Arguments = $"/PID {processId} /T /F",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            killProcess.Start();
+            killProcess.WaitForExit(5000); // 最多等待5秒
+        }
+        catch
+        {
+            // 如果 taskkill 失败，回退到 Kill()
+            try
+            {
+                var proc = Process.GetProcessById(processId);
+                proc.Kill();
+            }
+            catch { }
         }
     }
 

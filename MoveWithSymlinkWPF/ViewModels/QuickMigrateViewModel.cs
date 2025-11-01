@@ -351,6 +351,97 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         AddLog($"开始一键迁移，共 {TotalCount} 个任务");
 
+        // 预扫描所有任务并检查磁盘空间
+        AddLog("正在扫描所有任务并检查磁盘空间...");
+
+        // 按目标磁盘分组统计所需空间
+        var diskSpaceRequirements = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var task in tasks)
+        {
+            try
+            {
+                // 获取源目录大小
+                long sourceSize = FileStatsService.GetDirectorySize(task.SourcePath);
+                
+                // 获取目标磁盘根路径
+                string? targetRoot = Path.GetPathRoot(task.TargetPath);
+                if (string.IsNullOrEmpty(targetRoot))
+                {
+                    AddLog($"⚠️ [{task.DisplayName}] 无法确定目标磁盘，跳过空间检查");
+                    continue;
+                }
+                
+                // 累加该磁盘所需空间
+                if (diskSpaceRequirements.ContainsKey(targetRoot))
+                {
+                    diskSpaceRequirements[targetRoot] += sourceSize;
+                }
+                else
+                {
+                    diskSpaceRequirements[targetRoot] = sourceSize;
+                }
+                
+                AddLog($"  [{task.DisplayName}] 大小: {FileStatsService.FormatBytes(sourceSize)}");
+            }
+            catch (Exception ex)
+            {
+                AddLog($"⚠️ [{task.DisplayName}] 扫描失败: {ex.Message}");
+                var result = MessageBox.Show(
+                    $"任务 \"{task.DisplayName}\" 扫描失败:\n{ex.Message}\n\n是否继续？", 
+                    "扫描警告", 
+                    MessageBoxButton.YesNo, 
+                    MessageBoxImage.Warning);
+                
+                if (result != MessageBoxResult.Yes)
+                {
+                    IsExecuting = false;
+                    _cancellationTokenSource?.Dispose();
+                    _cancellationTokenSource = null;
+                    return;
+                }
+            }
+        }
+
+        // 检查每个目标磁盘的可用空间
+        bool spaceCheckFailed = false;
+        foreach (var kvp in diskSpaceRequirements)
+        {
+            string diskRoot = kvp.Key;
+            long requiredBytes = kvp.Value;
+            
+            var (sufficient, available, required) = PathValidator.CheckDiskSpace(diskRoot, requiredBytes);
+            
+            AddLog($"磁盘 {diskRoot}:");
+            AddLog($"  可用空间: {FileStatsService.FormatBytes(available)}");
+            AddLog($"  所需空间(含10%余量): {FileStatsService.FormatBytes(required)}");
+            
+            if (!sufficient)
+            {
+                AddLog($"❌ 磁盘 {diskRoot} 空间不足！");
+                spaceCheckFailed = true;
+            }
+            else
+            {
+                AddLog($"✅ 磁盘 {diskRoot} 空间充足");
+            }
+        }
+
+        if (spaceCheckFailed)
+        {
+            MessageBox.Show(
+                "目标磁盘空间不足，无法继续迁移！\n\n请查看日志了解详细信息。", 
+                "空间不足", 
+                MessageBoxButton.OK, 
+                MessageBoxImage.Error);
+            IsExecuting = false;
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+            return;
+        }
+
+        AddLog("磁盘空间检查通过，开始迁移任务...");
+
         foreach (var task in tasks)
         {
             if (_cancellationTokenSource.Token.IsCancellationRequested)
