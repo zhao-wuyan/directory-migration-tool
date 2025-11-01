@@ -8,6 +8,18 @@
   },
   "profiles": [
     {
+      "id": "testMove",
+      "name": "测试迁移",
+      "locator": {
+        "type": "absolutePath",
+        "path": "C:\\testMove"
+      },
+      "items": [
+        { "displayName": "测试一", "relativePath": "01", "enabled": true },
+        { "displayName": "测试二", "relativePath": "02", "enabled": true }
+      ]
+    },
+    {
       "id": "NovaStudio",
       "name": "智玲同学",
       "locator": {
@@ -27,18 +39,6 @@
           "relativePath": "comfyui\\output",
           "enabled": true
         }
-      ]
-    },
-    {
-      "id": "linglong",
-      "name": "模型管理",
-      "locator": {
-        "type": "absolutePath",
-        "path": "C:\\LingLong"
-      },
-      "items": [
-        { "displayName": "模型管理", "relativePath": ".llmodels", "enabled": false },
-        { "displayName": "测试", "relativePath": "test", "enabled": true }
       ]
     }
   ],
