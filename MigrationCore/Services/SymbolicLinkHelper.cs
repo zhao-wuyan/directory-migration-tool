@@ -100,10 +100,13 @@ public static class SymbolicLinkHelper
                         // 如果能读取到 LinkTarget，说明确实是符号链接
                         return !string.IsNullOrEmpty(linkTarget);
                     }
+#if DEBUG
                     catch (Exception ex)
                     {
-#if DEBUG
                         Console.WriteLine($"[SymbolicLinkHelper] Failed to read LinkTarget: {ex.Message}");
+#else
+                    catch
+                    {
 #endif
                         // 即使读取失败，有 ReparsePoint 标志也认为是符号链接
                         return true;
@@ -131,10 +134,13 @@ public static class SymbolicLinkHelper
 #endif
             return false;
         }
+#if DEBUG
         catch (Exception ex)
         {
-#if DEBUG
             Console.WriteLine($"[SymbolicLinkHelper] Exception: {ex.Message}");
+#else
+        catch
+        {
 #endif
             return false;
         }

@@ -15,6 +15,107 @@
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
         <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
         
+        <!-- Modern ScrollBar Style -->
+        <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="Background" Value="#C0C0C0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4"
+                                Margin="2"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#909090"/>
+                </Trigger>
+                <Trigger Property="IsDragging" Value="True">
+                    <Setter Property="Background" Value="#606060"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="ModernScrollBar" TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="MinWidth" Value="10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="10"/>
+                    <Setter Property="MinHeight" Value="10"/>
+                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                <Grid>
+                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                        <Track.Thumb>
+                                            <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                        </Track.Thumb>
+                                    </Track>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="ModernScrollViewer" TargetType="{x:Type ScrollViewer}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
+                            
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                      Grid.Column="1" Grid.Row="0"
+                                      Style="{StaticResource ModernScrollBar}"
+                                      Value="{TemplateBinding VerticalOffset}"
+                                      Maximum="{TemplateBinding ScrollableHeight}"
+                                      ViewportSize="{TemplateBinding ViewportHeight}"
+                                      Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                            
+                            <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                      Grid.Column="0" Grid.Row="1"
+                                      Orientation="Horizontal"
+                                      Style="{StaticResource ModernScrollBar}"
+                                      Value="{TemplateBinding HorizontalOffset}"
+                                      Maximum="{TemplateBinding ScrollableWidth}"
+                                      ViewportSize="{TemplateBinding ViewportWidth}"
+                                      Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <Style TargetType="Button">
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Margin" Value="5,0"/>
@@ -116,7 +217,7 @@
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Margin="10">
             <!-- 未迁移任务 -->
             <TabItem Header="未迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
                     <StackPanel Margin="10">
                         <!-- Empty State -->
                         <Border Background="#F0F0F0" 
@@ -249,7 +350,7 @@
             
             <!-- 已迁移任务 -->
             <TabItem Header="已迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
                     <StackPanel Margin="10">
                         <!-- Empty State -->
                         <TextBlock Text="暂无已迁移任务" 
@@ -399,7 +500,7 @@
             </Expander.Header>
             
             <Border Height="150" Padding="10,5">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
                     <ItemsControl ItemsSource="{Binding LogMessages}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

@@ -305,3 +305,4 @@ private async Task StartScanFromStep1Async()
 - ✅ 磁盘空间检查针对正确的磁盘
 - ✅ 用户能清楚知道当前处于什么模式
 
+

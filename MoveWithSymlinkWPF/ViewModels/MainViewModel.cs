@@ -274,20 +274,26 @@ public partial class MainViewModel : ObservableObject
                         }
                     }
                 }
+#if DEBUG
                 catch (Exception ex)
                 {
-#if DEBUG
                     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Error scanning {searchPath}: {ex.Message}");
+#else
+                catch
+                {
 #endif
                 }
             }
 
             return null;
         }
+#if DEBUG
         catch (Exception ex)
         {
-#if DEBUG
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Error in FindSymlinkPointingTo: {ex.Message}");
+#else
+        catch
+        {
 #endif
             return null;
         }
