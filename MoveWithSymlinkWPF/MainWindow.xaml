@@ -23,11 +23,13 @@
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Height" Value="36"/>
         </Style>
         
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="8"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Height" Value="36"/>
         </Style>
         
         <Style x:Key="HeaderStyle" TargetType="TextBlock">
@@ -51,7 +53,7 @@
         </Grid.RowDefinitions>
         
         <!-- Header -->
-        <Border Grid.Row="0" Background="#F0F0F0" Padding="20">
+        <Border Grid.Row="0" Background="#F0F0F0" Padding="15">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -83,14 +85,14 @@
         </Border>
         
         <!-- Content -->
-        <Grid Grid.Row="1" Margin="20">
+        <Grid Grid.Row="1" Margin="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
             <!-- Step Navigator (Manual Mode Only) -->
-            <Border Grid.Column="0" Background="#F8F8F8" Padding="15" Margin="0,0,15,0" CornerRadius="5"
+            <Border Grid.Column="0" Background="#F8F8F8" Padding="12" Margin="0,0,12,0" CornerRadius="5"
                     Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
                     <TextBlock Text="步骤" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,15"/>
@@ -215,7 +217,7 @@
                 <StackPanel>
                     
                     <!-- Step 1: Path Selection -->
-                    <Border Background="White" Padding="20" Margin="0,0,0,10" CornerRadius="5"
+                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=1}">
                         <StackPanel>
@@ -284,6 +286,7 @@
                                         <Style TargetType="TextBox">
                                             <Setter Property="Padding" Value="8"/>
                                             <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                            <Setter Property="Height" Value="36"/>
                                             <Setter Property="Background" Value="White"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsTargetPathReadOnly}" Value="True">
@@ -363,7 +366,7 @@
                     </Border>
                     
                     <!-- Step 2: Scan -->
-                    <Border Background="White" Padding="20" Margin="0,0,0,10" CornerRadius="5"
+                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=2}">
                         <StackPanel>
@@ -448,7 +451,7 @@
                     </Border>
                     
                     <!-- Step 3: Migration -->
-                    <Border Background="White" Padding="20" Margin="0,0,0,10" CornerRadius="5"
+                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=3}">
                         <StackPanel>
@@ -523,7 +526,7 @@
                     </Border>
                     
                     <!-- Step 4: Result -->
-                    <Border Background="White" Padding="20" Margin="0,0,0,10" CornerRadius="5"
+                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
                         <StackPanel>
@@ -581,8 +584,7 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <Button Content="完成" Command="{Binding BackToStep1Command}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
-                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"
-                                        Margin="5,0,0,0"/>
+                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -597,7 +599,7 @@
         </Grid>
         
         <!-- Footer -->
-        <Border Grid.Row="2" Background="#F8F8F8" Padding="10" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#F8F8F8" Padding="5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
             <Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <TextBlock Text="© 2025 " Foreground="Gray" FontSize="11"/>
