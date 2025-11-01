@@ -23,6 +23,31 @@ public static class PathValidator
     };
 
     /// <summary>
+    /// 判断文件是否为迁移标记文件
+    /// </summary>
+    private static bool IsMarkerFile(string fileName)
+    {
+        return fileName.StartsWith(".xinghe-migrate.", StringComparison.OrdinalIgnoreCase) ||
+               fileName.StartsWith(".xinghe-reduction.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检查目录是否包含用户数据（忽略标记文件）
+    /// </summary>
+    public static bool HasUserContent(string directoryPath)
+    {
+        try
+        {
+            return Directory.EnumerateFileSystemEntries(directoryPath)
+                .Any(entry => !IsMarkerFile(Path.GetFileName(entry)));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 验证源路径是否合法
     /// </summary>
     public static (bool IsValid, string? Error, string? Warning) ValidateSourcePath(string sourcePath)
@@ -102,8 +127,8 @@ public static class PathValidator
                 return (true, null);
             }
 
-            // 检查目录是否包含任何文件或子目录
-            bool hasAnyContent = Directory.EnumerateFileSystemEntries(targetPath).Any();
+            // 检查目录是否包含用户数据（忽略标记文件）
+            bool hasAnyContent = HasUserContent(targetPath);
             
             if (hasAnyContent)
             {

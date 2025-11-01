@@ -96,6 +96,14 @@ public class MigrationService
     {
         await Task.Run(() =>
         {
+            // 清理源目录可能存在的旧标记文件
+            // 这些标记可能是之前作为目标目录时创建的，被还原操作复制回来了
+            if (Directory.Exists(_config.SourcePath))
+            {
+                MigrationStateDetector.DeleteMigrateMarkers(_config.SourcePath);
+                MigrationStateDetector.DeleteRestoreMarkers(_config.SourcePath);
+            }
+
             // 验证源路径
             var (isValidSource, sourceError, sourceWarning) = PathValidator.ValidateSourcePath(_config.SourcePath);
             if (!isValidSource)
@@ -117,15 +125,8 @@ public class MigrationService
                 }
                 
                 // 检查目标目录是否非空
-                bool isNonEmpty = false;
-                try
-                {
-                    isNonEmpty = Directory.EnumerateFileSystemEntries(_config.TargetPath).Any();
-                }
-                catch
-                {
-                    // 忽略错误，继续处理
-                }
+                // 检查目录是否包含用户数据（忽略标记文件）
+                bool isNonEmpty = PathValidator.HasUserContent(_config.TargetPath);
                 
                 // 如果目标目录非空，且目标目录名不等于源目录名，则自动拼接
                 if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))

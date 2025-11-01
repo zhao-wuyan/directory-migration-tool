@@ -121,6 +121,14 @@ public class ReversibleMigrationService
     {
         await Task.Run(() =>
         {
+            // 清理源目录可能存在的旧标记文件
+            // 这些标记可能是之前作为目标目录时创建的，被还原操作复制回来了
+            if (Directory.Exists(_config.SourcePath))
+            {
+                MigrationStateDetector.DeleteMigrateMarkers(_config.SourcePath);
+                MigrationStateDetector.DeleteRestoreMarkers(_config.SourcePath);
+            }
+
             var (isValidSource, sourceError, sourceWarning) = PathValidator.ValidateSourcePath(_config.SourcePath);
             if (!isValidSource)
                 throw new InvalidOperationException(sourceError);
@@ -138,15 +146,8 @@ public class ReversibleMigrationService
                     targetLeafName = new DirectoryInfo(_config.TargetPath).Name;
                 }
 
-                bool isNonEmpty = false;
-                try
-                {
-                    isNonEmpty = Directory.EnumerateFileSystemEntries(_config.TargetPath).Any();
-                }
-                catch
-                {
-                    // 忽略错误
-                }
+                // 检查目录是否包含用户数据（忽略标记文件）
+                bool isNonEmpty = PathValidator.HasUserContent(_config.TargetPath);
 
                 if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))
                 {
@@ -389,8 +390,10 @@ public class ReversibleMigrationService
             }
         }
 
-        // 清理还原标记
+        // 清理源目录的所有标记文件
+        // 还原时，源目录会从目标复制回数据，标记文件也会被复制过来，需要清理
         MigrationStateDetector.DeleteRestoreMarkers(_config.SourcePath);
+        MigrationStateDetector.DeleteMigrateMarkers(_config.SourcePath);
     }
 
     #endregion
