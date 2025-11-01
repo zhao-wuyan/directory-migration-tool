@@ -27,6 +27,39 @@ public partial class QuickMigrateViewModel : ObservableObject
     private bool _hasPendingTasks = false;
 
     [ObservableProperty]
+    private bool _hasSelectedTasks = false;
+
+    private bool _isAllSelected = false;
+    private bool _isUpdatingFromCode = false;
+    
+    public bool IsAllSelected
+    {
+        get => _isAllSelected;
+        set
+        {
+            if (_isUpdatingFromCode)
+                return;
+                
+            if (SetProperty(ref _isAllSelected, value))
+            {
+                // 当全选状态改变时，更新所有任务的选中状态
+                _isUpdatingFromCode = true;
+                foreach (var group in PendingTaskGroups)
+                {
+                    foreach (var task in group.Tasks)
+                    {
+                        task.IsSelected = value;
+                    }
+                }
+                _isUpdatingFromCode = false;
+                
+                // 更新按钮状态
+                HasSelectedTasks = value && PendingTaskGroups.SelectMany(g => g.Tasks).Any();
+            }
+        }
+    }
+
+    [ObservableProperty]
     private string _statusMessage = "正在加载配置...";
 
     [ObservableProperty]
@@ -247,6 +280,17 @@ public partial class QuickMigrateViewModel : ObservableObject
         foreach (var group in pendingGroups)
         {
             PendingTaskGroups.Add(group);
+            // 为每个任务订阅 PropertyChanged 事件
+            foreach (var task in group.Tasks)
+            {
+                task.PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName == nameof(QuickMigrateTask.IsSelected))
+                    {
+                        UpdateSelectionState();
+                    }
+                };
+            }
         }
 
         foreach (var group in migratedGroups)
@@ -265,6 +309,9 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             StatusMessage = $"找到 {pendingTasks.Count} 个未迁移任务，{migratedTasks.Count} 个已迁移任务";
         }
+
+        // 初始化选择状态
+        UpdateSelectionState();
     }
 
     [RelayCommand]
@@ -288,6 +335,28 @@ public partial class QuickMigrateViewModel : ObservableObject
                     task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
                 }
             }
+        }
+    }
+
+    private void UpdateSelectionState()
+    {
+        if (_isUpdatingFromCode)
+            return;
+            
+        var allTasks = PendingTaskGroups.SelectMany(g => g.Tasks).ToList();
+        var totalCount = allTasks.Count;
+        var selectedCount = allTasks.Count(t => t.IsSelected);
+
+        HasSelectedTasks = selectedCount > 0;
+
+        // 更新全选状态以反映子项的选择状态
+        bool shouldBeChecked = totalCount > 0 && selectedCount == totalCount;
+        if (_isAllSelected != shouldBeChecked)
+        {
+            _isUpdatingFromCode = true;
+            _isAllSelected = shouldBeChecked;
+            OnPropertyChanged(nameof(IsAllSelected));
+            _isUpdatingFromCode = false;
         }
     }
 
@@ -325,12 +394,12 @@ public partial class QuickMigrateViewModel : ObservableObject
         if (!HasValidTasks || IsExecuting)
             return;
 
-        // 收集所有未迁移任务
-        var tasks = PendingTaskGroups.SelectMany(g => g.Tasks).ToList();
+        // 收集所有已勾选的未迁移任务
+        var tasks = PendingTaskGroups.SelectMany(g => g.Tasks).Where(t => t.IsSelected).ToList();
 
         if (!tasks.Any())
         {
-            AddLog("没有可执行的迁移任务");
+            AddLog("没有可执行的迁移任务（请先勾选要迁移的任务）");
             return;
         }
 

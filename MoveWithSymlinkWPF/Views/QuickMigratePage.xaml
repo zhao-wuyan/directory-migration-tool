@@ -67,6 +67,11 @@
                     </Grid.ColumnDefinitions>
                     
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <CheckBox Content="全选" 
+                                  IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,15,0"/>
+                        
                         <CheckBox Content="统一目标目录" 
                                   IsChecked="{Binding UseUnifiedTarget}"
                                   VerticalAlignment="Center"
@@ -94,7 +99,7 @@
                                 IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
                         <Button Content="开始一键迁移" 
                                 Command="{Binding StartQuickMigrationCommand}"
-                                IsEnabled="{Binding IsExecuting, Converter={StaticResource InverseBoolConverter}}"
+                                IsEnabled="{Binding HasSelectedTasks}"
                                 Background="#0078D4" 
                                 Foreground="White" 
                                 FontWeight="SemiBold"
@@ -151,16 +156,22 @@
                                                             <!-- Row 1: Display Name and Actions -->
                                                             <Grid Grid.Row="0">
                                                                 <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 
-                                                                <TextBlock Grid.Column="0" 
+                                                                <CheckBox Grid.Column="0" 
+                                                                         IsChecked="{Binding IsSelected}"
+                                                                         VerticalAlignment="Center"
+                                                                         Margin="0,0,10,0"/>
+                                                                
+                                                                <TextBlock Grid.Column="1" 
                                                                           Text="{Binding DisplayName}" 
                                                                           FontWeight="SemiBold"
                                                                           FontSize="14"/>
                                                                 
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                <StackPanel Grid.Column="2" Orientation="Horizontal">
                                                                     <!-- 非统一模式下显示浏览按钮 -->
                                                                     <Button Content="浏览..." 
                                                                             Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"

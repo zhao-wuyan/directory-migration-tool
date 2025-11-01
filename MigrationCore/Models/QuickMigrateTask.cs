@@ -102,6 +102,12 @@ public partial class QuickMigrateTask : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string? _symlinkTarget;
+
+    /// <summary>
+    /// 是否被选中（用于批量迁移）
+    /// </summary>
+    [ObservableProperty]
+    private bool _isSelected = false;
 }
 
 /// <summary>
