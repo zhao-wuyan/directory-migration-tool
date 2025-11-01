@@ -175,6 +175,9 @@ public static class MigrationStateDetector
             // 删除可能存在的还原标记
             DeleteRestoreMarkers(targetPath);
 
+            // 删除可能存在的旧迁移标记（包括 .lock 和 .done）
+            DeleteMigrateMarkers(targetPath);
+
             string lockFilePath = Path.Combine(targetPath, MigrateLockFile);
             string content = $"SourcePath: {sourcePath}\nStartTime: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
             File.WriteAllText(lockFilePath, content);
@@ -242,6 +245,9 @@ public static class MigrationStateDetector
     {
         try
         {
+            // 删除可能存在的旧还原标记
+            DeleteRestoreMarkers(targetPath);
+            
             // 在目标路径创建还原锁文件
             string lockFilePath = Path.Combine(targetPath, RestoreLockFile);
             string content = $"SourcePath: {sourcePath}\nStartTime: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";

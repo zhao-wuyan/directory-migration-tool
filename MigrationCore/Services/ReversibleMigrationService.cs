@@ -381,6 +381,12 @@ public class ReversibleMigrationService
         else
         {
             logProgress?.Report("保留目标数据");
+            
+            // 如果保留目标数据，清理其中的迁移标记文件
+            if (Directory.Exists(_config.TargetPath))
+            {
+                MigrationStateDetector.DeleteMigrateMarkers(_config.TargetPath);
+            }
         }
 
         // 清理还原标记
