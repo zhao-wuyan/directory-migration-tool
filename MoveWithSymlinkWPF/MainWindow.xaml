@@ -219,7 +219,36 @@
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=1}">
                         <StackPanel>
-                            <TextBlock Text="选择源目录和目标目录" Style="{StaticResource SectionHeaderStyle}"/>
+                            <!-- 标题和模式标签 -->
+                            <Grid Margin="0,10,0,10">
+                                <TextBlock Text="选择源目录和目标目录" FontSize="18" FontWeight="SemiBold" 
+                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Padding="10,4" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF4E5"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding CurrentModeDisplay}" FontWeight="Bold" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#0078D4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF8C00"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
                             
                             <TextBlock Text="源目录（要迁移的目录）" FontWeight="SemiBold" Margin="0,10,0,5"/>
                             <Grid>
@@ -231,14 +260,42 @@
                                 <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseSourceCommand}"/>
                             </Grid>
                             
-                            <TextBlock Text="目标目录（迁移到的位置）" FontWeight="SemiBold" Margin="0,15,0,5"/>
+                            <!-- 目标目录标签根据模式动态显示 -->
+                            <TextBlock FontWeight="SemiBold" Margin="0,15,0,5">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="目标目录（迁移到的位置）"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                <Setter Property="Text" Value="目标目录（符号链接指向）"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding TargetPath, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseTargetCommand}"/>
+                                <TextBox Grid.Column="0" Text="{Binding TargetPath, UpdateSourceTrigger=PropertyChanged}"
+                                         IsReadOnly="{Binding IsTargetPathReadOnly}">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Padding" Value="8"/>
+                                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                            <Setter Property="Background" Value="White"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTargetPathReadOnly}" Value="True">
+                                                    <Setter Property="Background" Value="#F5F5F5"/>
+                                                    <Setter Property="Foreground" Value="#666666"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                                <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseTargetCommand}"
+                                        IsEnabled="{Binding IsTargetPathReadOnly, Converter={StaticResource InverseBoolConverter}}"/>
                             </Grid>
                             
                             <TextBlock Text="高级选项" FontWeight="SemiBold" Margin="0,15,0,5"/>
@@ -287,9 +344,20 @@
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="开始扫描" Command="{Binding StartScanFromStep1Command}"
+                                <Button Command="{Binding StartScanFromStep1Command}"
                                         IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Setter Property="Content" Value="开始扫描"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Content" Value="开始验证"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -299,9 +367,60 @@
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=2}">
                         <StackPanel>
-                            <TextBlock Text="扫描分析" Style="{StaticResource SectionHeaderStyle}"/>
+                            <!-- 标题和模式标签 -->
+                            <Grid Margin="0,10,0,10">
+                                <TextBlock FontSize="18" FontWeight="SemiBold" 
+                                           HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="扫描分析"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Text" Value="验证还原条件"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Padding="10,4" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF4E5"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding CurrentModeDisplay}" FontWeight="Bold" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#0078D4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF8C00"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
                             
-                            <TextBlock Text="将扫描源目录并分析文件信息，这可能需要几分钟时间。" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                            <TextBlock TextWrapping="Wrap" Margin="0,0,0,10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="将扫描源目录并分析文件信息，这可能需要几分钟时间。"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                <Setter Property="Text" Value="将扫描符号链接指向的数据目录并分析文件信息，这可能需要几分钟时间。"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             
                             <Border Background="#F8F8F8" Padding="15" MinHeight="120" CornerRadius="3">
                                 <TextBlock Text="{Binding StatsMessage}" TextWrapping="Wrap" FontFamily="Consolas"/>
@@ -310,9 +429,20 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <Button Content="上一步" Command="{Binding BackToStep1Command}"
                                         IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"/>
-                                <Button Content="开始迁移" Command="{Binding StartMigrationFromStep2Command}"
+                                <Button Command="{Binding StartMigrationFromStep2Command}"
                                         IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Setter Property="Content" Value="开始迁移"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Content" Value="开始还原"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -322,7 +452,47 @@
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=3}">
                         <StackPanel>
-                            <TextBlock Text="执行迁移" Style="{StaticResource SectionHeaderStyle}"/>
+                            <!-- 标题和模式标签 -->
+                            <Grid Margin="0,10,0,10">
+                                <TextBlock FontSize="18" FontWeight="SemiBold" 
+                                           HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="执行迁移"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Text" Value="执行还原"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Padding="10,4" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF4E5"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding CurrentModeDisplay}" FontWeight="Bold" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#0078D4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF8C00"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
                             
                             <TextBlock Text="{Binding PhaseDescription}" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,10"/>
                             
@@ -357,21 +527,62 @@
                             BorderBrush="#E0E0E0" BorderThickness="1"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="✓" FontSize="32" Foreground="Green" Margin="0,0,10,0"
-                                          Visibility="{Binding MigrationSuccess, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                <TextBlock Text="✗" FontSize="32" Foreground="Red" Margin="0,0,10,0"
-                                          Visibility="{Binding MigrationSuccess, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                                <TextBlock Text="迁移结果" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <!-- 标题和模式标签 -->
+                            <Grid Margin="0,10,0,10">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="✓" FontSize="32" Foreground="Green" Margin="0,0,10,0"
+                                              Visibility="{Binding MigrationSuccess, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                    <TextBlock Text="✗" FontSize="32" Foreground="Red" Margin="0,0,10,0"
+                                              Visibility="{Binding MigrationSuccess, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                    <TextBlock FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="迁移结果"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Text" Value="还原结果"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Padding="10,4" CornerRadius="4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E3F2FD"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Background" Value="#FFF4E5"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding CurrentModeDisplay}" FontWeight="Bold" FontSize="12">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#0078D4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Foreground" Value="#FF8C00"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                            </Grid>
                             
                             <Border Background="#F8F8F8" Padding="15" CornerRadius="3" Margin="0,0,0,10">
                                 <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="关闭" Command="{Binding CloseApplicationCommand}"
+                                <Button Content="完成" Command="{Binding BackToStep1Command}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
+                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"
+                                        Margin="5,0,0,0"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

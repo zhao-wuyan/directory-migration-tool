@@ -74,22 +74,68 @@ public static class SymbolicLinkHelper
     {
         try
         {
-            var fileInfo = new FileInfo(path);
+#if DEBUG
+            Console.WriteLine($"[SymbolicLinkHelper] Checking path: {path}");
+#endif
             var dirInfo = new DirectoryInfo(path);
             
             if (dirInfo.Exists)
             {
-                return (dirInfo.Attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+                var attributes = dirInfo.Attributes;
+#if DEBUG
+                Console.WriteLine($"[SymbolicLinkHelper] Directory exists. Attributes: {attributes}");
+                Console.WriteLine($"[SymbolicLinkHelper] Has ReparsePoint flag: {(attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint}");
+#endif
+                bool isReparsePoint = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+                
+                // 如果是重解析点，尝试读取链接目标以确认是符号链接
+                if (isReparsePoint)
+                {
+                    try
+                    {
+                        string? linkTarget = dirInfo.LinkTarget;
+#if DEBUG
+                        Console.WriteLine($"[SymbolicLinkHelper] LinkTarget: {linkTarget}");
+#endif
+                        // 如果能读取到 LinkTarget，说明确实是符号链接
+                        return !string.IsNullOrEmpty(linkTarget);
+                    }
+                    catch (Exception ex)
+                    {
+#if DEBUG
+                        Console.WriteLine($"[SymbolicLinkHelper] Failed to read LinkTarget: {ex.Message}");
+#endif
+                        // 即使读取失败，有 ReparsePoint 标志也认为是符号链接
+                        return true;
+                    }
+                }
+                
+                return false;
             }
-            else if (fileInfo.Exists)
+            else
             {
-                return (fileInfo.Attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+                var fileInfo = new FileInfo(path);
+                if (fileInfo.Exists)
+                {
+                    var attributes = fileInfo.Attributes;
+#if DEBUG
+                    Console.WriteLine($"[SymbolicLinkHelper] File exists. Attributes: {attributes}");
+                    Console.WriteLine($"[SymbolicLinkHelper] Has ReparsePoint flag: {(attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint}");
+#endif
+                    return (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+                }
             }
             
+#if DEBUG
+            Console.WriteLine($"[SymbolicLinkHelper] Path does not exist");
+#endif
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+#if DEBUG
+            Console.WriteLine($"[SymbolicLinkHelper] Exception: {ex.Message}");
+#endif
             return false;
         }
     }
