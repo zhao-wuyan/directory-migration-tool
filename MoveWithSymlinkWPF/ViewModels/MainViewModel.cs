@@ -35,6 +35,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTargetPathReadOnly = false;
 
+    [ObservableProperty]
+    private bool _canRepair = false;
+
+    [ObservableProperty]
+    private string _repairHint = string.Empty;
+
     private string _sourcePath = string.Empty;
     public string SourcePath
     {
@@ -45,12 +51,25 @@ public partial class MainViewModel : ObservableObject
             {
                 // 当源路径变更时，自动检测模式
                 DetectAndSwitchMode();
+                // 检测是否可以修复
+                CheckRepairCondition();
             }
         }
     }
 
-    [ObservableProperty]
     private string _targetPath = string.Empty;
+    public string TargetPath
+    {
+        get => _targetPath;
+        set
+        {
+            if (SetProperty(ref _targetPath, value))
+            {
+                // 当目标路径变更时，检测是否可以修复
+                CheckRepairCondition();
+            }
+        }
+    }
 
     [ObservableProperty]
     private int _largeFileThresholdMB = 1024;
@@ -576,6 +595,12 @@ public partial class MainViewModel : ObservableObject
                 var restoreService = new ReversibleMigrationService(config, MigrationMode.Restore, keepTargetOnRestore: true);
                 result = await restoreService.ExecuteAsync(progress, logProgress, _cancellationTokenSource.Token);
             }
+            else if (MigrationMode == MigrationMode.Repair)
+            {
+                // 修复模式 - 使用 RepairService，仅重建符号链接
+                var repairService = new RepairService(config);
+                result = await repairService.ExecuteAsync(progress, logProgress, _cancellationTokenSource.Token);
+            }
             else
             {
                 // 迁移模式 - 使用 MigrationService
@@ -588,7 +613,13 @@ public partial class MainViewModel : ObservableObject
 
             if (result.Success)
             {
-                if (MigrationMode == MigrationMode.Restore)
+                if (MigrationMode == MigrationMode.Repair)
+                {
+                    AddLog($"✅ 修复完成！源路径现为符号链接，指向目标位置");
+                    AddLog($"   源: {SourcePath}");
+                    AddLog($"   目标: {TargetPath}");
+                }
+                else if (MigrationMode == MigrationMode.Restore)
                 {
                     // 还原成功 - 显示还原结果
                     ResultMessage = $"✓ 还原成功！\n\n" +
@@ -900,6 +931,220 @@ public partial class MainViewModel : ObservableObject
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}]   - IsRestoreMode: {IsRestoreMode}");
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}]   - IsTargetPathReadOnly: {IsTargetPathReadOnly}");
 #endif
+    }
+
+    /// <summary>
+    /// 切换到修复模式
+    /// </summary>
+    private void SwitchToRepairMode()
+    {
+        MigrationMode = MigrationMode.Repair;
+        CurrentModeDisplay = "修复模式";
+        IsRestoreMode = false;
+        IsTargetPathReadOnly = false;
+        
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Mode switched to: Repair");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}]   - CurrentModeDisplay: {CurrentModeDisplay}");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}]   - IsRestoreMode: {IsRestoreMode}");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}]   - IsTargetPathReadOnly: {IsTargetPathReadOnly}");
+#endif
+    }
+
+    /// <summary>
+    /// 检测是否满足修复条件
+    /// </summary>
+    private void CheckRepairCondition()
+    {
+        CanRepair = false;
+        RepairHint = string.Empty;
+
+        // 必须有源路径和目标路径
+        if (string.IsNullOrWhiteSpace(SourcePath) || string.IsNullOrWhiteSpace(TargetPath))
+            return;
+
+        // 目标目录必须存在
+        if (!Directory.Exists(TargetPath))
+            return;
+
+        try
+        {
+            bool sourceExists = Directory.Exists(SourcePath);
+            
+            if (!sourceExists)
+            {
+                // 源不存在 - 可以修复
+                CanRepair = true;
+                RepairHint = "源路径不存在，可以直接创建符号链接";
+            }
+            else
+            {
+                bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(SourcePath);
+                
+                if (isSymlink)
+                {
+                    // 源是符号链接 - 检查是否指向正确目标
+                    var dirInfo = new DirectoryInfo(SourcePath);
+                    string? currentTarget = dirInfo.LinkTarget;
+                    
+                    if (!string.IsNullOrEmpty(currentTarget))
+                    {
+                        string currentTargetFull = Path.GetFullPath(currentTarget);
+                        string expectedTarget = Path.GetFullPath(TargetPath);
+                        
+                        if (!string.Equals(currentTargetFull, expectedTarget, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CanRepair = true;
+                            RepairHint = $"符号链接指向错误目标，可以修复重定向到正确位置";
+                        }
+                    }
+                    else
+                    {
+                        CanRepair = true;
+                        RepairHint = "符号链接无法读取目标，可以修复";
+                    }
+                }
+                else
+                {
+                    // 源是普通目录 - 可以修复（会备份）
+                    bool hasContent = PathValidator.HasUserContent(SourcePath);
+                    if (hasContent)
+                    {
+                        CanRepair = true;
+                        RepairHint = "源是普通目录（非空），可修复（将备份后创建符号链接）";
+                    }
+                    else
+                    {
+                        CanRepair = true;
+                        RepairHint = "源是空目录，可修复（将删除后创建符号链接）";
+                    }
+                }
+            }
+        }
+        catch
+        {
+            CanRepair = false;
+            RepairHint = string.Empty;
+        }
+
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] CheckRepairCondition: CanRepair={CanRepair}, Hint={RepairHint}");
+#endif
+    }
+
+    /// <summary>
+    /// 执行修复操作
+    /// </summary>
+    [RelayCommand]
+    private async Task StartRepairAsync()
+    {
+        if (!CanRepair)
+        {
+            MessageBox.Show("当前条件不满足修复要求", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"确定要修复符号链接吗？\n\n源: {SourcePath}\n目标: {TargetPath}\n\n{RepairHint}",
+            "确认修复",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        // 切换到修复模式并执行
+        SwitchToRepairMode();
+        CurrentStep = 3;
+        await StartMigrationAsync();
+        
+        // 修复完成后检查是否有备份需要处理
+        if (MigrationSuccess && MigrationCompleted)
+        {
+            await CheckAndCleanupRepairBackupAsync();
+        }
+    }
+
+    /// <summary>
+    /// 检查并询问用户是否清理修复过程中产生的备份
+    /// </summary>
+    private async Task CheckAndCleanupRepairBackupAsync()
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                // 查找可能的备份目录
+                string? parentDir = Path.GetDirectoryName(SourcePath);
+                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
+                    return;
+
+                string sourceName = Path.GetFileName(SourcePath);
+                string backupPrefix = $"{sourceName}.bak_";
+
+                var backups = Directory.GetDirectories(parentDir, $"{backupPrefix}*")
+                    .OrderByDescending(d => Directory.GetLastWriteTime(d))
+                    .ToList();
+
+                if (backups.Any())
+                {
+                    string backupPath = backups.First();
+                    
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var askResult = MessageBox.Show(
+                            $"修复过程中创建了备份目录：\n\n{backupPath}\n\n是否将此备份移入回收站？\n\n选择\"是\"将备份移入回收站（可恢复）\n选择\"否\"将保留备份供您后续处理",
+                            "清理备份",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question);
+
+                        if (askResult == MessageBoxResult.Yes)
+                        {
+                            try
+                            {
+                                AddLog($"正在将备份移入回收站: {backupPath}");
+                                bool success = RecycleBinHelper.MoveDirectoryToRecycleBin(backupPath);
+                                if (success)
+                                {
+                                    AddLog("✅ 备份已移入回收站");
+                                    MessageBox.Show(
+                                        $"备份已成功移入回收站\n\n{backupPath}\n\n提示：您可以在回收站中恢复此备份", 
+                                        "完成", 
+                                        MessageBoxButton.OK, 
+                                        MessageBoxImage.Information);
+                                }
+                                else
+                                {
+                                    AddLog("⚠️ 移入回收站失败");
+                                    MessageBox.Show(
+                                        $"无法将备份移入回收站\n\n备份目录保留在：{backupPath}", 
+                                        "操作失败", 
+                                        MessageBoxButton.OK, 
+                                        MessageBoxImage.Warning);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                AddLog($"❌ 移入回收站失败: {ex.Message}");
+                                MessageBox.Show(
+                                    $"移入回收站失败：{ex.Message}\n\n备份目录保留在：{backupPath}", 
+                                    "操作失败", 
+                                    MessageBoxButton.OK, 
+                                    MessageBoxImage.Error);
+                            }
+                        }
+                        else
+                        {
+                            AddLog($"备份已保留: {backupPath}");
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"检查备份时出错: {ex.Message}");
+            }
+        });
     }
 
     private void AddLog(string message)
