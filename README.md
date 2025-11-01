@@ -11,6 +11,8 @@
 - ✅ **路径验证**: 阻止迁移系统关键目录
 - ✅ **磁盘检查**: 验证目标磁盘空间是否充足
 - ✅ **大文件统计**: 统计超过阈值的大文件数量
+- ✅ **一键迁移模式**: 基于 `quick-migrate.json` 的批量迁移与还原
+- ✅ **可逆迁移（还原功能）**: 将符号链接一键还原为真实目录
 
 ## 系统要求
 
@@ -61,6 +63,14 @@
 
 详细发布说明请查看：[docs/发布版本说明.md](docs/发布版本说明.md)
 
+### 一键迁移模式（WPF）
+
+- 在可执行文件同目录放置 `quick-migrate.json`
+- 启动应用，点击顶部“⏩ 一键迁移”进入批量迁移页
+- 选择“统一目标目录”或“分任务目录”策略后开始执行
+- 支持“未迁移/已迁移”状态分组、失败不阻塞后续、单任务还原与备份清理
+- 详情见：`docs/v1.1/快速上手指南.md`
+
 ## GUI 使用向导
 
 ### 步骤 1: 选择路径
@@ -108,6 +118,16 @@
 - 删除已创建的符号链接
 - 还原原始目录
 
+## v1.1 更新摘要
+
+- 新增一键迁移模式：读取 `quick-migrate.json` 自动扫描任务，按“未迁移/已迁移”分组展示；顺序执行，单项失败不阻塞；底部统一日志；支持中断续传（`robocopy /Z /ZB`）。
+- 手动模式新增还原功能：选择符号链接源目录自动进入“还原模式”（橙色标签），目标路径只读；执行对称的 6 阶段反向流程；完成后可选择删除或保留目标数据（`restoreKeepTarget`）。
+- 标记文件与状态管理：引入 `.xinghe-migrate.lock/.done` 与 `.xinghe-reduction.lock/.done`；修复还原后标记文件残留问题，迁移前/还原后清理源目录标记；目录非空检查忽略标记文件。
+- 符号链接选择与对话框修复：处理系统对话框自动解析符号链接的问题，支持反向查找并提示使用符号链接路径进入还原模式；建议优先直接选择符号链接路径本身。
+- 兼容性与限制：支持 HKCU/HKLM、x64/x86 注册表视图；非管理员提示启用开发者模式；暂不支持网络路径（UNC）。
+- 新增与变更文件（节选）：`MoveWithSymlinkWPF/Views/QuickMigratePage.xaml`、`ViewModels/QuickMigrateViewModel.cs`、核心 `ReversibleMigrationService`、`quick-migrate.json` 示例配置。
+- 深入文档：`docs/v1.1/快速上手指南.md`、`docs/v1.1/v1.1实现说明.md`、`docs/v1.1/手动模式还原功能使用说明.md`、`docs/v1.1/符号链接选择说明.md`。
+
 ## 技术架构
 
 ### PowerShell 版本
@@ -130,13 +150,21 @@ moveFloder/
 │       ├── FileStatsService.cs
 │       ├── MigrationService.cs
 │       ├── PathValidator.cs
-│       └── SymbolicLinkHelper.cs
+│       ├── SymbolicLinkHelper.cs
+│       ├── ReversibleMigrationService.cs
+│       ├── MigrationStateDetector.cs
+│       ├── QuickMigrateConfigLoader.cs
+│       └── RegistryLocatorService.cs
 │
 ├── MoveWithSymlinkWPF/         # WPF GUI 应用
 │   ├── ViewModels/             # 视图模型
-│   │   └── MainViewModel.cs
+│   │   ├── MainViewModel.cs
+│   │   └── QuickMigrateViewModel.cs
 │   ├── Converters/             # XAML 转换器
 │   │   └── BooleanConverters.cs
+│   ├── Views/
+│   │   ├── QuickMigratePage.xaml
+│   │   └── QuickMigratePage.xaml.cs
 │   ├── MainWindow.xaml         # 主窗口
 │   ├── App.xaml                # 应用程序
 │   └── Properties/PublishProfiles/
@@ -145,6 +173,7 @@ moveFloder/
 │
 ├── MoveWithSymlink.ps1         # PowerShell CLI 版本
 ├── publish.ps1                 # 发布脚本（WPF）
+├── quick-migrate.json          # 一键迁移配置（可选）
 └── run.ps1                     # 启动脚本（WPF）
 ```
 
@@ -155,6 +184,7 @@ moveFloder/
 3. **磁盘空间**: 确保目标磁盘有足够空间（需源目录大小 + 10% 余量）
 4. **云盘目录**: 避免迁移正在同步的云盘目录，可能导致冲突
 5. **长路径支持**: 建议启用 Windows 长路径支持（组策略或注册表）
+6. **网络路径限制**: 暂不支持 UNC 网络路径
 
 ## 启用开发者模式 (可选)
 
@@ -211,7 +241,6 @@ dotnet publish MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj -p:PublishProfile=wi
 
 ## 未来增强
 
-- [ ] 批量迁移计划
 - [ ] 过滤规则（忽略缓存/临时文件）
 - [ ] 哈希校验模式（可选全量/抽样）
 - [ ] 结构化日志导出 (JSON/CSV)
