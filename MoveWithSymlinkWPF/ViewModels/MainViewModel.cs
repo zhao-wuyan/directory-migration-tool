@@ -618,6 +618,13 @@ public partial class MainViewModel : ObservableObject
                     AddLog($"✅ 修复完成！源路径现为符号链接，指向目标位置");
                     AddLog($"   源: {SourcePath}");
                     AddLog($"   目标: {TargetPath}");
+                    
+                    // 设置修复结果消息
+                    ResultMessage = $"✓ 修复成功！\n\n" +
+                                   $"源路径(现为符号链接): {result.SourcePath}\n" +
+                                   $"符号链接指向: {result.TargetPath}\n\n" +
+                                   $"说明：修复模式不复制数据，仅重建符号链接。\n" +
+                                   $"源路径现在指向目标位置的现有数据。";
                 }
                 else if (MigrationMode == MigrationMode.Restore)
                 {
@@ -692,7 +699,8 @@ public partial class MainViewModel : ObservableObject
             else
             {
                 // 失败情况
-                string operationType = MigrationMode == MigrationMode.Restore ? "还原" : "迁移";
+                string operationType = MigrationMode == MigrationMode.Restore ? "还原" : 
+                                      MigrationMode == MigrationMode.Repair ? "修复" : "迁移";
                 ResultMessage = $"❌ {operationType}失败\n\n" +
                                $"错误信息: {result.ErrorMessage}\n\n" +
                                (result.WasRolledBack ? "✓ 已回滚至原始状态\n" : "") +
@@ -709,7 +717,8 @@ public partial class MainViewModel : ObservableObject
         {
             MigrationSuccess = false;
             MigrationCompleted = true;
-            string operationType = MigrationMode == MigrationMode.Restore ? "还原" : "迁移";
+            string operationType = MigrationMode == MigrationMode.Restore ? "还原" : 
+                                  MigrationMode == MigrationMode.Repair ? "修复" : "迁移";
             ResultMessage = $"❌ 发生异常错误\n\n" +
                            $"错误信息: {ex.Message}\n\n" +
                            (ex.StackTrace != null ? $"堆栈跟踪:\n{ex.StackTrace}\n\n" : "") +
