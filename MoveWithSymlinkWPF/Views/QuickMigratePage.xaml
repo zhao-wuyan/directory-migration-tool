@@ -324,12 +324,19 @@
                                                                           ToolTip="{Binding TargetPath}"/>
                                                             </Grid>
                                                             
-                                                            <!-- Row 3: Progress Bar (when executing) -->
-                                                            <StackPanel Grid.Row="2" Margin="0,5,0,0">
+                                                            <!-- Row 3: Progress Bar and Phase Info (when executing) -->
+                                                            <StackPanel Grid.Row="2" Margin="0,5,0,0"
+                                                                       Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock FontSize="10" Foreground="#0078D4" Margin="0,0,0,2">
+                                                                    <Run Text="["/>
+                                                                    <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
+                                                                    <Run Text="/6] "/>
+                                                                    <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
+                                                                </TextBlock>
                                                                 <ProgressBar Value="{Binding ProgressPercent}" 
                                                                             Maximum="100" 
                                                                             Height="6"
-                                                                            Visibility="{Binding Status, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                            Margin="0,2"/>
                                                                 <TextBlock Text="{Binding StatusMessage}" 
                                                                           FontSize="10" 
                                                                           Foreground="Gray"
@@ -491,12 +498,22 @@
                   BorderBrush="#E0E0E0" 
                   BorderThickness="0,1,0,0">
             <Expander.Header>
-                <StackPanel Orientation="Horizontal" Margin="0,4">
-                    <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,15,0"/>
-                    <TextBlock Text="{Binding CompletedCount, StringFormat='完成: {0}'}" Margin="0,0,10,0"/>
-                    <TextBlock Text="{Binding FailedCount, StringFormat='失败: {0}'}" Foreground="Red" Margin="0,0,10,0"/>
-                    <TextBlock Text="{Binding TotalCount, StringFormat='总计: {0}'}" Foreground="Gray"/>
-                </StackPanel>
+                <Grid Margin="0,4">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,15,0"/>
+                        <TextBlock Text="{Binding CompletedCount, StringFormat='完成: {0}'}" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding FailedCount, StringFormat='失败: {0}'}" Foreground="Red" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding TotalCount, StringFormat='总计: {0}'}" Foreground="Gray"/>
+                    </StackPanel>
+                    <Button Content="复制日志" 
+                            Command="{Binding CopyLogsCommand}"
+                            HorizontalAlignment="Right"
+                            Padding="8,2"
+                            MinWidth="60"
+                            Height="24"
+                            FontSize="11"
+                            Margin="0"/>
+                </Grid>
             </Expander.Header>
             
             <Border Height="150" Padding="10,5">

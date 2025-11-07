@@ -62,6 +62,12 @@ public partial class QuickMigrateTask : ObservableObject
     private int _currentPhase = 0;
 
     /// <summary>
+    /// 阶段描述
+    /// </summary>
+    [ObservableProperty]
+    private string _phaseDescription = string.Empty;
+
+    /// <summary>
     /// 进度百分比（0-100）
     /// </summary>
     [ObservableProperty]
@@ -72,6 +78,12 @@ public partial class QuickMigrateTask : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    /// <summary>
+    /// 是否显示进度条（执行中时为 true）
+    /// </summary>
+    [ObservableProperty]
+    private bool _showProgress = false;
 
     /// <summary>
     /// 错误消息（如果失败）

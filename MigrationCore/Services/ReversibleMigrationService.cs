@@ -562,6 +562,18 @@ public class ReversibleMigrationService
             {
                 logProgress?.Report("正在终止 robocopy 进程及其子进程...");
                 KillProcessTree(process.Id);
+                
+                // 等待进程真正退出，避免文件占用问题
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.WaitForExit(3000); // 最多等待3秒
+                    }
+                }
+                catch { }
+                
+                logProgress?.Report("robocopy 进程已终止");
                 throw new OperationCanceledException("用户取消操作");
             }
 
