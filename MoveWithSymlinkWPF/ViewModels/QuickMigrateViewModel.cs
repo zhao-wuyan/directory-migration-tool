@@ -512,13 +512,27 @@ public partial class QuickMigrateViewModel : ObservableObject
             if (_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 AddLog("用户取消操作");
+                // 标记未执行的任务为跳过
+                foreach (var remainingTask in tasks.Where(t => t.Status == QuickMigrateTaskStatus.Pending))
+                {
+                    remainingTask.Status = QuickMigrateTaskStatus.Skipped;
+                    remainingTask.StatusMessage = "已取消";
+                    remainingTask.ShowProgress = false;
+                }
                 break;
             }
 
             await ExecuteSingleMigrationTaskAsync(task);
         }
 
-        AddLog($"一键迁移完成！成功: {CompletedCount}, 失败: {FailedCount}");
+        if (_cancellationTokenSource.Token.IsCancellationRequested)
+        {
+            AddLog($"操作已取消。成功: {CompletedCount}, 失败: {FailedCount}, 跳过: {tasks.Count - CompletedCount - FailedCount}");
+        }
+        else
+        {
+            AddLog($"一键迁移完成！成功: {CompletedCount}, 失败: {FailedCount}");
+        }
 
         IsExecuting = false;
         _cancellationTokenSource?.Dispose();
@@ -664,9 +678,31 @@ public partial class QuickMigrateViewModel : ObservableObject
         AddLog("正在取消...");
     }
 
+    [RelayCommand]
+    private void CopyLogs()
+    {
+        try
+        {
+            if (LogMessages.Count == 0)
+            {
+                MessageBox.Show("暂无日志可复制", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string allLogs = string.Join(Environment.NewLine, LogMessages);
+            System.Windows.Clipboard.SetText(allLogs);
+            AddLog("✅ 日志已复制到剪贴板");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"复制日志失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async Task ExecuteSingleMigrationTaskAsync(QuickMigrateTask task)
     {
         task.Status = QuickMigrateTaskStatus.InProgress;
+        task.ShowProgress = true;
         AddLog($"[{task.DisplayName}] 开始迁移");
 
         try
@@ -687,6 +723,7 @@ public partial class QuickMigrateViewModel : ObservableObject
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     task.CurrentPhase = p.CurrentPhase;
+                    task.PhaseDescription = p.PhaseDescription;
                     task.ProgressPercent = p.PercentComplete;
                     task.StatusMessage = p.Message;
                 });
@@ -704,6 +741,7 @@ public partial class QuickMigrateViewModel : ObservableObject
                 task.Status = QuickMigrateTaskStatus.Completed;
                 task.MigrationState = MigrationState.Migrated;
                 task.MigratedAt = DateTime.Now;
+                task.ShowProgress = false;
                 CompletedCount++;
                 AddLog($"[{task.DisplayName}] ✅ 迁移成功");
             }
@@ -711,14 +749,23 @@ public partial class QuickMigrateViewModel : ObservableObject
             {
                 task.Status = QuickMigrateTaskStatus.Failed;
                 task.ErrorMessage = result.ErrorMessage;
+                task.ShowProgress = false;
                 FailedCount++;
                 AddLog($"[{task.DisplayName}] ❌ 迁移失败: {result.ErrorMessage}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            task.Status = QuickMigrateTaskStatus.Skipped;
+            task.StatusMessage = "用户取消";
+            task.ShowProgress = false;
+            AddLog($"[{task.DisplayName}] ⚠️ 已取消");
         }
         catch (Exception ex)
         {
             task.Status = QuickMigrateTaskStatus.Failed;
             task.ErrorMessage = ex.Message;
+            task.ShowProgress = false;
             FailedCount++;
             AddLog($"[{task.DisplayName}] ❌ 异常: {ex.Message}");
         }
@@ -727,6 +774,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     private async Task ExecuteSingleRestoreTaskAsync(QuickMigrateTask task)
     {
         task.Status = QuickMigrateTaskStatus.InProgress;
+        task.ShowProgress = true;
         AddLog($"[{task.DisplayName}] 开始还原");
 
         try
@@ -748,6 +796,7 @@ public partial class QuickMigrateViewModel : ObservableObject
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     task.CurrentPhase = p.CurrentPhase;
+                    task.PhaseDescription = p.PhaseDescription;
                     task.ProgressPercent = p.PercentComplete;
                     task.StatusMessage = p.Message;
                 });
@@ -765,19 +814,29 @@ public partial class QuickMigrateViewModel : ObservableObject
                 task.Status = QuickMigrateTaskStatus.Completed;
                 task.MigrationState = MigrationState.Pending;
                 task.MigratedAt = null;
+                task.ShowProgress = false;
                 AddLog($"[{task.DisplayName}] ✅ 还原成功");
             }
             else
             {
                 task.Status = QuickMigrateTaskStatus.Failed;
                 task.ErrorMessage = result.ErrorMessage;
+                task.ShowProgress = false;
                 AddLog($"[{task.DisplayName}] ❌ 还原失败: {result.ErrorMessage}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            task.Status = QuickMigrateTaskStatus.Skipped;
+            task.StatusMessage = "用户取消";
+            task.ShowProgress = false;
+            AddLog($"[{task.DisplayName}] ⚠️ 已取消");
         }
         catch (Exception ex)
         {
             task.Status = QuickMigrateTaskStatus.Failed;
             task.ErrorMessage = ex.Message;
+            task.ShowProgress = false;
             AddLog($"[{task.DisplayName}] ❌ 异常: {ex.Message}");
         }
     }

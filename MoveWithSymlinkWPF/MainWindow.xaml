@@ -5,6 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MoveWithSymlinkWPF"
         xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
         mc:Ignorable="d"
         Title="目录迁移工具 - Directory Migration Tool" 
         Height="700" Width="1000"
@@ -523,7 +525,10 @@
                             <TextBlock Text="{Binding ProgressMessage}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                             
                             <Border Background="#F8F8F8" Padding="10" Height="300" CornerRadius="3">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="MainLogScrollViewer" VerticalScrollBarVisibility="Auto">
+                                    <i:Interaction.Behaviors>
+                                        <behaviors:AutoScrollBehavior/>
+                                    </i:Interaction.Behaviors>
                                     <ItemsControl ItemsSource="{Binding LogMessages}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
