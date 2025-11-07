@@ -260,6 +260,8 @@ public partial class MainViewModel : ObservableObject
             {
 #if DEBUG
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Error enumerating drives: {ex.Message}");
+#else
+                _ = ex; // 避免未使用变量警告
 #endif
             }
             
