@@ -185,7 +185,12 @@ public enum MigrationMode
     /// <summary>
     /// 还原（目标 → 源）
     /// </summary>
-    Restore
+    Restore,
+
+    /// <summary>
+    /// 修复（基于现有目标重建符号链接，不复制数据）
+    /// </summary>
+    Repair
 }
 
 
