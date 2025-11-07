@@ -471,12 +471,24 @@
                                                                           Margin="0,4,0,0"/>
                                                             </Grid>
                                                             
-                                                            <!-- Row 3: Status Message -->
-                                                            <TextBlock Grid.Row="2" 
-                                                                      Text="{Binding StatusMessage}" 
-                                                                      FontSize="11" 
-                                                                      Foreground="Orange"
-                                                                      Margin="0,5,0,0"/>
+                                                            <!-- Row 3: Progress Bar and Phase Info (when executing) -->
+                                                            <StackPanel Grid.Row="2" Margin="0,5,0,0"
+                                                                       Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock FontSize="10" Foreground="#0078D4" Margin="0,0,0,2">
+                                                                    <Run Text="["/>
+                                                                    <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
+                                                                    <Run Text="/6] "/>
+                                                                    <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
+                                                                </TextBlock>
+                                                                <ProgressBar Value="{Binding ProgressPercent}" 
+                                                                            Maximum="100" 
+                                                                            Height="6"
+                                                                            Margin="0,2"/>
+                                                                <TextBlock Text="{Binding StatusMessage}" 
+                                                                          FontSize="10" 
+                                                                          Foreground="Gray"
+                                                                          Margin="0,2,0,0"/>
+                                                            </StackPanel>
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
@@ -505,14 +517,6 @@
                         <TextBlock Text="{Binding FailedCount, StringFormat='失败: {0}'}" Foreground="Red" Margin="0,0,10,0"/>
                         <TextBlock Text="{Binding TotalCount, StringFormat='总计: {0}'}" Foreground="Gray"/>
                     </StackPanel>
-                    <Button Content="复制日志" 
-                            Command="{Binding CopyLogsCommand}"
-                            HorizontalAlignment="Right"
-                            Padding="8,2"
-                            MinWidth="60"
-                            Height="24"
-                            FontSize="11"
-                            Margin="0"/>
                 </Grid>
             </Expander.Header>
             

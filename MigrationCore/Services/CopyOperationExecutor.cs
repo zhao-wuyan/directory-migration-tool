@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using MigrationCore.Models;
 
 namespace MigrationCore.Services;
@@ -73,12 +74,10 @@ public class CopyOperationExecutor
             "/R:0",
             "/W:0",
             "/XJ",
-#if !DEBUG
-            // Release 模式下减少输出，提高性能
-            "/NFL",  // No File List
-            "/NDL",  // No Directory List
-            // 注意：不使用 /NP，因为我们需要解析百分比来更新进度
-#endif
+            // 注意：不使用 /NFL（会禁止文件列表输出，导致无法解析文件大小）
+            // 注意：不使用 /NDL（会禁止目录列表输出）
+            // 注意：不使用 /NP（会禁止百分比输出，导致无法解析进度）
+            // 为了准确的进度显示，我们需要保留这些输出
             "/Z",  // 可续传模式
             "/ZB", // 回退到备份模式
             $"/MT:{_robocopyThreads}"
@@ -100,24 +99,93 @@ public class CopyOperationExecutor
 
         // 从 Robocopy 输出解析的百分比（所有模式下使用）
         double robocopyPercent = 0;
+        double robocopyLastPercent = 0;
+        long robocopyCurrentFileSize = 0;
+        long robocopyCumulativeBytes = 0;
+        bool hasFileContext = false; // 是否已经获取到有效文件上下文（解析到文件行或有累计字节）
+        bool isFirstFile = true; // 是否是第一个文件
         object robocopyPercentLock = new object();
 
+        // 使用信号量确保日志读取任务已启动
+        var logReaderStarted = new TaskCompletionSource<bool>();
+
         // 异步读取并打印 Robocopy 日志（同时解析百分比）
-        _ = Task.Run(async () =>
+        var logReaderTask = Task.Run(async () =>
         {
             try
             {
+                // 标记日志读取任务已启动
+                logReaderStarted.TrySetResult(true);
+                
                 while (!process.StandardOutput.EndOfStream)
                 {
                     string? line = await process.StandardOutput.ReadLineAsync();
                     if (!string.IsNullOrWhiteSpace(line))
                     {
+                        string trimmed = line.Trim();
+                        
 #if DEBUG
                         logProgress?.Report($"[Robocopy-{_actionName}] {line}");
                         System.Diagnostics.Debug.WriteLine($"[Robocopy-{_actionName}] {line}");
+#else
+                        // Release 模式下只输出关键信息（新文件、百分比、错误等）
+                        if (trimmed.Contains("新文件") || 
+                            trimmed.Contains("多余文件") ||
+                            (trimmed.EndsWith("%") && trimmed.Length <= 5) ||
+                            trimmed.Contains("错误") ||
+                            trimmed.Contains("失败"))
+                        {
+                            logProgress?.Report($"[Robocopy-{_actionName}] {line}");
+                        }
 #endif
                         // 解析 Robocopy 的百分比输出（如 "  18%"）
-                        string trimmed = line.Trim();
+
+                        if (TryParseRobocopyNewFileLine(trimmed, out long newFileSize))
+                        {
+                            lock (robocopyPercentLock)
+                            {
+                                // 只有不是第一个文件时，才累计上一个文件
+                                if (!isFirstFile && robocopyCurrentFileSize > 0)
+                                {
+                                    // 将上一个文件按最后记录的百分比计入累计值
+                                    // 避免把未完成的文件按100%累加导致进度跳跃
+                                    if (robocopyLastPercent > 0)
+                                    {
+                                        long completedBytes = (long)Math.Round(robocopyCurrentFileSize * robocopyLastPercent / 100.0);
+                                        completedBytes = Math.Max(0, Math.Min(completedBytes, robocopyCurrentFileSize));
+                                        robocopyCumulativeBytes += completedBytes;
+#if DEBUG
+                                        System.Diagnostics.Debug.WriteLine($"[Robocopy-{_actionName}] 累计上一个文件: {FileStatsService.FormatBytes(completedBytes)} (百分比: {robocopyLastPercent}%), 累计总计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+#endif
+                                        logProgress?.Report($"[文件完成] 累计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+                                    }
+                                    else
+                                    {
+                                        // 如果没有百分比记录，假定上一个文件已完成
+                                        robocopyCumulativeBytes += robocopyCurrentFileSize;
+#if DEBUG
+                                        System.Diagnostics.Debug.WriteLine($"[Robocopy-{_actionName}] 累计上一个文件(无%): {FileStatsService.FormatBytes(robocopyCurrentFileSize)}, 累计总计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+#endif
+                                        logProgress?.Report($"[文件完成] 累计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+                                    }
+                                }
+
+                                robocopyCurrentFileSize = newFileSize;
+                                robocopyPercent = 0;
+                                robocopyLastPercent = 0;
+                                hasFileContext = true; // 已获取到文件上下文
+                                
+#if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"[Robocopy-{_actionName}] 开始新文件: {FileStatsService.FormatBytes(newFileSize)}, 是否首个: {isFirstFile}");
+#endif
+                                logProgress?.Report($"[新文件] 大小: {FileStatsService.FormatBytes(newFileSize)}, 是否首个: {isFirstFile}");
+                                
+                                isFirstFile = false; // 标记已经不是第一个文件了
+                            }
+
+                            continue;
+                        }
+
                         if (trimmed.EndsWith("%") && trimmed.Length <= 5)
                         {
                             // 尝试解析百分比
@@ -126,10 +194,27 @@ public class CopyOperationExecutor
                             {
                                 lock (robocopyPercentLock)
                                 {
+                                    double previousPercent = robocopyLastPercent;
+
+                                    // 检测到百分比回退（可能是新文件开始，但没捕获到"新文件"行）
+                                    if (percent + 1 < previousPercent && robocopyCurrentFileSize > 0)
+                                    {
+                                        // 按上一个百分比累计，而不是整个文件
+                                        long completedBytes = (long)Math.Round(robocopyCurrentFileSize * previousPercent / 100.0);
+                                        completedBytes = Math.Max(0, Math.Min(completedBytes, robocopyCurrentFileSize));
+                                        robocopyCumulativeBytes += completedBytes;
+#if DEBUG
+                                        System.Diagnostics.Debug.WriteLine($"[Robocopy-{_actionName}] 检测到%回退，累计: {FileStatsService.FormatBytes(completedBytes)}, 总计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+#endif
+                                        logProgress?.Report($"[百分比回退] 累计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
+                                        robocopyCurrentFileSize = 0;
+                                    }
+
+                                    robocopyLastPercent = percent;
                                     robocopyPercent = percent;
                                 }
 #if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"[Robocopy Percent] {percent}%");
+                                System.Diagnostics.Debug.WriteLine($"[Robocopy Percent] {percent}%, 当前文件: {FileStatsService.FormatBytes(robocopyCurrentFileSize)}, 累计: {FileStatsService.FormatBytes(robocopyCumulativeBytes)}");
 #endif
                             }
                         }
@@ -164,8 +249,15 @@ public class CopyOperationExecutor
             }
         });
 
+        // 等待日志读取任务启动，避免漏读开始的几行日志
+        await logReaderStarted.Task.ConfigureAwait(false);
+        
+        // 再等待一小段时间，确保 StandardOutput 管道已经准备好
+        await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+
         var stopwatch = Stopwatch.StartNew();
         long prevBytes = 0;
+        long prevReportedBytes = 0;
         TimeSpan prevTime = TimeSpan.Zero;
         
         // 用于平滑进度的变量 - 使用速度累加法而不是直接平滑字节数
@@ -234,33 +326,67 @@ public class CopyOperationExecutor
             
             // 优先使用 Robocopy 输出的百分比（如果可用）
             double currentRobocopyPercent;
+            long currentRobocopyFileSize;
+            long currentRobocopyCumulative;
+            bool currentHasFileContext;
+
             lock (robocopyPercentLock)
             {
                 currentRobocopyPercent = robocopyPercent;
-            }
-            
-            if (currentRobocopyPercent > 0)
-            {
-                // 使用 Robocopy 报告的百分比计算已复制字节数
-                displayedBytes = (long)(_stats.TotalBytes * currentRobocopyPercent / 100.0);
+                currentRobocopyFileSize = robocopyCurrentFileSize;
+                currentRobocopyCumulative = robocopyCumulativeBytes;
+                currentHasFileContext = hasFileContext;
                 
-                // 基于 Robocopy 百分比重新计算速度
+                // 一旦有累计字节，说明至少完成了一个文件的部分或全部，标记为有上下文
+                if (!hasFileContext && robocopyCumulativeBytes > 0)
+                {
+                    hasFileContext = true;
+                    currentHasFileContext = true;
+                }
+            }
+
+            double clampedPercent = Math.Min(100, Math.Max(currentRobocopyPercent, 0));
+            long bytesFromRobocopy = currentRobocopyCumulative;
+            
+            // 只有在有文件上下文时才使用 Robocopy 估算
+            bool hasRobocopyEstimate = currentHasFileContext && (currentRobocopyCumulative > 0 || currentRobocopyFileSize > 0 || clampedPercent > 0);
+
+            if (currentRobocopyFileSize > 0 && clampedPercent >= 0)
+            {
+                long partial = (long)Math.Round(currentRobocopyFileSize * clampedPercent / 100.0);
+                partial = Math.Max(0, Math.Min(partial, currentRobocopyFileSize));
+                bytesFromRobocopy += partial;
+            }
+
+            if (hasRobocopyEstimate && bytesFromRobocopy > 0)
+            {
+                bytesFromRobocopy = Math.Min(bytesFromRobocopy, _stats.TotalBytes);
+
                 if (deltaTime > 0)
                 {
-                    long bytesFromPercent = displayedBytes - prevBytes;
-                    instantSpeed = bytesFromPercent / deltaTime;
-                    if (instantSpeed > 0)
+                    long bytesFromPercent = Math.Max(0, bytesFromRobocopy - prevReportedBytes);
+                    if (bytesFromPercent > 0)
                     {
-                        if (smoothedSpeed == 0)
+                        instantSpeed = bytesFromPercent / deltaTime;
+                        if (instantSpeed > 0)
                         {
-                            smoothedSpeed = instantSpeed;
-                        }
-                        else
-                        {
-                            smoothedSpeed = speedSmoothingFactor * instantSpeed + (1 - speedSmoothingFactor) * smoothedSpeed;
+                            if (smoothedSpeed == 0)
+                            {
+                                smoothedSpeed = instantSpeed;
+                            }
+                            else
+                            {
+                                smoothedSpeed = speedSmoothingFactor * instantSpeed + (1 - speedSmoothingFactor) * smoothedSpeed;
+                            }
                         }
                     }
                 }
+
+                // 使用 Robocopy 估算值，确保单调递增
+                displayedBytes = Math.Max(displayedBytes, bytesFromRobocopy);
+                
+                // 不使用 actualCopiedBytes，避免文件预分配导致进度跳跃
+                displayedBytes = Math.Min(displayedBytes, _stats.TotalBytes);
             }
             else
             {
@@ -270,8 +396,9 @@ public class CopyOperationExecutor
                 {
                     long speedBasedIncrement = (long)(smoothedSpeed * deltaTime);
                     displayedBytes += speedBasedIncrement;
-                    
+
                     // 确保显示值不超过实际值（边界保护）
+                    // 注意：由于文件预分配，actualCopiedBytes 可能虚高，这里仅作为上限
                     if (displayedBytes > actualCopiedBytes)
                     {
                         displayedBytes = actualCopiedBytes;
@@ -279,13 +406,14 @@ public class CopyOperationExecutor
                 }
                 else if (displayedBytes == 0 && actualCopiedBytes > 0)
                 {
-                    // 初始情况：如果还没有速度数据，但已经有复制的字节，使用一个小的初始值
-                    displayedBytes = Math.Min(actualCopiedBytes, _stats.TotalBytes / 100); // 最多显示1%
+                    // 初始情况：不使用 actualCopiedBytes，避免预分配导致跳跃
+                    // 保持为0，等待速度数据或 Robocopy 上下文
+                    displayedBytes = 0;
                 }
+                
+                // 在没有 Robocopy 估算时，确保不超过总大小
+                displayedBytes = Math.Min(displayedBytes, _stats.TotalBytes);
             }
-            
-            // 确保显示值不超过总大小
-            displayedBytes = Math.Min(displayedBytes, _stats.TotalBytes);
 
             // 使用平滑后的值计算进度
             long copiedBytes = displayedBytes;
@@ -341,6 +469,7 @@ public class CopyOperationExecutor
 
             prevBytes = actualCopiedBytes;
             prevTime = elapsed;
+            prevReportedBytes = copiedBytes;
         }
 
         await process.WaitForExitAsync(cancellationToken);
@@ -407,6 +536,99 @@ public class CopyOperationExecutor
             }
             catch { }
         }
+    }
+
+    private static bool TryParseRobocopyNewFileLine(string line, out long fileSize)
+    {
+        fileSize = 0;
+
+        const string marker = "新文件";
+        int markerIndex = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+            return false;
+
+        string afterMarker = line.Substring(markerIndex + marker.Length).Trim();
+        if (string.IsNullOrEmpty(afterMarker))
+            return false;
+
+        var tokens = afterMarker.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length == 0)
+            return false;
+
+#if DEBUG
+        System.Diagnostics.Debug.WriteLine($"[ParseNewFile] 原始行: {line}");
+        System.Diagnostics.Debug.WriteLine($"[ParseNewFile] afterMarker: '{afterMarker}'");
+        System.Diagnostics.Debug.WriteLine($"[ParseNewFile] tokens数量: {tokens.Length}, tokens[0]: '{tokens[0]}'");
+#endif
+
+        string sizeToken = tokens[0];
+        string unitToken = string.Empty;
+
+        // 处理例如 1.4g / 1.4GB 的格式
+        int lastAlphaIndex = sizeToken.Length - 1;
+        while (lastAlphaIndex >= 0 && char.IsLetter(sizeToken[lastAlphaIndex]))
+        {
+            lastAlphaIndex--;
+        }
+
+        if (lastAlphaIndex < sizeToken.Length - 1)
+        {
+            unitToken = sizeToken.Substring(lastAlphaIndex + 1);
+            sizeToken = sizeToken.Substring(0, lastAlphaIndex + 1);
+        }
+
+        if (string.IsNullOrWhiteSpace(unitToken) && tokens.Length >= 2 && IsSizeUnitToken(tokens[1]))
+        {
+            unitToken = tokens[1];
+        }
+
+        sizeToken = sizeToken.Replace(",", string.Empty).Trim();
+
+        if (!double.TryParse(sizeToken, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+        {
+            if (!double.TryParse(sizeToken, NumberStyles.Float, CultureInfo.CurrentCulture, out value))
+            {
+                return false;
+            }
+        }
+
+        long multiplier = GetSizeMultiplier(unitToken);
+        double rawBytes = value * multiplier;
+        if (double.IsNaN(rawBytes) || double.IsInfinity(rawBytes))
+            return false;
+
+        fileSize = (long)Math.Max(0, Math.Round(rawBytes));
+        return true;
+    }
+
+    private static bool IsSizeUnitToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+
+        token = token.Trim();
+        if (token.IndexOfAny(new[] { ':', '\\', '/' }) >= 0)
+            return false;
+
+        token = token.ToUpperInvariant();
+        return token is "B" or "K" or "KB" or "M" or "MB" or "G" or "GB" or "T" or "TB" or "P" or "PB";
+    }
+
+    private static long GetSizeMultiplier(string unit)
+    {
+        if (string.IsNullOrWhiteSpace(unit))
+            return 1;
+
+        return unit.Trim().ToUpperInvariant() switch
+        {
+            "B" => 1,
+            "K" or "KB" => 1024L,
+            "M" or "MB" => 1024L * 1024,
+            "G" or "GB" => 1024L * 1024 * 1024,
+            "T" or "TB" => 1024L * 1024 * 1024 * 1024,
+            "P" or "PB" => 1024L * 1024 * 1024 * 1024 * 1024,
+            _ => 1
+        };
     }
 }
 
