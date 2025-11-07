@@ -317,22 +317,27 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private void BrowseUnifiedTarget()
     {
-        var dialog = new OpenFolderDialog
+        // 使用自定义文件夹选择器
+        var picker = new Views.FolderPickerWindow
         {
-            Title = "选择统一目标根目录"
+            Owner = Application.Current.MainWindow
         };
 
-        if (dialog.ShowDialog() == true)
+        if (picker.ShowDialog() == true)
         {
-            UnifiedTargetRoot = dialog.FolderName;
-            
-            // 更新所有未迁移任务的目标路径
-            foreach (var group in PendingTaskGroups)
+            string? selectedPath = picker.SelectedPath;
+            if (!string.IsNullOrWhiteSpace(selectedPath))
             {
-                foreach (var task in group.Tasks)
+                UnifiedTargetRoot = selectedPath;
+            
+                // 更新所有未迁移任务的目标路径
+                foreach (var group in PendingTaskGroups)
                 {
-                    string sourceName = Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                    task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
+                    foreach (var task in group.Tasks)
+                    {
+                        string sourceName = Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                        task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
+                    }
                 }
             }
         }
@@ -363,28 +368,19 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private void BrowseTaskTarget(QuickMigrateTask task)
     {
-        var dialog = new OpenFolderDialog
+        // 使用自定义文件夹选择器
+        var picker = new Views.FolderPickerWindow
         {
-            Title = $"选择 \"{task.DisplayName}\" 的目标目录"
+            Owner = Application.Current.MainWindow
         };
-        
-        // 如果已有目标路径，使用其父目录作为初始位置
-        if (!string.IsNullOrEmpty(task.TargetPath))
-        {
-            try
-            {
-                string? parentDir = Path.GetDirectoryName(task.TargetPath);
-                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
-                {
-                    dialog.InitialDirectory = parentDir;
-                }
-            }
-            catch { }
-        }
 
-        if (dialog.ShowDialog() == true)
+        if (picker.ShowDialog() == true)
         {
-            task.TargetPath = dialog.FolderName;
+            string? selectedPath = picker.SelectedPath;
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                task.TargetPath = selectedPath;
+            }
         }
     }
 

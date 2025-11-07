@@ -142,69 +142,48 @@ public partial class MainViewModel : ObservableObject
     private void BrowseSource()
     {
 #if DEBUG
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BrowseSource command triggered");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BrowseSource command triggered - Using custom folder picker");
 #endif
         
-        // 使用 FolderBrowserDialog 需要手动输入，或者使用自定义逻辑
-        // OpenFolderDialog 会自动解析符号链接，所以我们需要特殊处理
-        
-        var dialog = new OpenFolderDialog
+        // 使用自定义文件夹选择器，可以正确识别符号链接
+        var picker = new Views.FolderPickerWindow
         {
-            Title = "选择源目录（如果是符号链接，请手动输入路径）"
+            Owner = Application.Current.MainWindow
         };
 
-        if (dialog.ShowDialog() == true)
+        if (picker.ShowDialog() == true)
         {
-            string selectedPath = dialog.FolderName;
-#if DEBUG
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Dialog returned path: {selectedPath}");
-#endif
-
-            // 检查对话框返回的路径是否为符号链接
-            // 注意：OpenFolderDialog 可能会解析符号链接返回目标路径
-            bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(selectedPath);
+            string? selectedPath = picker.SelectedPath;
             
-#if DEBUG
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Dialog path is symlink: {isSymlink}");
-#endif
-
-            // 如果不是符号链接，尝试查找父目录中是否有指向这个路径的符号链接
-            if (!isSymlink)
+            if (!string.IsNullOrWhiteSpace(selectedPath))
             {
-                string? symlinkPath = FindSymlinkPointingTo(selectedPath);
-                if (symlinkPath != null)
-                {
 #if DEBUG
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Found symlink pointing to this path: {symlinkPath}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] User selected path: {selectedPath}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Checking if path is symlink...");
 #endif
-                    // 询问用户是否要使用符号链接路径
-                    var result = MessageBox.Show(
-                        $"检测到符号链接指向此目录：\n\n" +
-                        $"符号链接：{symlinkPath}\n" +
-                        $"目标目录：{selectedPath}\n\n" +
-                        $"您想要使用符号链接路径吗？\n" +
-                        $"• 选择'是'将进入还原模式\n" +
-                        $"• 选择'否'将使用目标路径进入迁移模式（警告：重复迁移会造成多层嵌套，可能有未知问题）",
-                        "检测到符号链接",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-                    
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        selectedPath = symlinkPath;
+                
+                // 检查是否为符号链接
+                bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(selectedPath);
+                
 #if DEBUG
-                        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] User chose to use symlink path");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] IsSymbolicLink result: {isSymlink}");
 #endif
-                    }
-                }
-            }
 
-            SourcePath = selectedPath;
+                SourcePath = selectedPath;
+                
 #if DEBUG
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Final source path set to: {SourcePath}");
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Final source path set to: {SourcePath}");
 #endif
-            // 检测源目录是否为符号链接，自动切换模式
-            DetectAndSwitchMode();
+                
+                // 检测源目录是否为符号链接，自动切换模式
+                DetectAndSwitchMode();
+            }
+        }
+        else
+        {
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] User cancelled folder selection");
+#endif
         }
     }
     
@@ -238,6 +217,70 @@ public partial class MainViewModel : ObservableObject
             // 3. 用户配置文件目录
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             searchPaths.Add(userProfile);
+            
+            // 4. 桌面
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            searchPaths.Add(desktop);
+            
+            // 5. 我的文档
+            string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            searchPaths.Add(documents);
+            
+            // 6. 所有固定磁盘的根目录
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives())
+                {
+                    if (drive.DriveType == DriveType.Fixed && drive.IsReady)
+                    {
+                        searchPaths.Add(drive.RootDirectory.FullName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Error enumerating drives: {ex.Message}");
+#endif
+            }
+            
+            // 7. 从一键迁移配置文件中读取已知的符号链接位置
+            try
+            {
+                var config = QuickMigrateConfigLoader.LoadConfig();
+                if (config != null)
+                {
+                    // 从 Profiles 中获取符号链接位置
+                    foreach (var profile in config.Profiles)
+                    {
+                        if (profile.Locator.Type == "absolutePath" && !string.IsNullOrEmpty(profile.Locator.Path))
+                        {
+                            var symlinkParent = Path.GetDirectoryName(profile.Locator.Path);
+                            if (!string.IsNullOrEmpty(symlinkParent) && !searchPaths.Contains(symlinkParent, StringComparer.OrdinalIgnoreCase))
+                            {
+                                searchPaths.Add(symlinkParent);
+                            }
+                        }
+                    }
+                    
+                    // 从 StandaloneSources 中获取符号链接位置
+                    foreach (var source in config.StandaloneSources)
+                    {
+                        if (!string.IsNullOrEmpty(source.AbsolutePath))
+                        {
+                            var symlinkParent = Path.GetDirectoryName(source.AbsolutePath);
+                            if (!string.IsNullOrEmpty(symlinkParent) && !searchPaths.Contains(symlinkParent, StringComparer.OrdinalIgnoreCase))
+                            {
+                                searchPaths.Add(symlinkParent);
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略配置文件读取失败
+            }
 
             foreach (string searchPath in searchPaths)
             {
@@ -250,6 +293,7 @@ public partial class MainViewModel : ObservableObject
 
                 try
                 {
+                    // 限制搜索深度为1层，避免过度扫描
                     foreach (string dir in Directory.GetDirectories(searchPath))
                     {
                         if (SymbolicLinkHelper.IsSymbolicLink(dir))
@@ -302,14 +346,33 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void BrowseTarget()
     {
-        var dialog = new OpenFolderDialog
+#if DEBUG
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] BrowseTarget command triggered - Using custom folder picker");
+#endif
+        
+        // 使用自定义文件夹选择器
+        var picker = new Views.FolderPickerWindow
         {
-            Title = "选择目标目录"
+            Owner = Application.Current.MainWindow
         };
 
-        if (dialog.ShowDialog() == true)
+        if (picker.ShowDialog() == true)
         {
-            TargetPath = dialog.FolderName;
+            string? selectedPath = picker.SelectedPath;
+            
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+#if DEBUG
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] User selected target path: {selectedPath}");
+#endif
+                TargetPath = selectedPath;
+            }
+        }
+        else
+        {
+#if DEBUG
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] User cancelled target folder selection");
+#endif
         }
     }
 

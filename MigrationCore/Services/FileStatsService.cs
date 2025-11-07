@@ -94,6 +94,43 @@ public class FileStatsService
     }
 
     /// <summary>
+    /// 获取目录实际占用的磁盘空间（字节）- 使用磁盘上的实际大小
+    /// 这个方法会返回文件实际写入磁盘的字节数，而不是文件分配的大小
+    /// </summary>
+    public static long GetDirectorySizeOnDisk(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath))
+            return 0;
+
+        long totalSize = 0;
+
+        try
+        {
+            var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories);
+            foreach (var file in files)
+            {
+                try
+                {
+                    var fileInfo = new FileInfo(file);
+                    // 使用Length而不是GetCompressedFileSize，因为后者需要P/Invoke
+                    // 我们通过监控增量变化来平滑进度
+                    totalSize += fileInfo.Length;
+                }
+                catch
+                {
+                    // 忽略无法访问的文件
+                }
+            }
+        }
+        catch
+        {
+            // 忽略枚举错误
+        }
+
+        return totalSize;
+    }
+
+    /// <summary>
     /// 格式化字节数为可读字符串
     /// </summary>
     public static string FormatBytes(long bytes)

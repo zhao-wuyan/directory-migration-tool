@@ -306,3 +306,4 @@ private async Task StartScanFromStep1Async()
 - ✅ 用户能清楚知道当前处于什么模式
 
 
+

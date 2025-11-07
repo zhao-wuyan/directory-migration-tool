@@ -452,9 +452,12 @@ public class ReversibleMigrationService
             "/R:0",
             "/W:0",
             "/XJ",
-            "/NFL",
-            "/NDL",
-            "/NP",
+#if !DEBUG
+            // Release 模式下减少输出，提高性能
+            "/NFL",  // No File List
+            "/NDL",  // No Directory List
+            // 注意：不使用 /NP，因为我们需要解析百分比来更新进度
+#endif
             "/Z",  // 可续传模式
             "/ZB", // 回退到备份模式
             $"/MT:{_config.RobocopyThreads}"
@@ -465,16 +468,93 @@ public class ReversibleMigrationService
             FileName = "robocopy.exe",
             Arguments = string.Join(" ", robocopyArgs),
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
 
         using var process = Process.Start(processStartInfo);
         if (process == null)
             throw new InvalidOperationException("无法启动 robocopy 进程");
 
+        // 从 Robocopy 输出解析的百分比（所有模式下使用）
+        double robocopyPercent = 0;
+        object robocopyPercentLock = new object();
+
+        // 异步读取并打印 Robocopy 日志（同时解析百分比）
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!process.StandardOutput.EndOfStream)
+                {
+                    string? line = await process.StandardOutput.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+#if DEBUG
+                        logProgress?.Report($"[Robocopy-{actionName}] {line}");
+                        System.Diagnostics.Debug.WriteLine($"[Robocopy-{actionName}] {line}");
+#endif
+                        // 解析 Robocopy 的百分比输出（如 "  18%"）
+                        string trimmed = line.Trim();
+                        if (trimmed.EndsWith("%") && trimmed.Length <= 5)
+                        {
+                            // 尝试解析百分比
+                            string percentStr = trimmed.TrimEnd('%').Trim();
+                            if (double.TryParse(percentStr, out double percent))
+                            {
+                                lock (robocopyPercentLock)
+                                {
+                                    robocopyPercent = percent;
+                                }
+#if DEBUG
+                                System.Diagnostics.Debug.WriteLine($"[Robocopy Percent] {percent}%");
+#endif
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Robocopy-{actionName} Log Error] {ex.Message}");
+            }
+        });
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!process.StandardError.EndOfStream)
+                {
+                    string? line = await process.StandardError.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+#if DEBUG
+                        logProgress?.Report($"[Robocopy-{actionName} Error] {line}");
+                        System.Diagnostics.Debug.WriteLine($"[Robocopy-{actionName} Error] {line}");
+#endif
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Robocopy-{actionName} Error Log Error] {ex.Message}");
+            }
+        });
+
         var stopwatch = Stopwatch.StartNew();
         long prevBytes = 0;
         TimeSpan prevTime = TimeSpan.Zero;
+        
+        // 用于平滑进度的变量 - 使用速度累加法而不是直接平滑字节数
+        long displayedBytes = 0; // 显示给用户的字节数，通过速度累加
+        double smoothedSpeed = 0;
+        const double speedSmoothingFactor = 0.3; // 速度平滑系数
+        
+        // 用于检测停滞的变量
+        int noChangeCount = 0;
+        const int maxNoChangeCount = 10; // 连续10次无变化才认为可能卡住
 
         while (!process.HasExited)
         {
@@ -487,12 +567,96 @@ public class ReversibleMigrationService
 
             await Task.Delay(_config.SampleMilliseconds, cancellationToken);
 
-            long copiedBytes = FileStatsService.GetDirectorySize(targetDir);
+            long actualCopiedBytes = FileStatsService.GetDirectorySize(targetDir);
             TimeSpan elapsed = stopwatch.Elapsed;
 
-            long deltaBytes = Math.Max(0, copiedBytes - prevBytes);
+            // 计算实际增量
+            long actualDeltaBytes = Math.Max(0, actualCopiedBytes - prevBytes);
             double deltaTime = (elapsed - prevTime).TotalSeconds;
-            double speed = deltaTime > 0 ? deltaBytes / deltaTime : 0;
+            
+            // 检测是否有变化
+            if (actualDeltaBytes == 0)
+            {
+                noChangeCount++;
+            }
+            else
+            {
+                noChangeCount = 0;
+            }
+            
+            // 计算瞬时速度（基于实际增量）
+            double instantSpeed = deltaTime > 0 ? actualDeltaBytes / deltaTime : 0;
+            
+            // 平滑速度
+            if (smoothedSpeed == 0 && instantSpeed > 0)
+            {
+                // 第一次有效速度采样
+                smoothedSpeed = instantSpeed;
+            }
+            else if (instantSpeed > 0)
+            {
+                // 使用指数移动平均平滑速度
+                smoothedSpeed = speedSmoothingFactor * instantSpeed + (1 - speedSmoothingFactor) * smoothedSpeed;
+            }
+            
+            // 优先使用 Robocopy 输出的百分比（如果可用）
+            double currentRobocopyPercent;
+            lock (robocopyPercentLock)
+            {
+                currentRobocopyPercent = robocopyPercent;
+            }
+            
+            if (currentRobocopyPercent > 0)
+            {
+                // 使用 Robocopy 报告的百分比计算已复制字节数
+                displayedBytes = (long)(stats.TotalBytes * currentRobocopyPercent / 100.0);
+                
+                // 基于 Robocopy 百分比重新计算速度
+                if (deltaTime > 0)
+                {
+                    long bytesFromPercent = displayedBytes - prevBytes;
+                    instantSpeed = bytesFromPercent / deltaTime;
+                    if (instantSpeed > 0)
+                    {
+                        if (smoothedSpeed == 0)
+                        {
+                            smoothedSpeed = instantSpeed;
+                        }
+                        else
+                        {
+                            smoothedSpeed = speedSmoothingFactor * instantSpeed + (1 - speedSmoothingFactor) * smoothedSpeed;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: 通过速度累加来更新显示的字节数
+                // 这样可以避免文件预分配导致的瞬间跳跃
+                if (deltaTime > 0 && smoothedSpeed > 0)
+                {
+                    long speedBasedIncrement = (long)(smoothedSpeed * deltaTime);
+                    displayedBytes += speedBasedIncrement;
+                    
+                    // 确保显示值不超过实际值（边界保护）
+                    if (displayedBytes > actualCopiedBytes)
+                    {
+                        displayedBytes = actualCopiedBytes;
+                    }
+                }
+                else if (displayedBytes == 0 && actualCopiedBytes > 0)
+                {
+                    // 初始情况：如果还没有速度数据，但已经有复制的字节，使用一个小的初始值
+                    displayedBytes = Math.Min(actualCopiedBytes, stats.TotalBytes / 100); // 最多显示1%
+                }
+            }
+            
+            // 确保显示值不超过总大小
+            displayedBytes = Math.Min(displayedBytes, stats.TotalBytes);
+
+            // 使用平滑后的值计算进度
+            long copiedBytes = displayedBytes;
+            double speed = smoothedSpeed;
 
             double copyPercent = stats.TotalBytes > 0 ? Math.Min(100, (copiedBytes * 100.0) / stats.TotalBytes) : 0;
             double percent = 10 + (copyPercent * 0.8);
@@ -505,6 +669,17 @@ public class ReversibleMigrationService
                 eta = TimeSpan.FromSeconds(etaSeconds);
             }
 
+            // 构建状态消息
+            string statusMessage;
+            if (noChangeCount >= maxNoChangeCount && speed < 1024) // 速度小于1KB/s
+            {
+                statusMessage = $"{percent:F1}% | {FileStatsService.FormatBytes(copiedBytes)} / {FileStatsService.FormatBytes(stats.TotalBytes)} | 正在处理...";
+            }
+            else
+            {
+                statusMessage = $"{percent:F1}% | {FileStatsService.FormatBytes(copiedBytes)} / {FileStatsService.FormatBytes(stats.TotalBytes)} | {FileStatsService.FormatSpeed(speed)}";
+            }
+
             var migrationProgress = new MigrationProgress
             {
                 PercentComplete = percent,
@@ -514,12 +689,24 @@ public class ReversibleMigrationService
                 EstimatedTimeRemaining = eta,
                 CurrentPhase = 3,
                 PhaseDescription = $"{actionName}文件",
-                Message = $"{percent:F1}% | {FileStatsService.FormatBytes(copiedBytes)} / {FileStatsService.FormatBytes(stats.TotalBytes)} | {FileStatsService.FormatSpeed(speed)}"
+                Message = statusMessage
             };
 
             progress?.Report(migrationProgress);
 
-            prevBytes = copiedBytes;
+#if DEBUG
+            // Debug 模式下输出详细的进度调试信息
+            System.Diagnostics.Debug.WriteLine(
+                $"[Progress-{actionName}] " +
+                $"Actual: {FileStatsService.FormatBytes(actualCopiedBytes)}, " +
+                $"Displayed: {FileStatsService.FormatBytes(displayedBytes)}, " +
+                $"Delta: {FileStatsService.FormatBytes(actualDeltaBytes)}, " +
+                $"Speed: {FileStatsService.FormatSpeed(speed)}, " +
+                $"Percent: {percent:F1}%, " +
+                $"NoChange: {noChangeCount}");
+#endif
+
+            prevBytes = actualCopiedBytes;
             prevTime = elapsed;
         }
 
