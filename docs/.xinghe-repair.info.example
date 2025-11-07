@@ -1,0 +1,11 @@
+{
+  "RepairTimestamp": "2025-11-01 22:30:15",
+  "OriginalDirectoryName": "GameData",
+  "OriginalFullPath": "C:\\Games\\GameData",
+  "TargetPath": "D:\\Storage\\GameData",
+  "BackupPath": "C:\\Games\\GameData.bak_20251101_223015",
+  "BackupCreatedAt": "20251101_223015",
+  "RepairMode": "SymbolicLinkRecreation",
+  "Note": "此备份由修复模式创建。修复模式不复制数据，仅重建符号链接。"
+}
+

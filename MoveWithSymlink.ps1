@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Target,
     [int]$LargeFileThresholdMB = 1024,
     [int]$RobocopyThreads = 8,
-    [int]$SampleMilliseconds = 1000
+    [int]$SampleMilliseconds = 1000,
+    [switch]$Repair
 )
 
 #region 自动申请管理员权限
@@ -43,6 +44,9 @@ if (-not (Test-Administrator)) {
     if ($PSBoundParameters.ContainsKey('SampleMilliseconds')) {
         $argList += '-SampleMilliseconds'
         $argList += $SampleMilliseconds
+    }
+    if ($Repair) {
+        $argList += '-Repair'
     }
     
     try {
@@ -183,13 +187,31 @@ function Format-Bytes([long]$Bytes) {
 }
 
 try {
-    Write-Host '[1/6] 解析源/目标路径...' -ForegroundColor Yellow
-    Write-Progress -Activity '[1/6] 解析源/目标路径' -Status '验证路径...' -PercentComplete 0
-    $sourcePath = Get-CanonicalPath -Path $Source
-    if (-not (Test-Path -LiteralPath $sourcePath)) { throw "源目录不存在: $sourcePath" }
-    if (-not (Get-Item -LiteralPath $sourcePath).PsIsContainer) { throw "源路径不是目录: $sourcePath" }
+    if ($Repair) {
+        Write-Host '=== 修复模式 ===' -ForegroundColor Cyan
+        Write-Host '将基于现有目标目录重建符号链接（不复制数据）' -ForegroundColor Cyan
+    }
 
+    Write-Host '[1/4] 解析源/目标路径...' -ForegroundColor Yellow
+    Write-Progress -Activity '[1/4] 解析源/目标路径' -Status '验证路径...' -PercentComplete 0
+    $sourcePath = Get-CanonicalPath -Path $Source
     $targetPath = Get-CanonicalPath -Path $Target
+    
+    # 修复模式下，源路径可以不存在
+    if (-not $Repair) {
+        if (-not (Test-Path -LiteralPath $sourcePath)) { throw "源目录不存在: $sourcePath" }
+        if (-not (Get-Item -LiteralPath $sourcePath).PsIsContainer) { throw "源路径不是目录: $sourcePath" }
+    }
+    
+    # 目标路径必须存在
+    if (-not (Test-Path -LiteralPath $targetPath)) { 
+        if ($Repair) {
+            throw "修复模式下目标目录必须存在: $targetPath"
+        }
+    }
+    if ((Test-Path -LiteralPath $targetPath) -and -not (Get-Item -LiteralPath $targetPath).PsIsContainer) { 
+        throw "目标路径不是目录: $targetPath" 
+    }
 
     # 若用户提供的目标路径是一个已存在的非空文件夹，且不以源目录名结尾，则自动拼接源目录名
     $sourceLeafForTarget = [System.IO.Path]::GetFileName($sourcePath)
@@ -231,71 +253,168 @@ try {
     if ($srcRooted.TrimEnd('\') -ieq $dstRooted.TrimEnd('\')) { throw '源与目标路径不能相同。' }
     if ($dstRooted.StartsWith($srcRooted, [System.StringComparison]::OrdinalIgnoreCase)) { throw '目标不能位于源目录内部。' }
 
-    $thresholdBytes = [int64]$LargeFileThresholdMB * 1MB
-    Write-Host '[2/6] 扫描源目录以计算大小与大文件数量...' -ForegroundColor Yellow
-    Write-Progress -Activity '[2/6] 扫描源目录' -Status '计算大小与文件数量...' -PercentComplete 5
-    $stats = Get-FileStats -DirectoryPath $sourcePath -LargeThresholdBytes $thresholdBytes
-    $totalBytes = [int64]$stats.TotalBytes
-    $totalFiles = [int]$stats.TotalFiles
-    $largeFiles = [int]$stats.LargeFiles
-    Write-Host ("源目录: {0}" -f $sourcePath)
-    Write-Host ("目标目录: {0}" -f $targetPath)
-    Write-Host ("总文件: {0}, 总大小: {1}, 大文件(≥{2}MB): {3}" -f $totalFiles, (Format-Bytes $totalBytes), $LargeFileThresholdMB, $largeFiles)
+    Write-Host ("源路径: {0}" -f $sourcePath)
+    Write-Host ("目标路径: {0}" -f $targetPath)
 
-    Write-Host '[3/6] 开始复制（robocopy）...' -ForegroundColor Yellow
-    $copyExit = Start-RobocopyWithProgress -SourceDir $sourcePath -TargetDir $targetPath -ExpectedBytes $totalBytes -Threads $RobocopyThreads -SampleMs $SampleMilliseconds
-    # Robocopy 退出码：0-7 视为成功/部分成功
-    if ($copyExit -ge 8) { throw ("robocopy 失败，退出码: {0}" -f $copyExit) }
+    if (-not $Repair) {
+        # 普通迁移模式：需要扫描和复制
+        $thresholdBytes = [int64]$LargeFileThresholdMB * 1MB
+        Write-Host '[2/6] 扫描源目录以计算大小与大文件数量...' -ForegroundColor Yellow
+        Write-Progress -Activity '[2/6] 扫描源目录' -Status '计算大小与文件数量...' -PercentComplete 5
+        $stats = Get-FileStats -DirectoryPath $sourcePath -LargeThresholdBytes $thresholdBytes
+        $totalBytes = [int64]$stats.TotalBytes
+        $totalFiles = [int]$stats.TotalFiles
+        $largeFiles = [int]$stats.LargeFiles
+        Write-Host ("总文件: {0}, 总大小: {1}, 大文件(≥{2}MB): {3}" -f $totalFiles, (Format-Bytes $totalBytes), $LargeFileThresholdMB, $largeFiles)
 
-    # 复制完成后做一次大小校验（近似）
-    $copiedBytes = Get-DirectorySizeBytes -DirectoryPath $targetPath
-    if ($totalBytes -gt 0) {
-        $ratio = [double]$copiedBytes / [double]$totalBytes
-        if ($ratio -lt 0.98) { Write-Warning ("目标大小仅为源的 {0:P1}，请确认复制是否完整。" -f $ratio) }
+        Write-Host '[3/6] 开始复制（robocopy）...' -ForegroundColor Yellow
+        $copyExit = Start-RobocopyWithProgress -SourceDir $sourcePath -TargetDir $targetPath -ExpectedBytes $totalBytes -Threads $RobocopyThreads -SampleMs $SampleMilliseconds
+        # Robocopy 退出码：0-7 视为成功/部分成功
+        if ($copyExit -ge 8) { throw ("robocopy 失败，退出码: {0}" -f $copyExit) }
+
+        # 复制完成后做一次大小校验（近似）
+        $copiedBytes = Get-DirectorySizeBytes -DirectoryPath $targetPath
+        if ($totalBytes -gt 0) {
+            $ratio = [double]$copiedBytes / [double]$totalBytes
+            if ($ratio -lt 0.98) { Write-Warning ("目标大小仅为源的 {0:P1}，请确认复制是否完整。" -f $ratio) }
+        }
+    } else {
+        # 修复模式：跳过扫描和复制
+        Write-Host '[2/4] 跳过扫描和复制（修复模式）' -ForegroundColor Yellow
+        Write-Progress -Activity '[2/4] 修复模式' -Status '目标目录已存在，跳过数据复制' -PercentComplete 40
     }
 
-    # 切换：将源目录重命名为 .bak 并创建符号链接
-    $parent = [System.IO.Path]::GetDirectoryName($sourcePath)
-    $name = [System.IO.Path]::GetFileName($sourcePath)
-    $timestamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
-    $backupPath = Join-Path -Path $parent -ChildPath ($name + '.bak_' + $timestamp)
+    # 处理源路径并创建符号链接
+    $backupPath = $null
+    $sourceExists = Test-Path -LiteralPath $sourcePath
+    
+    if ($Repair) {
+        Write-Host '[3/4] 处理源路径并创建符号链接...' -ForegroundColor Yellow
+        Write-Progress -Activity '[3/4] 创建符号链接' -Status '处理源路径...' -PercentComplete 70
+    } else {
+        Write-Host '[4/6] 创建符号链接...' -ForegroundColor Yellow
+        Write-Progress -Activity '[4/6] 创建符号链接' -Status '备份源目录...' -PercentComplete 90
+    }
 
-    Write-Host ("[4/6] 创建符号链接..." -f $backupPath) -ForegroundColor Yellow
-    Write-Progress -Activity '[4/6] 创建符号链接' -Status '备份源目录...' -PercentComplete 90
-    Move-Item -LiteralPath $sourcePath -Destination $backupPath -Force
+    if ($sourceExists) {
+        $sourceItem = Get-Item -LiteralPath $sourcePath -Force
+        $isSymlink = ($sourceItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq [System.IO.FileAttributes]::ReparsePoint
+        
+        if ($isSymlink) {
+            # 源已是符号链接
+            try {
+                $currentTarget = $sourceItem.LinkTarget
+                if ($currentTarget -and ([System.IO.Path]::GetFullPath($currentTarget) -ieq [System.IO.Path]::GetFullPath($targetPath))) {
+                    Write-Host "符号链接已存在且指向正确目标，跳过创建" -ForegroundColor Green
+                    $skipSymlink = $true
+                } else {
+                    Write-Host "符号链接指向错误目标，删除后重建" -ForegroundColor Yellow
+                    Remove-Item -LiteralPath $sourcePath -Force
+                    $skipSymlink = $false
+                }
+            } catch {
+                Write-Host "无法读取符号链接目标，删除后重建" -ForegroundColor Yellow
+                Remove-Item -LiteralPath $sourcePath -Force
+                $skipSymlink = $false
+            }
+        } else {
+            # 源是普通目录
+            $hasContent = @(Get-ChildItem -LiteralPath $sourcePath -Force -ErrorAction SilentlyContinue | Select-Object -First 1).Count -gt 0
+            if ($hasContent) {
+                # 非空目录，备份
+                $parent = [System.IO.Path]::GetDirectoryName($sourcePath)
+                $name = [System.IO.Path]::GetFileName($sourcePath)
+                $timestamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
+                $backupPath = Join-Path -Path $parent -ChildPath ($name + '.bak_' + $timestamp)
+                Write-Host "源是非空目录，备份到: $backupPath" -ForegroundColor Yellow
+                Move-Item -LiteralPath $sourcePath -Destination $backupPath -Force
+            } else {
+                # 空目录，直接删除
+                Write-Host "源是空目录，直接删除" -ForegroundColor Yellow
+                Remove-Item -LiteralPath $sourcePath -Force
+            }
+            $skipSymlink = $false
+        }
+    } else {
+        # 源不存在
+        Write-Host "源路径不存在，直接创建符号链接" -ForegroundColor Yellow
+        $skipSymlink = $false
+    }
 
-    $mklinkCmd = 'mklink /D ' + '"' + $sourcePath + '" ' + '"' + $targetPath + '"'
-    Write-Progress -Activity '[4/6] 创建符号链接' -Status '创建符号链接...' -PercentComplete 91
-    $mklink = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c $mklinkCmd" -PassThru -Wait
-    if ($mklink.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $sourcePath)) {
-        Write-Warning '创建符号链接失败，开始回滚...'
-        try { if (Test-Path -LiteralPath $sourcePath) { Remove-Item -LiteralPath $sourcePath -Force } } catch { }
-        Move-Item -LiteralPath $backupPath -Destination $sourcePath -Force
-        throw '已回滚至迁移前状态。'
+    if (-not $skipSymlink) {
+        $mklinkCmd = 'mklink /D ' + '"' + $sourcePath + '" ' + '"' + $targetPath + '"'
+        if ($Repair) {
+            Write-Progress -Activity '[3/4] 创建符号链接' -Status '创建符号链接...' -PercentComplete 75
+        } else {
+            Write-Progress -Activity '[4/6] 创建符号链接' -Status '创建符号链接...' -PercentComplete 91
+        }
+        
+        $mklink = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c $mklinkCmd" -PassThru -Wait
+        if ($mklink.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $sourcePath)) {
+            Write-Warning '创建符号链接失败，开始回滚...'
+            try { if (Test-Path -LiteralPath $sourcePath) { Remove-Item -LiteralPath $sourcePath -Force } } catch { }
+            if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+                Move-Item -LiteralPath $backupPath -Destination $sourcePath -Force
+            }
+            throw '已回滚至修复前状态。'
+        }
     }
 
     # 健康检查：链接存在且可访问
-    Write-Host '[5/6] 健康检查...' -ForegroundColor Yellow
-    Write-Progress -Activity '[5/6] 健康检查' -Status '验证符号链接...' -PercentComplete 93
-    $linkItem = Get-Item -LiteralPath $sourcePath -ErrorAction SilentlyContinue
-    if (-not $linkItem -or -not $linkItem.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint)) {
-        Write-Warning '创建的对象不是重解析点（符号链接），开始回滚...'
-        try { if (Test-Path -LiteralPath $sourcePath) { Remove-Item -LiteralPath $sourcePath -Force } } catch { }
-        Move-Item -LiteralPath $backupPath -Destination $sourcePath -Force
-        throw '已回滚至迁移前状态。'
+    if ($Repair) {
+        Write-Host '[4/4] 验证符号链接...' -ForegroundColor Yellow
+        Write-Progress -Activity '[4/4] 验证符号链接' -Status '验证符号链接...' -PercentComplete 90
+    } else {
+        Write-Host '[5/6] 健康检查...' -ForegroundColor Yellow
+        Write-Progress -Activity '[5/6] 健康检查' -Status '验证符号链接...' -PercentComplete 93
+    }
+    
+    if (-not $skipSymlink) {
+        $linkItem = Get-Item -LiteralPath $sourcePath -ErrorAction SilentlyContinue
+        if (-not $linkItem -or -not $linkItem.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint)) {
+            Write-Warning '创建的对象不是重解析点（符号链接），开始回滚...'
+            try { if (Test-Path -LiteralPath $sourcePath) { Remove-Item -LiteralPath $sourcePath -Force } } catch { }
+            if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+                Move-Item -LiteralPath $backupPath -Destination $sourcePath -Force
+            }
+            throw '已回滚至修复前状态。'
+        }
     }
 
     # 清理备份
-    Write-Host '[6/6] 清理备份目录...' -ForegroundColor Yellow
-    Write-Progress -Activity '[6/6] 清理备份' -Status '删除备份目录...' -PercentComplete 96
-    try { Remove-Item -LiteralPath $backupPath -Recurse -Force } catch { }
-    Write-Progress -Activity '[6/6] 清理备份' -Status '完成' -PercentComplete 100 -Completed
+    if (-not $Repair) {
+        Write-Host '[6/6] 清理备份目录...' -ForegroundColor Yellow
+        Write-Progress -Activity '[6/6] 清理备份' -Status '删除备份目录...' -PercentComplete 96
+        if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+            try { Remove-Item -LiteralPath $backupPath -Recurse -Force } catch { }
+        }
+        Write-Progress -Activity '[6/6] 清理备份' -Status '完成' -PercentComplete 100 -Completed
+    } else {
+        if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+            try { 
+                Remove-Item -LiteralPath $backupPath -Recurse -Force
+                Write-Host "已清理备份目录" -ForegroundColor Green
+            } catch { 
+                Write-Host "备份目录保留在: $backupPath" -ForegroundColor Yellow
+            }
+        }
+        Write-Progress -Activity '[4/4] 完成' -Status '修复完成' -PercentComplete 100 -Completed
+    }
 
     Write-Host ''
-    Write-Host '迁移完成 ✅' -ForegroundColor Green
-    Write-Host ("源路径(现为链接): {0}" -f $sourcePath)
-    Write-Host ("目标路径: {0}" -f $targetPath)
-    Write-Host ("总文件: {0}, 总大小: {1}, 大文件(≥{2}MB): {3}" -f $totalFiles, (Format-Bytes $totalBytes), $LargeFileThresholdMB, $largeFiles)
+    if ($Repair) {
+        Write-Host '修复完成 ✅' -ForegroundColor Green
+        Write-Host ("源路径(现为符号链接): {0}" -f $sourcePath)
+        Write-Host ("目标路径: {0}" -f $targetPath)
+        if ($backupPath -and (Test-Path -LiteralPath $backupPath)) {
+            Write-Host ("备份目录: {0}" -f $backupPath) -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host '迁移完成 ✅' -ForegroundColor Green
+        Write-Host ("源路径(现为链接): {0}" -f $sourcePath)
+        Write-Host ("目标路径: {0}" -f $targetPath)
+        Write-Host ("总文件: {0}, 总大小: {1}, 大文件(≥{2}MB): {3}" -f $totalFiles, (Format-Bytes $totalBytes), $LargeFileThresholdMB, $largeFiles)
+    }
 }
 catch {
     $msg = $_.Exception.Message

@@ -346,7 +346,27 @@
                                 </Border.Style>
                             </Border>
                             
+                            <!-- 修复模式提示 -->
+                            <Border Background="#E8F5E9" Padding="10" Margin="0,15,0,0" CornerRadius="3"
+                                    Visibility="{Binding CanRepair, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                        <TextBlock Text="🔧" Margin="0,0,10,0" FontSize="16"/>
+                                        <TextBlock Text="检测到可修复" FontWeight="Bold" Foreground="#2E7D32"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding RepairHint}" TextWrapping="Wrap" Foreground="#424242" Margin="26,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                                <!-- 修复按钮 -->
+                                <Button Command="{Binding StartRepairCommand}"
+                                        Visibility="{Binding CanRepair, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                                        Background="#4CAF50" Foreground="White" FontWeight="SemiBold"
+                                        Content="修复链接"/>
+                                
+                                <!-- 扫描按钮 -->
                                 <Button Command="{Binding StartScanFromStep1Command}"
                                         IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold">
