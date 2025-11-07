@@ -6,6 +6,8 @@
              xmlns:local="clr-namespace:MoveWithSymlinkWPF.Views"
              xmlns:vm="clr-namespace:MoveWithSymlinkWPF.ViewModels"
              xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="900">
     
@@ -521,7 +523,10 @@
             </Expander.Header>
             
             <Border Height="150" Padding="10,5">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
+                <ScrollViewer x:Name="QuickMigrateLogScrollViewer" VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
+                    <i:Interaction.Behaviors>
+                        <behaviors:AutoScrollBehavior/>
+                    </i:Interaction.Behaviors>
                     <ItemsControl ItemsSource="{Binding LogMessages}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
