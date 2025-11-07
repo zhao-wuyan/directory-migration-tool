@@ -1,3 +1,5 @@
+using MigrationCore.Models;
+
 namespace MigrationCore.Services;
 
 /// <summary>
