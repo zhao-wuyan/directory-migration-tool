@@ -1,54 +1,113 @@
 <UserControl x:Class="MoveWithSymlinkWPF.Views.QuickMigratePage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:MoveWithSymlinkWPF.Views"
              xmlns:vm="clr-namespace:MoveWithSymlinkWPF.ViewModels"
              xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
-             mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="900">
-    
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+        d:DesignWidth="900">
+
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
         <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
-        
-        <!-- Modern ScrollBar Style -->
-        <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
-            <Setter Property="Background" Value="#C0C0C0"/>
+
+        <!-- Error Type Converters -->
+        <converters:ErrorTypeToIconConverter x:Key="ErrorTypeToIconConverter"/>
+        <converters:ErrorTypeToColorConverter x:Key="ErrorTypeToColorConverter"/>
+        <converters:ErrorTypeToBorderConverter x:Key="ErrorTypeToBorderConverter"/>
+        <converters:ErrorStateToVisibilityConverter x:Key="ErrorStateToVisibilityConverter"/>
+        <converters:ErrorMessageToShortDescriptionConverter x:Key="ErrorMessageToShortDescriptionConverter"/>
+        <converters:TaskStatusToStyleConverter x:Key="TaskStatusToStyleConverter"/>
+        <converters:ErrorTypeToDescriptionConverter x:Key="ErrorTypeToDescriptionConverter"/>
+        <converters:ErrorTypeToSolutionConverter x:Key="ErrorTypeToSolutionConverter"/>
+        <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+
+        <!-- Popup Shadow Effect -->
+        <DropShadowEffect x:Key="PopupShadowEffect"
+                          Color="#000000"
+                          BlurRadius="16"
+                          Opacity="0.15"
+                          Direction="270"
+                          ShadowDepth="4"/>
+
+        <!-- Popup Button Style -->
+        <Style x:Key="PopupButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#6B7280"/>
+            <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4B5563"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Modern ScrollBar Style -->
+        <Style x:Key="ScrollBarThumb"
+                TargetType="{x:Type Thumb}">
+            <Setter Property="Background"
+                    Value="#C0C0C0"/>
+            <Setter Property="BorderThickness"
+                    Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
-                        <Border Background="{TemplateBinding Background}" 
+                        <Border Background="{TemplateBinding Background}"
                                 CornerRadius="4"
                                 Margin="2"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#909090"/>
+                <Trigger Property="IsMouseOver"
+                        Value="True">
+                    <Setter Property="Background"
+                            Value="#909090"/>
                 </Trigger>
-                <Trigger Property="IsDragging" Value="True">
-                    <Setter Property="Background" Value="#606060"/>
+                <Trigger Property="IsDragging"
+                        Value="True">
+                    <Setter Property="Background"
+                            Value="#606060"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
-        <Style x:Key="ModernScrollBar" TargetType="{x:Type ScrollBar}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Width" Value="10"/>
-            <Setter Property="MinWidth" Value="10"/>
+
+        <Style x:Key="ModernScrollBar"
+                TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background"
+                    Value="Transparent"/>
+            <Setter Property="Width"
+                    Value="10"/>
+            <Setter Property="MinWidth"
+                    Value="10"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                         <Grid>
-                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track x:Name="PART_Track"
+                                    IsDirectionReversed="True">
                                 <Track.Thumb>
                                     <Thumb Style="{StaticResource ScrollBarThumb}"/>
                                 </Track.Thumb>
@@ -58,16 +117,22 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="Orientation" Value="Horizontal">
-                    <Setter Property="Height" Value="10"/>
-                    <Setter Property="MinHeight" Value="10"/>
-                    <Setter Property="Width" Value="Auto"/>
-                    <Setter Property="MinWidth" Value="0"/>
+                <Trigger Property="Orientation"
+                        Value="Horizontal">
+                    <Setter Property="Height"
+                            Value="10"/>
+                    <Setter Property="MinHeight"
+                            Value="10"/>
+                    <Setter Property="Width"
+                            Value="Auto"/>
+                    <Setter Property="MinWidth"
+                            Value="0"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="{x:Type ScrollBar}">
                                 <Grid>
-                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                    <Track x:Name="PART_Track"
+                                            IsDirectionReversed="False">
                                         <Track.Thumb>
                                             <Thumb Style="{StaticResource ScrollBarThumb}"/>
                                         </Track.Thumb>
@@ -79,8 +144,9 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
-        <Style x:Key="ModernScrollViewer" TargetType="{x:Type ScrollViewer}">
+
+        <Style x:Key="ModernScrollViewer"
+                TargetType="{x:Type ScrollViewer}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollViewer}">
@@ -93,199 +159,377 @@
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            
-                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
-                            
+
+                            <ScrollContentPresenter Grid.Column="0"
+                                    Grid.Row="0"/>
+
                             <ScrollBar x:Name="PART_VerticalScrollBar"
-                                      Grid.Column="1" Grid.Row="0"
-                                      Style="{StaticResource ModernScrollBar}"
-                                      Value="{TemplateBinding VerticalOffset}"
-                                      Maximum="{TemplateBinding ScrollableHeight}"
-                                      ViewportSize="{TemplateBinding ViewportHeight}"
-                                      Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
-                            
+                                       Grid.Column="1"
+                                    Grid.Row="0"
+                                       Style="{StaticResource ModernScrollBar}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+
                             <ScrollBar x:Name="PART_HorizontalScrollBar"
-                                      Grid.Column="0" Grid.Row="1"
-                                      Orientation="Horizontal"
-                                      Style="{StaticResource ModernScrollBar}"
-                                      Value="{TemplateBinding HorizontalOffset}"
-                                      Maximum="{TemplateBinding ScrollableWidth}"
-                                      ViewportSize="{TemplateBinding ViewportWidth}"
-                                      Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                                       Grid.Column="0"
+                                    Grid.Row="1"
+                                       Orientation="Horizontal"
+                                       Style="{StaticResource ModernScrollBar}"
+                                       Value="{TemplateBinding HorizontalOffset}"
+                                       Maximum="{TemplateBinding ScrollableWidth}"
+                                       ViewportSize="{TemplateBinding ViewportWidth}"
+                                       Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
                         </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <Style TargetType="Button">
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="5,0"/>
-            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Padding"
+                    Value="12,6"/>
+            <Setter Property="Margin"
+                    Value="5,0"/>
+            <Setter Property="MinWidth"
+                    Value="80"/>
         </Style>
-        
-        <Style x:Key="TaskCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="3"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="Margin" Value="0,4"/>
+
+        <!-- Normal Task Card Style -->
+        <Style x:Key="TaskCardStyle"
+                TargetType="Border">
+            <Setter Property="Background"
+                    Value="White"/>
+            <Setter Property="BorderBrush"
+                    Value="#E0E0E0"/>
+            <Setter Property="BorderThickness"
+                    Value="1"/>
+            <Setter Property="CornerRadius"
+                    Value="3"/>
+            <Setter Property="Padding"
+                    Value="10,8"/>
+            <Setter Property="Margin"
+                    Value="0,4"/>
         </Style>
-        
-        <Style x:Key="GroupBoxStyle" TargetType="GroupBox">
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Padding" Value="8"/>
+
+        <!-- Failed Task Card Style -->
+        <Style x:Key="FailedTaskCardStyle"
+                TargetType="Border">
+            <Setter Property="Background"
+                    Value="#FFF5F5"/>
+            <Setter Property="BorderBrush"
+                    Value="#DC2626"/>
+            <Setter Property="BorderThickness"
+                    Value="2"/>
+            <Setter Property="CornerRadius"
+                    Value="3"/>
+            <Setter Property="Padding"
+                    Value="10,8"/>
+            <Setter Property="Margin"
+                    Value="0,4"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#DC2626"
+                            BlurRadius="6"
+                            Opacity="0.2"
+                            Direction="315"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Completed Task Card Style -->
+        <Style x:Key="CompletedTaskCardStyle"
+                TargetType="Border">
+            <Setter Property="Background"
+                    Value="#F0FDF4"/>
+            <Setter Property="BorderBrush"
+                    Value="#22C55E"/>
+            <Setter Property="BorderThickness"
+                    Value="2"/>
+            <Setter Property="CornerRadius"
+                    Value="3"/>
+            <Setter Property="Padding"
+                    Value="10,8"/>
+            <Setter Property="Margin"
+                    Value="0,4"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#22C55E"
+                            BlurRadius="6"
+                            Opacity="0.15"
+                            Direction="315"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- In Progress Task Card Style -->
+        <Style x:Key="InProgressTaskCardStyle"
+                TargetType="Border">
+            <Setter Property="Background"
+                    Value="#EFF6FF"/>
+            <Setter Property="BorderBrush"
+                    Value="#3B82F6"/>
+            <Setter Property="BorderThickness"
+                    Value="2"/>
+            <Setter Property="CornerRadius"
+                    Value="3"/>
+            <Setter Property="Padding"
+                    Value="10,8"/>
+            <Setter Property="Margin"
+                    Value="0,4"/>
+        </Style>
+
+        <!-- Error Tag Style -->
+        <Style x:Key="ErrorTagStyle"
+                TargetType="Border">
+            <Setter Property="CornerRadius"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="6,2"/>
+            <Setter Property="Margin"
+                    Value="0,0,5,0"/>
+            <Setter Property="VerticalAlignment"
+                    Value="Center"/>
+        </Style>
+
+        <!-- Error Details Panel Style -->
+        <Style x:Key="ErrorDetailsPanelStyle"
+                TargetType="Border">
+            <Setter Property="Background"
+                    Value="#FEF2F2"/>
+            <Setter Property="BorderBrush"
+                    Value="#FCA5A5"/>
+            <Setter Property="BorderThickness"
+                    Value="1"/>
+            <Setter Property="CornerRadius"
+                    Value="4"/>
+            <Setter Property="Padding"
+                    Value="8"/>
+            <Setter Property="Margin"
+                    Value="0,5,0,0"/>
+        </Style>
+
+        <Style x:Key="GroupBoxStyle"
+                TargetType="GroupBox">
+            <Setter Property="BorderBrush"
+                    Value="#CCCCCC"/>
+            <Setter Property="BorderThickness"
+                    Value="1"/>
+            <Setter Property="Margin"
+                    Value="0,0,0,10"/>
+            <Setter Property="Padding"
+                    Value="8"/>
         </Style>
     </UserControl.Resources>
-    
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
+
         <!-- Header -->
-        <Border Grid.Row="0" Background="#F8F8F8" Padding="10,8" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0"
+                Background="#F8F8F8"
+                Padding="10,8"
+                BorderBrush="#E0E0E0"
+                BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                
-                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⏩ 一键迁移" FontSize="16" FontWeight="Bold" Margin="0,0,12,0"/>
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="13" Foreground="Gray" VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Row="0"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="⏩ 一键迁移"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding StatusMessage}"
+                            FontSize="13"
+                            Foreground="Gray"
+                            VerticalAlignment="Center"/>
                 </StackPanel>
-                
+
                 <!-- Target Strategy -->
-                <Grid Grid.Row="1" Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <CheckBox Content="全选" 
-                                  IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,15,0"/>
-                        
-                        <CheckBox Content="统一目标目录" 
-                                  IsChecked="{Binding UseUnifiedTarget}"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,10,0"/>
-                        
-                        <TextBox Text="{Binding UnifiedTargetRoot, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="300"
-                                 IsEnabled="{Binding UseUnifiedTarget}"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,5,0"/>
-                        
-                        <Button Content="浏览..." 
-                                Command="{Binding BrowseUnifiedTargetCommand}"
-                                IsEnabled="{Binding UseUnifiedTarget}"
-                                VerticalAlignment="Center"/>
-                    </StackPanel>
-                    
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="导出示例配置" 
-                                Command="{Binding ExportExampleConfigCommand}"
-                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                                Visibility="{Binding HasConfig, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                        <Button Content="刷新扫描" 
-                                Command="{Binding RefreshScanCommand}"
-                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
-                        <Button Content="开始一键迁移" 
-                                Command="{Binding StartQuickMigrationCommand}"
-                                IsEnabled="{Binding HasSelectedTasks}"
-                                Background="#0078D4" 
-                                Foreground="White" 
-                                FontWeight="SemiBold"
-                                Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                        <Button Content="取消" 
-                                Command="{Binding CancelExecutionCommand}"
-                                Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    </StackPanel>
+                <Grid Grid.Row="1"
+                        Margin="0,8,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Original Controls -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0"
+                                Orientation="Horizontal">
+                            <CheckBox Content="全选"
+                                      IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,15,0"/>
+
+                            <CheckBox Content="统一目标目录"
+                                      IsChecked="{Binding UseUnifiedTarget}"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,10,0"/>
+
+                            <TextBox Text="{Binding UnifiedTargetRoot, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="300"
+                                     IsEnabled="{Binding UseUnifiedTarget}"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,5,0"/>
+
+                            <Button Content="浏览..."
+                                    Command="{Binding BrowseUnifiedTargetCommand}"
+                                    IsEnabled="{Binding UseUnifiedTarget}"
+                                    VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                            <Button Content="导出示例配置"
+                                    Command="{Binding ExportExampleConfigCommand}"
+                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                                    Visibility="{Binding HasConfig, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                            <Button Content="刷新扫描"
+                                    Command="{Binding RefreshScanCommand}"
+                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
+                            <Button Content="开始一键迁移"
+                                    Command="{Binding StartQuickMigrationCommand}"
+                                    IsEnabled="{Binding HasSelectedTasks}"
+                                    Background="#0078D4"
+                                    Foreground="White"
+                                    FontWeight="SemiBold"
+                                    Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <Button Content="取消"
+                                    Command="{Binding CancelExecutionCommand}"
+                                    Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </Grid>
         </Border>
-        
+
         <!-- Content Area -->
-        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Margin="10">
+        <TabControl Grid.Row="1"
+                SelectedIndex="{Binding SelectedTabIndex}"
+                Margin="10">
             <!-- 未迁移任务 -->
             <TabItem Header="未迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                        Style="{StaticResource ModernScrollViewer}">
                     <StackPanel Margin="10">
                         <!-- Empty State -->
-                        <Border Background="#F0F0F0" 
-                                Padding="40" 
+                        <Border Background="#F0F0F0"
+                                Padding="40"
                                 CornerRadius="5"
                                 Visibility="{Binding HasValidTasks, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                             <StackPanel HorizontalAlignment="Center">
-                                <TextBlock Text="📂" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                <TextBlock Text="无可一键迁移目录" 
-                                          FontSize="16" 
-                                          FontWeight="SemiBold"
-                                          HorizontalAlignment="Center"
-                                          Margin="0,0,0,5"/>
-                                <TextBlock Text="请检查配置文件或刷新扫描" 
-                                          FontSize="14" 
-                                          Foreground="Gray"
-                                          HorizontalAlignment="Center"/>
+                                <TextBlock Text="📂"
+                                        FontSize="48"
+                                        HorizontalAlignment="Center"
+                                        Margin="0,0,0,10"/>
+                                <TextBlock Text="无可一键迁移目录"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="请检查配置文件或刷新扫描"
+                                           FontSize="14"
+                                           Foreground="Gray"
+                                           HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        
+
                         <!-- Task Groups -->
                         <ItemsControl ItemsSource="{Binding PendingTaskGroups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <GroupBox Header="{Binding GroupName}" Style="{StaticResource GroupBoxStyle}">
+                                    <GroupBox Header="{Binding GroupName}"
+                                            Style="{StaticResource GroupBoxStyle}">
                                         <ItemsControl ItemsSource="{Binding Tasks}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Style="{StaticResource TaskCardStyle}">
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                            </Grid.RowDefinitions>
-                                                            
+                                                    <Grid x:Name="TaskItemRoot">
+                                                        <Border Style="{Binding Status, Converter={StaticResource TaskStatusToStyleConverter}}">
+                                                            <Grid>
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                </Grid.RowDefinitions>
+
                                                             <!-- Row 1: Display Name and Actions -->
                                                             <Grid Grid.Row="0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                
-                                                                <CheckBox Grid.Column="0" 
-                                                                         IsChecked="{Binding IsSelected}"
-                                                                         VerticalAlignment="Center"
-                                                                         Margin="0,0,10,0"/>
-                                                                
-                                                                <TextBlock Grid.Column="1" 
-                                                                          Text="{Binding DisplayName}" 
-                                                                          FontWeight="SemiBold"
-                                                                          FontSize="14"/>
-                                                                
-                                                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+
+                                                                <CheckBox Grid.Column="0"
+                                                                          IsChecked="{Binding IsSelected}"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="0,0,10,0"/>
+
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding DisplayName}"
+                                                                           FontWeight="SemiBold"
+                                                                           FontSize="14"
+                                                                           VerticalAlignment="Center"/>
+
+                                                                <!-- Error Status Indicator -->
+                                                                <StackPanel Grid.Column="2"
+                                                                            Orientation="Horizontal"
+                                                                            VerticalAlignment="Center"
+                                                                            Visibility="{Binding Status, Converter={StaticResource ErrorStateToVisibilityConverter}}">
+                                                                    <Border x:Name="ErrorTagBorder"
+                                                                            Style="{StaticResource ErrorTagStyle}"
+                                                                            Background="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToColorConverter}}"
+                                                                            Cursor="Hand"
+                                                                            MouseLeftButtonDown="ErrorTag_MouseLeftButtonDown"
+                                                                            MouseEnter="ErrorTag_MouseEnter"
+                                                                            MouseLeave="ErrorTag_MouseLeave">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToIconConverter}}"
+                                                                                       FontSize="12"
+                                                                                    Margin="0,0,4,0"
+                                                                                    VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorMessageToShortDescriptionConverter}}"
+                                                                                       FontSize="11"
+                                                                                    Foreground="White"
+                                                                                    FontWeight="SemiBold"
+                                                                                    VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </StackPanel>
+
+                                                                <StackPanel Grid.Column="3"
+                                                                        Orientation="Horizontal">
                                                                     <!-- 非统一模式下显示浏览按钮 -->
-                                                                    <Button Content="浏览..." 
+                                                                    <Button Content="浏览..."
                                                                             Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             Visibility="{Binding DataContext.UseUnifiedTarget, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                                                             Padding="8,4"
                                                                             MinWidth="60"
                                                                             Margin="5,0,0,0"/>
-                                                                    
+
                                                                     <!-- 迁移按钮 -->
-                                                                    <Button Content="迁移" 
+                                                                    <Button Content="迁移"
                                                                             Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
@@ -294,9 +538,10 @@
                                                                             Margin="5,0,0,0"/>
                                                                 </StackPanel>
                                                             </Grid>
-                                                            
+
                                                             <!-- Row 2: Paths -->
-                                                            <Grid Grid.Row="1" Margin="0,5,0,0">
+                                                            <Grid Grid.Row="1"
+                                                                    Margin="0,5,0,0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="50"/>
                                                                     <ColumnDefinition Width="*"/>
@@ -305,47 +550,158 @@
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
-                                                                
-                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="源:" FontSize="11" Foreground="Gray" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                                                                <TextBlock Grid.Row="0" Grid.Column="1" 
-                                                                          Text="{Binding SourcePath}" 
-                                                                          FontSize="11" 
-                                                                          FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"
-                                                                          TextWrapping="NoWrap"
-                                                                          ToolTip="{Binding SourcePath}"/>
-                                                                
-                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,4,0,0" VerticalAlignment="Top"/>
-                                                                <TextBlock Grid.Row="1" Grid.Column="1" 
-                                                                          Text="{Binding TargetPath}" 
-                                                                          FontSize="11" 
-                                                                          FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"
-                                                                          TextWrapping="NoWrap"
-                                                                          Margin="0,4,0,0"
-                                                                          ToolTip="{Binding TargetPath}"/>
+
+                                                                <TextBlock Grid.Row="0"
+                                                                        Grid.Column="0"
+                                                                        Text="源:"
+                                                                        FontSize="11"
+                                                                        Foreground="Gray"
+                                                                        VerticalAlignment="Top"
+                                                                        Margin="0,2,0,0"/>
+                                                                <TextBlock Grid.Row="0"
+                                                                        Grid.Column="1"
+                                                                           Text="{Binding SourcePath}"
+                                                                           FontSize="11"
+                                                                           FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap"
+                                                                           ToolTip="{Binding SourcePath}"/>
+
+                                                                <TextBlock Grid.Row="1"
+                                                                        Grid.Column="0"
+                                                                        Text="目标:"
+                                                                        FontSize="11"
+                                                                        Foreground="Gray"
+                                                                        Margin="0,4,0,0"
+                                                                        VerticalAlignment="Top"/>
+                                                                <TextBlock Grid.Row="1"
+                                                                        Grid.Column="1"
+                                                                           Text="{Binding TargetPath}"
+                                                                           FontSize="11"
+                                                                           FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap"
+                                                                           Margin="0,4,0,0"
+                                                                           ToolTip="{Binding TargetPath}"/>
                                                             </Grid>
-                                                            
+
                                                             <!-- Row 3: Progress Bar and Phase Info (when executing) -->
-                                                            <StackPanel Grid.Row="2" Margin="0,5,0,0"
-                                                                       Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <TextBlock FontSize="10" Foreground="#0078D4" Margin="0,0,0,2">
+                                                            <StackPanel Grid.Row="2"
+                                                                    Margin="0,5,0,0"
+                                                                        Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock FontSize="10"
+                                                                        Foreground="#0078D4"
+                                                                        Margin="0,0,0,2">
                                                                     <Run Text="["/>
                                                                     <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
                                                                     <Run Text="/6] "/>
                                                                     <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
                                                                 </TextBlock>
-                                                                <ProgressBar Value="{Binding ProgressPercent}" 
-                                                                            Maximum="100" 
-                                                                            Height="6"
-                                                                            Margin="0,2"/>
-                                                                <TextBlock Text="{Binding StatusMessage}" 
-                                                                          FontSize="10" 
-                                                                          Foreground="Gray"
-                                                                          Margin="0,2,0,0"/>
+                                                                <ProgressBar Value="{Binding ProgressPercent}"
+                                                                             Maximum="100"
+                                                                             Height="6"
+                                                                             Margin="0,2"/>
+                                                                <TextBlock Text="{Binding StatusMessage}"
+                                                                           FontSize="10"
+                                                                           Foreground="Gray"
+                                                                           Margin="0,2,0,0"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>
+
+                                                    <!-- Popup Error Details -->
+                                                    <Popup x:Name="ErrorPopup"
+                                                           PlacementTarget="{Binding ElementName=ErrorTagBorder}"
+                                                           Placement="Bottom"
+                                                           HorizontalOffset="0"
+                                                           VerticalOffset="5"
+                                                           AllowsTransparency="True"
+                                                           PopupAnimation="Fade"
+                                                           StaysOpen="True"
+                                                           MouseEnter="ErrorPopup_MouseEnter"
+                                                           MouseLeave="ErrorPopup_MouseLeave">
+                                                        <Border Background="White"
+                                                                    BorderBrush="{Binding ErrorType, Converter={StaticResource ErrorTypeToColorConverter}}"
+                                                                    BorderThickness="2"
+                                                                    CornerRadius="8"
+                                                                    Padding="12"
+                                                                    MaxWidth="400"
+                                                                    Effect="{StaticResource PopupShadowEffect}">
+                                                                <StackPanel>
+                                                                    <!-- Error Type Header -->
+                                                                    <Grid Margin="0,0,0,8">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                        </Grid.ColumnDefinitions>
+
+                                                                        <Border Grid.Column="0"
+                                                                                Background="{Binding ErrorType, Converter={StaticResource ErrorTypeToColorConverter}}"
+                                                                                CornerRadius="4"
+                                                                                Padding="6,3"
+                                                                                Margin="0,0,8,0">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="{Binding ErrorType, Converter={StaticResource ErrorTypeToIconConverter}}"
+                                                                                           Foreground="White"
+                                                                                           FontSize="12"
+                                                                                           Margin="0,0,4,0"/>
+                                                                                <TextBlock Text="{Binding ErrorType, Converter={StaticResource ErrorTypeToDescriptionConverter}}"
+                                                                                           Foreground="White"
+                                                                                           FontSize="11"
+                                                                                           FontWeight="SemiBold"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Text="{Binding DisplayName}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="Gray"
+                                                                                   VerticalAlignment="Center"
+                                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                    </Grid>
+
+                                                                    <!-- Detailed Error Message -->
+                                                                    <TextBlock Text="详细错误信息"
+                                                                               FontWeight="SemiBold"
+                                                                               FontSize="11"
+                                                                               Foreground="#374151"
+                                                                               Margin="0,0,0,4"/>
+                                                                    <Border Background="#F9FAFB"
+                                                                            BorderBrush="#E5E7EB"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="4"
+                                                                            Padding="8"
+                                                                            Margin="0,0,0,10">
+                                                                        <TextBlock Text="{Binding ErrorMessage}"
+                                                                                   TextWrapping="Wrap"
+                                                                                   FontFamily="Consolas"
+                                                                                   FontSize="10"
+                                                                                   Foreground="#374151"
+                                                                                   MaxHeight="80"
+                                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                    </Border>
+
+                                                                    <!-- Solution Suggestions -->
+                                                                    <TextBlock Text="💡 建议解决方案"
+                                                                               FontWeight="SemiBold"
+                                                                               FontSize="11"
+                                                                               Foreground="#059669"
+                                                                               Margin="0,0,0,4"/>
+                                                                    <Border Background="#ECFDF5"
+                                                                            BorderBrush="#A7F3D0"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="4"
+                                                                            Padding="8"
+                                                                            Margin="0,0,0,10">
+                                                                        <TextBlock Text="{Binding ErrorType, Converter={StaticResource ErrorTypeToSolutionConverter}}"
+                                                                                   TextWrapping="Wrap"
+                                                                                   FontSize="10"
+                                                                                   Foreground="#065F46"/>
+                                                                    </Border>
+                                                                </StackPanel>
+                                                            </Border>
+                                                    </Popup>
+                                                    </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -356,35 +712,40 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            
+
             <!-- 已迁移任务 -->
             <TabItem Header="已迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                        Style="{StaticResource ModernScrollViewer}">
                     <StackPanel Margin="10">
                         <!-- Empty State -->
-                        <TextBlock Text="暂无已迁移任务" 
-                                  FontSize="16" 
-                                  Foreground="Gray"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Margin="0,40,0,0">
+                        <TextBlock Text="暂无已迁移任务"
+                                   FontSize="16"
+                                   Foreground="Gray"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Margin="0,40,0,0">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Setter Property="Visibility"
+                                            Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding MigratedTaskGroups.Count}" Value="0">
-                                            <Setter Property="Visibility" Value="Visible"/>
+                                        <DataTrigger Binding="{Binding MigratedTaskGroups.Count}"
+                                                Value="0">
+                                            <Setter Property="Visibility"
+                                                    Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        
+
                         <!-- Task Groups -->
                         <ItemsControl ItemsSource="{Binding MigratedTaskGroups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <GroupBox Header="{Binding GroupName}" Style="{StaticResource GroupBoxStyle}">
+                                    <GroupBox Header="{Binding GroupName}"
+                                            Style="{StaticResource GroupBoxStyle}">
                                         <ItemsControl ItemsSource="{Binding Tasks}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -395,27 +756,28 @@
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
-                                                            
+
                                                             <!-- Row 1: Display Name and Actions -->
                                                             <Grid Grid.Row="0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
-                                                                
-                                                                <TextBlock Grid.Column="0" 
-                                                                          Text="{Binding DisplayName}" 
-                                                                          FontWeight="SemiBold"
-                                                                          FontSize="14"/>
-                                                                
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                                                                    <Button Content="还原" 
+
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="{Binding DisplayName}"
+                                                                           FontWeight="SemiBold"
+                                                                           FontSize="14"/>
+
+                                                                <StackPanel Grid.Column="1"
+                                                                        Orientation="Horizontal">
+                                                                    <Button Content="还原"
                                                                             Command="{Binding DataContext.RestoreTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             Padding="8,4"
                                                                             MinWidth="60"
                                                                             Margin="5,0,0,0"/>
-                                                                    <Button Content="清理备份" 
+                                                                    <Button Content="清理备份"
                                                                             Command="{Binding DataContext.CleanupBackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             Padding="8,4"
@@ -423,10 +785,13 @@
                                                                             Margin="5,0,0,0">
                                                                         <Button.Style>
                                                                             <Style TargetType="Button">
-                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                <Setter Property="Visibility"
+                                                                                        Value="Collapsed"/>
                                                                                 <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding BackupPath, Converter={StaticResource StringToBoolConverter}}" Value="True">
-                                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                                    <DataTrigger Binding="{Binding BackupPath, Converter={StaticResource StringToBoolConverter}}"
+                                                                                            Value="True">
+                                                                                        <Setter Property="Visibility"
+                                                                                                Value="Visible"/>
                                                                                     </DataTrigger>
                                                                                 </Style.Triggers>
                                                                             </Style>
@@ -434,9 +799,10 @@
                                                                     </Button>
                                                                 </StackPanel>
                                                             </Grid>
-                                                            
+
                                                             <!-- Row 2: Paths -->
-                                                            <Grid Grid.Row="1" Margin="0,5,0,0">
+                                                            <Grid Grid.Row="1"
+                                                                    Margin="0,5,0,0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="50"/>
                                                                     <ColumnDefinition Width="*"/>
@@ -446,50 +812,73 @@
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
-                                                                
-                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="链接:" FontSize="11" Foreground="Gray" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                                                                <TextBlock Grid.Row="0" Grid.Column="1" 
-                                                                          Text="{Binding SourcePath}" 
-                                                                          FontSize="11" 
-                                                                          FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"
-                                                                          TextWrapping="NoWrap"
-                                                                          ToolTip="{Binding SourcePath}"/>
-                                                                
-                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="目标:" FontSize="11" Foreground="Gray" Margin="0,4,0,0" VerticalAlignment="Top"/>
-                                                                <TextBlock Grid.Row="1" Grid.Column="1" 
-                                                                          Text="{Binding SymlinkTarget}" 
-                                                                          FontSize="11" 
-                                                                          FontFamily="Consolas"
-                                                                          TextTrimming="CharacterEllipsis"
-                                                                          TextWrapping="NoWrap"
-                                                                          Margin="0,4,0,0"
-                                                                          ToolTip="{Binding SymlinkTarget}"/>
-                                                                
-                                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="迁移:" FontSize="11" Foreground="Gray" Margin="0,4,0,0"/>
-                                                                <TextBlock Grid.Row="2" Grid.Column="1" 
-                                                                          Text="{Binding MigratedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" 
-                                                                          FontSize="11"
-                                                                          Margin="0,4,0,0"/>
+
+                                                                <TextBlock Grid.Row="0"
+                                                                        Grid.Column="0"
+                                                                        Text="链接:"
+                                                                        FontSize="11"
+                                                                        Foreground="Gray"
+                                                                        VerticalAlignment="Top"
+                                                                        Margin="0,2,0,0"/>
+                                                                <TextBlock Grid.Row="0"
+                                                                        Grid.Column="1"
+                                                                           Text="{Binding SourcePath}"
+                                                                           FontSize="11"
+                                                                           FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap"
+                                                                           ToolTip="{Binding SourcePath}"/>
+
+                                                                <TextBlock Grid.Row="1"
+                                                                        Grid.Column="0"
+                                                                        Text="目标:"
+                                                                        FontSize="11"
+                                                                        Foreground="Gray"
+                                                                        Margin="0,4,0,0"
+                                                                        VerticalAlignment="Top"/>
+                                                                <TextBlock Grid.Row="1"
+                                                                        Grid.Column="1"
+                                                                           Text="{Binding SymlinkTarget}"
+                                                                           FontSize="11"
+                                                                           FontFamily="Consolas"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           TextWrapping="NoWrap"
+                                                                           Margin="0,4,0,0"
+                                                                           ToolTip="{Binding SymlinkTarget}"/>
+
+                                                                <TextBlock Grid.Row="2"
+                                                                        Grid.Column="0"
+                                                                        Text="迁移:"
+                                                                        FontSize="11"
+                                                                        Foreground="Gray"
+                                                                        Margin="0,4,0,0"/>
+                                                                <TextBlock Grid.Row="2"
+                                                                        Grid.Column="1"
+                                                                           Text="{Binding MigratedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                                           FontSize="11"
+                                                                           Margin="0,4,0,0"/>
                                                             </Grid>
-                                                            
+
                                                             <!-- Row 3: Progress Bar and Phase Info (when executing) -->
-                                                            <StackPanel Grid.Row="2" Margin="0,5,0,0"
-                                                                       Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <TextBlock FontSize="10" Foreground="#0078D4" Margin="0,0,0,2">
+                                                            <StackPanel Grid.Row="2"
+                                                                    Margin="0,5,0,0"
+                                                                        Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock FontSize="10"
+                                                                        Foreground="#0078D4"
+                                                                        Margin="0,0,0,2">
                                                                     <Run Text="["/>
                                                                     <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
                                                                     <Run Text="/6] "/>
                                                                     <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
                                                                 </TextBlock>
-                                                                <ProgressBar Value="{Binding ProgressPercent}" 
-                                                                            Maximum="100" 
-                                                                            Height="6"
-                                                                            Margin="0,2"/>
-                                                                <TextBlock Text="{Binding StatusMessage}" 
-                                                                          FontSize="10" 
-                                                                          Foreground="Gray"
-                                                                          Margin="0,2,0,0"/>
+                                                                <ProgressBar Value="{Binding ProgressPercent}"
+                                                                             Maximum="100"
+                                                                             Height="6"
+                                                                             Margin="0,2"/>
+                                                                <TextBlock Text="{Binding StatusMessage}"
+                                                                           FontSize="10"
+                                                                           Foreground="Gray"
+                                                                           Margin="0,2,0,0"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>
@@ -504,37 +893,132 @@
                 </ScrollViewer>
             </TabItem>
         </TabControl>
-        
+
         <!-- Log Area (Collapsible) -->
-        <Expander Grid.Row="2" 
+        <Expander Grid.Row="2"
                   IsExpanded="False"
-                  Background="#F8F8F8" 
-                  BorderBrush="#E0E0E0" 
+                  Background="#F8F8F8"
+                  BorderBrush="#E0E0E0"
                   BorderThickness="0,1,0,0">
             <Expander.Header>
                 <Grid Margin="0,4">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <TextBlock Text="执行日志" FontWeight="SemiBold" Margin="0,0,15,0"/>
-                        <TextBlock Text="{Binding CompletedCount, StringFormat='完成: {0}'}" Margin="0,0,10,0"/>
-                        <TextBlock Text="{Binding FailedCount, StringFormat='失败: {0}'}" Foreground="Red" Margin="0,0,10,0"/>
-                        <TextBlock Text="{Binding TotalCount, StringFormat='总计: {0}'}" Foreground="Gray"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="📋 执行日志"
+                                FontWeight="SemiBold"
+                                FontSize="13"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center"/>
+
+                        <!-- Success Status -->
+                        <Border Background="#10B981"
+                                CornerRadius="12"
+                                Padding="8,3,8,3"
+                                Margin="0,0,6,0"
+                                Visibility="{Binding CompletedCount, Converter={StaticResource IntToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✓"
+                                        Foreground="White"
+                                        FontWeight="SemiBold"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding CompletedCount}"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        FontSize="11"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="已完成"
+                                        Foreground="White"
+                                        FontSize="10"
+                                        VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Failed Status -->
+                        <Border Background="#EF4444"
+                                CornerRadius="12"
+                                Padding="8,3,8,3"
+                                Visibility="{Binding FailedCount, Converter={StaticResource IntToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✗"
+                                        Foreground="White"
+                                        FontWeight="SemiBold"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding FailedCount}"
+                                        Foreground="White"
+                                        FontWeight="Bold"
+                                        FontSize="11"
+                                        Margin="0,0,4,0"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="失败"
+                                        Foreground="White"
+                                        FontSize="10"
+                                        VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
+
+                    <!-- Error Summary Button -->
+                    <Button Grid.Column="1"
+                            Content="📋 复制全部日志"
+                            Command="{Binding CopyLogsAsyncCommand}"
+                            Background="#6B7280"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Padding="10,6"
+                            FontSize="11"
+                            Cursor="Hand"
+                            Visibility="{Binding LogMessages.Count, Converter={StaticResource IntToVisibilityConverter}}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    CornerRadius="4"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#4B5563"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </Grid>
             </Expander.Header>
-            
-            <Border Height="150" Padding="10,5">
-                <ScrollViewer x:Name="QuickMigrateLogScrollViewer" VerticalScrollBarVisibility="Auto" Style="{StaticResource ModernScrollViewer}">
+
+            <Border Height="150"
+                    Padding="10,5">
+                <ScrollViewer x:Name="QuickMigrateLogScrollViewer"
+                        VerticalScrollBarVisibility="Auto"
+                        Style="{StaticResource ModernScrollViewer}">
                     <i:Interaction.Behaviors>
                         <behaviors:AutoScrollBehavior/>
                     </i:Interaction.Behaviors>
                     <ItemsControl ItemsSource="{Binding LogMessages}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding}" 
-                                          FontFamily="Consolas" 
-                                          FontSize="11" 
-                                          TextWrapping="Wrap"
-                                          Margin="0,1"/>
+                                <TextBlock Text="{Binding}"
+                                           FontFamily="Consolas"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,1"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

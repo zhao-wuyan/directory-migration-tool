@@ -5,6 +5,7 @@ using MigrationCore.Services;
 using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
 using System.Windows;
 
 namespace MoveWithSymlinkWPF.ViewModels;
@@ -82,6 +83,9 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     [ObservableProperty]
     private int _totalCount = 0;
+
+    [ObservableProperty]
+    private bool _hasErrors = false;
 
     public ObservableCollection<QuickMigrateTaskGroup> PendingTaskGroups { get; } = new();
     public ObservableCollection<QuickMigrateTaskGroup> MigratedTaskGroups { get; } = new();
@@ -196,6 +200,18 @@ public partial class QuickMigrateViewModel : ObservableObject
         if (_config == null)
             return;
 
+        // 保存当前失败和完成的任务状态（按 SourcePath 标识）
+        var failedTaskStates = PendingTaskGroups
+            .SelectMany(g => g.Tasks)
+            .Where(t => t.Status == QuickMigrateTaskStatus.Failed)
+            .ToDictionary(t => t.SourcePath, t => new { t.ErrorMessage, t.ErrorType, t.StatusMessage });
+
+        var completedTaskStates = PendingTaskGroups
+            .SelectMany(g => g.Tasks)
+            .Where(t => t.Status == QuickMigrateTaskStatus.Completed)
+            .Select(t => t.SourcePath)
+            .ToHashSet();
+
         PendingTaskGroups.Clear();
         MigratedTaskGroups.Clear();
 
@@ -283,6 +299,23 @@ public partial class QuickMigrateViewModel : ObservableObject
             // 为每个任务订阅 PropertyChanged 事件
             foreach (var task in group.Tasks)
             {
+                // 恢复失败状态
+                if (failedTaskStates.TryGetValue(task.SourcePath, out var failedState))
+                {
+                    task.Status = QuickMigrateTaskStatus.Failed;
+                    task.ErrorMessage = failedState.ErrorMessage;
+                    task.ErrorType = failedState.ErrorType;
+                    task.StatusMessage = failedState.StatusMessage;
+                    task.ShowProgress = false;
+                }
+                // 恢复完成状态
+                else if (completedTaskStates.Contains(task.SourcePath))
+                {
+                    task.Status = QuickMigrateTaskStatus.Completed;
+                    task.StatusMessage = "已完成";
+                    task.ShowProgress = false;
+                }
+
                 task.PropertyChanged += (s, e) =>
                 {
                     if (e.PropertyName == nameof(QuickMigrateTask.IsSelected))
@@ -297,6 +330,13 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             MigratedTaskGroups.Add(group);
         }
+
+        // 更新错误状态（基于恢复后的任务状态）
+        var currentFailedCount = PendingTaskGroups
+            .SelectMany(g => g.Tasks)
+            .Count(t => t.Status == QuickMigrateTaskStatus.Failed);
+
+        HasErrors = currentFailedCount > 0;
 
         HasValidTasks = PendingTaskGroups.Any() || MigratedTaskGroups.Any();
         HasPendingTasks = PendingTaskGroups.Any();
@@ -507,6 +547,7 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         AddLog("磁盘空间检查通过，开始迁移任务...");
 
+        // 直接开始迁移，每个任务会在执行时自动进行占用检测（ReversibleMigrationService内部）
         foreach (var task in tasks)
         {
             if (_cancellationTokenSource.Token.IsCancellationRequested)
@@ -521,6 +562,8 @@ public partial class QuickMigrateViewModel : ObservableObject
                 }
                 break;
             }
+
+          
 
             await ExecuteSingleMigrationTaskAsync(task);
         }
@@ -679,7 +722,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopyLogs()
+    private async Task CopyLogsAsync()
     {
         try
         {
@@ -690,12 +733,19 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
 
             string allLogs = string.Join(Environment.NewLine, LogMessages);
-            System.Windows.Clipboard.SetText(allLogs);
-            AddLog("✅ 日志已复制到剪贴板");
+
+            if (await TrySetClipboardAsync(allLogs))
+            {
+                AddLog("✅ 日志已复制到剪贴板");
+            }
+            else
+            {
+                AddLog("❌ 复制失败：剪贴板被占用");
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"复制日志失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            AddLog($"❌ 复制日志失败: {ex.Message}");
         }
     }
 
@@ -750,7 +800,9 @@ public partial class QuickMigrateViewModel : ObservableObject
                 task.Status = QuickMigrateTaskStatus.Failed;
                 task.ErrorMessage = result.ErrorMessage;
                 task.ShowProgress = false;
+                task.ErrorType = ClassifyError(result.ErrorMessage);
                 FailedCount++;
+                HasErrors = true;
                 AddLog($"[{task.DisplayName}] ❌ 迁移失败: {result.ErrorMessage}");
             }
         }
@@ -822,6 +874,8 @@ public partial class QuickMigrateViewModel : ObservableObject
                 task.Status = QuickMigrateTaskStatus.Failed;
                 task.ErrorMessage = result.ErrorMessage;
                 task.ShowProgress = false;
+                task.ErrorType = ClassifyError(result.ErrorMessage);
+                HasErrors = true;
                 AddLog($"[{task.DisplayName}] ❌ 还原失败: {result.ErrorMessage}");
             }
         }
@@ -859,6 +913,127 @@ public partial class QuickMigrateViewModel : ObservableObject
             LogMessages.Add(formattedMessage);
         });
     }
+
+    /// <summary>
+    /// 分类错误类型
+    /// </summary>
+    private ErrorType ClassifyError(string? errorMessage)
+    {
+        if (string.IsNullOrEmpty(errorMessage))
+            return ErrorType.None;
+
+        var lowerError = errorMessage.ToLower();
+
+        if (lowerError.Contains("access") || lowerError.Contains("denied") || lowerError.Contains("permission") || lowerError.Contains("权限"))
+            return ErrorType.Permission;
+        else if (lowerError.Contains("space") || lowerError.Contains("disk") || lowerError.Contains("空间") || lowerError.Contains("磁盘"))
+            return ErrorType.DiskSpace;
+        else if (lowerError.Contains("lock") || lowerError.Contains("used") || lowerError.Contains("占用") || lowerError.Contains("in use"))
+            return ErrorType.FileInUse;
+        else if (lowerError.Contains("network") || lowerError.Contains("connection") || lowerError.Contains("网络") || lowerError.Contains("连接"))
+            return ErrorType.Network;
+        else if (lowerError.Contains("system") || lowerError.Contains("critical") || lowerError.Contains("系统") || lowerError.Contains("严重"))
+            return ErrorType.System;
+        else
+            return ErrorType.Unknown;
+    }
+
+    /// <summary>
+    /// 复制错误信息到剪贴板（public 方法，因为源生成器未生成 Command 属性）
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyErrorInfoAsync(QuickMigrateTask task)
+    {
+        try
+        {
+            if (task.Status != QuickMigrateTaskStatus.Failed || string.IsNullOrEmpty(task.ErrorMessage))
+                return;
+
+            string errorInfo = $"任务: {task.DisplayName}\n" +
+                              $"源路径: {task.SourcePath}\n" +
+                              $"目标路径: {task.TargetPath}\n" +
+                              $"错误类型: {task.ErrorType}\n" +
+                              $"错误消息: {task.ErrorMessage}\n" +
+                              $"发生时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+            if (await TrySetClipboardAsync(errorInfo))
+            {
+                AddLog("✅ 错误信息已复制到剪贴板");
+            }
+            else
+            {
+                AddLog("❌ 复制失败：剪贴板被占用");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"❌ 复制错误信息失败: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ViewTaskLogAsync(QuickMigrateTask task)
+    {
+        try
+        {
+            // 查找与该任务相关的日志条目
+            var taskLogs = LogMessages.Where(msg => msg.Contains(task.DisplayName)).ToList();
+
+            if (taskLogs.Any())
+            {
+                string allTaskLogs = string.Join(Environment.NewLine, taskLogs);
+
+                if (await TrySetClipboardAsync(allTaskLogs))
+                {
+                    AddLog($"✅ 任务 [{task.DisplayName}] 的日志已复制到剪贴板");
+                }
+                else
+                {
+                    AddLog("❌ 复制失败：剪贴板被占用");
+                }
+            }
+            else
+            {
+                AddLog($"⚠️ 未找到任务 [{task.DisplayName}] 的相关日志");
+            }
+        }
+        catch (Exception ex)
+        {
+            AddLog($"❌ 查看任务日志失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 异步设置剪贴板内容（不阻塞UI线程）
+    /// </summary>
+    private async Task<bool> TrySetClipboardAsync(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        try
+        {
+            // 在后台线程执行，避免阻塞UI
+            await Task.Run(() =>
+            {
+                // 尝试简单设置一次，失败就失败
+                try
+                {
+                    System.Windows.Clipboard.SetDataObject(text, true);
+                }
+                catch
+                {
+                    // 备用方法
+                    System.Windows.Clipboard.SetText(text);
+                }
+            });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
 
 /// <summary>
@@ -869,4 +1044,3 @@ public class QuickMigrateTaskGroup
     public string GroupName { get; set; } = string.Empty;
     public ObservableCollection<QuickMigrateTask> Tasks { get; set; } = new();
 }
-
