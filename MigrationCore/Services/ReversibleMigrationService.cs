@@ -61,6 +61,17 @@ public class ReversibleMigrationService
 
         try
         {
+            // Phase 0: 文件占用检测
+            ReportPhase(progress, logProgress, 0, "检测文件占用", _mode);
+            if (!SimpleFileLockDetector.CanProceedWithMigration(_config.SourcePath, _config.TargetPath, out string errorMessage, logProgress))
+            {
+                // 检测失败，不在这里输出日志（避免重复），由外层统一处理
+                result.Success = false;
+                result.ErrorMessage = errorMessage;
+                return result;
+            }
+            logProgress?.Report("✅ 文件占用检测通过");
+
             // Phase 1: 路径解析与验证
             ReportPhase(progress, logProgress, 1, "路径解析与验证", _mode);
             await ValidatePathsForMigrationAsync(logProgress);
@@ -216,6 +227,17 @@ public class ReversibleMigrationService
 
         try
         {
+            // Phase 0: 文件占用检测
+            ReportPhase(progress, logProgress, 0, "检测文件占用", _mode);
+            if (!SimpleFileLockDetector.CanProceedWithRestore(_config.SourcePath, _config.TargetPath, out string errorMessage, logProgress))
+            {
+                // 检测失败，不在这里输出日志（避免重复），由外层统一处理
+                result.Success = false;
+                result.ErrorMessage = errorMessage;
+                return result;
+            }
+            logProgress?.Report("✅ 文件占用检测通过");
+
             // Phase 1: 路径解析与验证
             ReportPhase(progress, logProgress, 1, "路径解析与验证", _mode);
             await ValidatePathsForRestoreAsync(logProgress);
@@ -523,8 +545,9 @@ public class ReversibleMigrationService
         {
             double percentComplete = phase switch
             {
-                1 => 0,
-                2 => 5,
+                0 => 0,
+                1 => 5,
+                2 => 10,
                 4 => 90,
                 5 => 93,
                 6 => 96,
