@@ -1037,8 +1037,17 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(SourcePath) || string.IsNullOrWhiteSpace(TargetPath))
             return;
 
+        // 新增：如果源目录和目标目录相同，不触发修复模式
+        if (string.Equals(Path.GetFullPath(SourcePath), Path.GetFullPath(TargetPath), StringComparison.OrdinalIgnoreCase))
+            return;
+
         // 目标目录必须存在
         if (!Directory.Exists(TargetPath))
+            return;
+
+        // 新增：如果目标文件夹为空，不触发修复模式
+        bool targetIsEmpty = !PathValidator.HasUserContent(TargetPath);
+        if (targetIsEmpty)
             return;
 
         try
@@ -1135,7 +1144,7 @@ public partial class MainViewModel : ObservableObject
         // 修复完成后检查是否有备份需要处理
         if (MigrationSuccess && MigrationCompleted)
         {
-            await CheckAndCleanupRepairBackupAsync();
+            await CheckAndCleanupRepairBackupV2Async(); // 使用新的备份处理方法
         }
     }
 
@@ -1210,6 +1219,119 @@ public partial class MainViewModel : ObservableObject
                         else
                         {
                             AddLog($"备份已保留: {backupPath}");
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                AddLog($"检查备份时出错: {ex.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// 检查并提示用户处理修复过程中产生的备份（新版本）
+    /// </summary>
+    private async Task CheckAndCleanupRepairBackupV2Async()
+    {
+        await Task.Run(() =>
+        {
+            try
+            {
+                // 查找可能的备份目录
+                string? parentDir = Path.GetDirectoryName(SourcePath);
+                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
+                    return;
+
+                string sourceName = Path.GetFileName(SourcePath);
+                string backupPrefix = $"{sourceName}.bak_";
+
+                var backups = Directory.GetDirectories(parentDir, $"{backupPrefix}*")
+                    .OrderByDescending(d => Directory.GetLastWriteTime(d))
+                    .ToList();
+
+                if (backups.Any())
+                {
+                    string backupPath = backups.First();
+                    
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var askResult = MessageBox.Show(
+                            $"修复过程中创建了备份目录：\n\n{backupPath}\n\n请确认修复成功后再自行删除此备份目录。\n\n是否打开备份所在目录？",
+                            "备份处理提示",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Information);
+
+                        if (askResult == MessageBoxResult.Yes)
+                        {
+                            try
+                            {
+                                AddLog($"打开备份所在目录: {Path.GetDirectoryName(backupPath)}");
+                                
+                                // 打开文件夹
+                                string? folderPath = Path.GetDirectoryName(backupPath);
+                                if (!string.IsNullOrEmpty(folderPath))
+                                {
+                                    folderPath = backupPath; // 如果获取父目录失败，直接使用备份路径
+                                }
+                                
+                                // 使用更可靠的方式打开文件管理器
+                                ProcessStartInfo startInfo = new ProcessStartInfo
+                                {
+                                    Arguments = folderPath,
+                                    FileName = "explorer.exe",
+                                    UseShellExecute = true,
+                                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
+                                };
+                                
+                                try
+                                {
+                                    Process.Start(startInfo);
+                                    AddLog("✅ 文件管理器已启动");
+                                }
+                                catch (Exception ex)
+                                {
+                                    AddLog($"⚠️ 打开文件夹失败: {ex.Message}");
+                                    
+                                    // 尝试使用备用方法
+                                    try
+                                    {
+                                        // 使用cmd命令打开
+                                        ProcessStartInfo cmdInfo = new ProcessStartInfo
+                                        {
+                                            Arguments = $"/c start \"\"{folderPath}\"\"",
+                                            FileName = "cmd.exe",
+                                            UseShellExecute = true,
+                                            CreateNoWindow = true
+                                        };
+                                        Process.Start(cmdInfo);
+                                        AddLog("✅ 使用备用方法打开文件夹");
+                                    }
+                                    catch (Exception backupEx)
+                                    {
+                                        AddLog($"❌ 备用方法也失败: {backupEx.Message}");
+                                        MessageBox.Show(
+                                            $"无法打开文件夹：{ex.Message}\n\n文件夹位置：{folderPath}\n\n请手动导航到此位置。",
+                                            "打开失败",
+                                            MessageBoxButton.OK,
+                                            MessageBoxImage.Warning);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                AddLog($"❌ 打开目录失败: {ex.Message}");
+                                MessageBox.Show(
+                                    $"打开目录失败：{ex.Message}\n\n备份目录位置：{backupPath}",
+                                    "操作失败",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Error);
+                            }
+                        }
+                        else
+                        {
+                            AddLog($"备份已保留，请用户自行处理: {backupPath}");
                         }
                     });
                 }
