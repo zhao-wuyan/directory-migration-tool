@@ -37,6 +37,17 @@ public class MigrationService
 
         try
         {
+            // Phase 0: 文件占用检测
+            ReportPhase(progress, logProgress, 0, "检测文件占用");
+            if (!SimpleFileLockDetector.CanProceedWithMigration(_config.SourcePath, _config.TargetPath, out string errorMessage, logProgress))
+            {
+                // 检测失败，不在这里输出日志（避免重复），由外层统一处理
+                result.Success = false;
+                result.ErrorMessage = errorMessage;
+                return result;
+            }
+            logProgress?.Report("✅ 文件占用检测通过");
+
             // Phase 1: 路径解析与验证
             ReportPhase(progress, logProgress, 1, "路径解析与验证");
             await ValidatePathsAsync(logProgress);
@@ -257,11 +268,12 @@ public class MigrationService
         // 只在非复制阶段报告基于阶段的进度，复制阶段由 CopyFilesAsync 自己报告
         if (phase != 3)
         {
-            // 进度分配：1=0-5%, 2=5-10%, 3=10-90%, 4=90-93%, 5=93-96%, 6=96-100%
+            // 进度分配：0=0-5%, 1=5-10%, 2=10-15%, 3=15-90%, 4=90-93%, 5=93-96%, 6=96-100%
             double percentComplete = phase switch
             {
-                1 => 0,
-                2 => 5,
+                0 => 0,
+                1 => 5,
+                2 => 10,
                 4 => 90,
                 5 => 93,
                 6 => 96,

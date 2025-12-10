@@ -120,6 +120,59 @@ public partial class QuickMigrateTask : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isSelected = false;
+
+    /// <summary>
+    /// 错误类型
+    /// </summary>
+    [ObservableProperty]
+    private ErrorType _errorType = ErrorType.None;
+
+    /// <summary>
+    /// 是否显示错误详情
+    /// </summary>
+    [ObservableProperty]
+    private bool _showErrorDetails = false;
+}
+
+/// <summary>
+/// 错误类型枚举
+/// </summary>
+public enum ErrorType
+{
+    /// <summary>
+    /// 无错误
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// 权限错误
+    /// </summary>
+    Permission,
+
+    /// <summary>
+    /// 磁盘空间不足
+    /// </summary>
+    DiskSpace,
+
+    /// <summary>
+    /// 文件被占用
+    /// </summary>
+    FileInUse,
+
+    /// <summary>
+    /// 网络错误
+    /// </summary>
+    Network,
+
+    /// <summary>
+    /// 系统错误
+    /// </summary>
+    System,
+
+    /// <summary>
+    /// 未知错误
+    /// </summary>
+    Unknown
 }
 
 /// <summary>

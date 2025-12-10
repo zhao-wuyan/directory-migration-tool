@@ -15,3 +15,8 @@
 - **Robocopy参数动态构建逻辑** - 根据线程数和文件大小阈值动态调整参数，优化复制性能
 - **UI与业务逻辑的分离原则** - MigrationCore完全不依赖WPF，便于未来支持其他UI框架
 - **取消操作的进程树终止机制** - 确保Robocopy及其子进程被正确终止，避免资源泄漏
+
+## MVVM 架构约定
+
+- **ViewModel与View职责严格分离** - ViewModel负责业务逻辑、数据处理、状态管理和命令暴露，不能包含UI元素引用（Popup、VisualTreeHelper等）；View负责UI事件处理、可视化树操作和调用ViewModel命令，不能重复实现ViewModel的业务逻辑
+- **禁止View层重复实现业务逻辑** - 如果ViewModel已有某个业务方法（如复制到剪贴板），View层必须调用ViewModel的方法，而不能重新实现一遍相同逻辑，这样确保单一数据源和用户反馈的一致性

@@ -610,7 +610,29 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task StartMigrationFromStep2Async()
     {
-        // 切换到步骤3并开始迁移
+        await PerformFileLockCheckAndStartMigration();
+    }
+
+    private async Task PerformFileLockCheckAndStartMigration()
+    {
+        // 执行文件占用检测
+        if (!SimpleFileLockDetector.CanProceedWithMigration(SourcePath, TargetPath, out string errorMessage))
+        {
+            var result = MessageBox.Show(
+                $"{errorMessage}\n\n点击\"确定\"重新检测，点击\"取消\"中止迁移。",
+                "文件占用检测",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+                
+            if (result == MessageBoxResult.OK)
+            {
+                // 用户选择重试，递归调用重新检测
+                await PerformFileLockCheckAndStartMigration();
+            }
+            return;
+        }
+        
+        // 检测通过，继续迁移
         CurrentStep = 3;
         await StartMigrationAsync();
     }
