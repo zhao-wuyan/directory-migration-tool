@@ -507,6 +507,7 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         AddLog("磁盘空间检查通过，开始迁移任务...");
 
+        // 直接开始迁移，每个任务会在执行时自动进行占用检测（ReversibleMigrationService内部）
         foreach (var task in tasks)
         {
             if (_cancellationTokenSource.Token.IsCancellationRequested)
@@ -521,6 +522,8 @@ public partial class QuickMigrateViewModel : ObservableObject
                 }
                 break;
             }
+
+          
 
             await ExecuteSingleMigrationTaskAsync(task);
         }
