@@ -7,10 +7,14 @@
         Title="使用说明 - 目录迁移工具"
         Height="650" Width="900"
         WindowStartupLocation="CenterScreen"
-        Background="White">
+        Background="White"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
 
     <Window.Resources>
-        <!-- 现代化 TabItem 样式 -->
+        <!-- 现代化 TabItem 样式 - 优化版 -->
         <Style TargetType="TabItem">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
@@ -22,7 +26,8 @@
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="Border"
                                 Background="Transparent"
-                                BorderThickness="0"
+                                BorderThickness="0,0,0,3"
+                                BorderBrush="Transparent"
                                 CornerRadius="8,8,0,0"
                                 Margin="{TemplateBinding Margin}"
                                 Padding="{TemplateBinding Padding}">
@@ -33,13 +38,55 @@
                                             TextElement.Foreground="#6B7280"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <!-- 未选中时的悬停效果 -->
+                            <!-- 未选中时的悬停效果 - 添加动画 -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#F3F4F6"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="#374151"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border"
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                          To="#F3F4F6" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="ContentSite"
+                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                                          To="#374151" Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border"
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                          To="Transparent" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="ContentSite"
+                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                                          To="#6B7280" Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
-                            <!-- 选中状态 -->
+                            <!-- 选中状态 - 添加平滑过渡 -->
                             <Trigger Property="IsSelected" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Border"
+                                                          Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                                          To="#0078D4" Duration="0:0:0.3">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                            <ColorAnimation Storyboard.TargetName="ContentSite"
+                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
+                                                          To="#0078D4" Duration="0:0:0.3">
+                                                <ColorAnimation.EasingFunction>
+                                                    <QuadraticEase EasingMode="EaseOut"/>
+                                                </ColorAnimation.EasingFunction>
+                                            </ColorAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
                                 <Setter TargetName="Border" Property="Background">
                                     <Setter.Value>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -49,7 +96,6 @@
                                     </Setter.Value>
                                 </Setter>
                                 <Setter TargetName="Border" Property="BorderBrush" Value="#0078D4"/>
-                                <Setter TargetName="Border" Property="BorderThickness" Value="0,0,0,3"/>
                                 <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="#0078D4"/>
                                 <Setter TargetName="ContentSite" Property="TextElement.FontWeight" Value="SemiBold"/>
                             </Trigger>
@@ -63,11 +109,11 @@
             </Setter>
         </Style>
 
-        <!-- 现代化 TabControl 样式 -->
+        <!-- 现代化 TabControl 样式 - 优化版 -->
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E5E7EB"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -78,12 +124,17 @@
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Tab标签栏 -->
+                            <!-- Tab标签栏 - 优化配色 -->
                             <Border Grid.Row="0"
-                                    Background="#FAFAFA"
                                     BorderBrush="#E5E7EB"
                                     BorderThickness="0,0,0,1"
-                                    Padding="10,8,10,0">
+                                    Padding="0,8,10,0">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#FAFBFC" Offset="0"/>
+                                        <GradientStop Color="#F5F6F7" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
                                 <TabPanel x:Name="HeaderPanel"
                                         IsItemsHost="True"
                                         Background="Transparent"/>
@@ -102,112 +153,6 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-        </Style>
-
-        <!-- 现代化按钮样式 -->
-        <Style TargetType="Button">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#0078D4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value>
-                    <ScaleTransform ScaleX="1" ScaleY="1"/>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Opacity="0.2" BlurRadius="10" ShadowDepth="3" Direction="270"/>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            TextElement.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <!-- 悬停效果 -->
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
-                            </Trigger>
-                            <!-- 按下效果 -->
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#004578"/>
-                            </Trigger>
-                            <!-- 禁用状态 -->
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
-                                <Setter Property="Foreground" Value="#9CA3AF"/>
-                                <Setter Property="Effect" Value="{x:Null}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
-                                               To="1.03" Duration="0:0:0.15">
-                                    <DoubleAnimation.EasingFunction>
-                                        <QuadraticEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
-                                               To="1.03" Duration="0:0:0.15">
-                                    <DoubleAnimation.EasingFunction>
-                                        <QuadraticEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
-                                               To="1.0" Duration="0:0:0.15">
-                                    <DoubleAnimation.EasingFunction>
-                                        <QuadraticEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
-                                               To="1.0" Duration="0:0:0.15">
-                                    <DoubleAnimation.EasingFunction>
-                                        <QuadraticEase EasingMode="EaseOut"/>
-                                    </DoubleAnimation.EasingFunction>
-                                </DoubleAnimation>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
-                                               To="0.97" Duration="0:0:0.08"/>
-                                <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
-                                               To="0.97" Duration="0:0:0.08"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
         <Style TargetType="TextBlock" x:Key="TitleStyle">
@@ -233,25 +178,25 @@
         <Style TargetType="Border" x:Key="SectionBorder">
             <Setter Property="Background" Value="#F8F9FA"/>
             <Setter Property="Padding" Value="15"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,5,0,10"/>
         </Style>
 
         <Style TargetType="Border" x:Key="WarningBorder">
             <Setter Property="Background" Value="#FFF4E5"/>
             <Setter Property="BorderBrush" Value="#FF8C00"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,5,0,10"/>
         </Style>
 
         <Style TargetType="Border" x:Key="TipBorder">
             <Setter Property="Background" Value="#E3F2FD"/>
             <Setter Property="BorderBrush" Value="#0078D4"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,5,0,10"/>
         </Style>
     </Window.Resources>
@@ -263,8 +208,17 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#0078D4" Padding="20,15">
+        <!-- Header - 现代化渐变设计 -->
+        <Border Grid.Row="0" Padding="20,15">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.5">
+                    <GradientStop Color="#0078D4" Offset="0"/>
+                    <GradientStop Color="#005A9E" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="#0078D4" Opacity="0.3" BlurRadius="12" ShadowDepth="3" Direction="270"/>
+            </Border.Effect>
             <StackPanel>
                 <TextBlock Text="目录迁移工具 - 使用说明" FontSize="22" FontWeight="Bold" Foreground="White"/>
                 <TextBlock Text="使用符号链接技术实现无感迁移大型目录" FontSize="13" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
@@ -272,10 +226,10 @@
         </Border>
 
         <!-- Content -->
-        <TabControl Grid.Row="1" Margin="10" BorderThickness="0">
+        <TabControl Grid.Row="1" Margin="20,5,20,10" BorderThickness="0">
             <!-- 软件概述 -->
             <TabItem Header="📖 软件概述">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource WhatIsThisTool}" Style="{StaticResource TitleStyle}"/>
                         <TextBlock Text="{StaticResource ToolIntroduction}" Style="{StaticResource ContentStyle}"/>
@@ -310,7 +264,7 @@
 
             <!-- 手动模式 -->
             <TabItem Header="🛠️ 手动模式">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource ManualModeTitle}" Style="{StaticResource TitleStyle}"/>
 
@@ -379,7 +333,7 @@
 
             <!-- 一键迁移模式 -->
             <TabItem Header="⚡ 一键迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource QuickMigrateTitle}" Style="{StaticResource TitleStyle}"/>
                         <TextBlock Text="{StaticResource QuickMigrateDescription}" Style="{StaticResource ContentStyle}"/>
@@ -422,7 +376,7 @@
 
             <!-- 特殊模式 -->
             <TabItem Header="🔧 特殊模式">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource RestoreModeGuideTitle}" Style="{StaticResource TitleStyle}"/>
                         <TextBlock Text="{StaticResource RestoreModeGuideDescription}" Style="{StaticResource ContentStyle}"/>
@@ -482,7 +436,7 @@
 
             <!-- 注意事项 -->
             <TabItem Header="⚠️ 注意事项">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource ImportantNoticesTitle}" Style="{StaticResource TitleStyle}"/>
 
@@ -537,7 +491,7 @@
 
             <!-- 常见问题 -->
             <TabItem Header="❓ 常见问题">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                     <StackPanel>
                         <TextBlock Text="{StaticResource FAQTitle}" Style="{StaticResource TitleStyle}"/>
 
@@ -598,7 +552,12 @@
         <Border Grid.Row="2" Background="#F8F8F8" Padding="15" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
             <Grid>
                 <TextBlock Text="© 2025 诏无言 | 玲珑星核" Foreground="Gray" FontSize="11" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                <Button Content="关闭" HorizontalAlignment="Right" Width="100" Height="32" Click="CloseButton_Click"/>
+                <Button Content="关闭"
+                        HorizontalAlignment="Right"
+                        VerticalContentAlignment="Center"
+                        Width="100"
+                        Height="32"
+                        Click="CloseButton_Click"/>
             </Grid>
         </Border>
     </Grid>
