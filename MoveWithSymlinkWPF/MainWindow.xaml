@@ -69,14 +69,75 @@
                 </StackPanel>
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
-                    <Button Content="手动模式" Command="{Binding ShowManualModeCommand}" 
+                    <Button Content="手动模式" Command="{Binding ShowManualModeCommand}"
                             Padding="15,8" Margin="5,0"
                             Background="{Binding IsManualMode, Converter={StaticResource BoolToColorConverter}}"
                             Foreground="{Binding IsManualMode, Converter={StaticResource BoolToForegroundConverter}}"/>
-                    <Button Content="⏩ 一键迁移" Command="{Binding ShowQuickMigrateCommand}" 
+                    <Button Content="⏩ 一键迁移" Command="{Binding ShowQuickMigrateCommand}"
                             Padding="15,8" Margin="5,0"
                             Background="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToColorConverter}}"
                             Foreground="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToForegroundConverter}}"/>
+
+                    <!-- 使用说明按钮 - 特殊样式 -->
+                    <Button Content="📖 使用说明" Command="{Binding ShowUserGuideCommand}"
+                            Padding="15,8" Margin="15,0,5,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#E3F2FD" Offset="0"/>
+                                            <GradientStop Color="#BBDEFB" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Foreground" Value="#0D47A1"/>
+                                <Setter Property="BorderBrush" Value="#2196F3"/>
+                                <Setter Property="BorderThickness" Value="1.5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="5"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <Border.Effect>
+                                                    <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.3" Color="#0078D4"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                <GradientStop Color="#BBDEFB" Offset="0"/>
+                                                                <GradientStop Color="#90CAF9" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter Property="Background">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                <GradientStop Color="#90CAF9" Offset="0"/>
+                                                                <GradientStop Color="#64B5F6" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
                 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
