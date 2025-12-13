@@ -968,7 +968,7 @@
                     </StackPanel>
 
                     <!-- Error Summary Button -->
-                    <Button Grid.Column="1"
+                    <!-- <Button Grid.Column="1"
                             Content="📋 复制全部日志"
                             Command="{Binding CopyLogsAsyncCommand}"
                             Background="#6B7280"
@@ -999,7 +999,7 @@
                                 </Setter>
                             </Style>
                         </Button.Style>
-                    </Button>
+                    </Button> -->
                 </Grid>
             </Expander.Header>
 
