@@ -77,36 +77,33 @@
             <TabItem Header="📖 软件概述">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="什么是目录迁移工具？" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Style="{StaticResource ContentStyle}">
-                            目录迁移工具是一款专业的文件迁移软件，使用 Windows 符号链接（SymbolicLink）技术，帮助您无缝迁移大型目录到新位置，而不影响原有程序的运行。
-                        </TextBlock>
+                        <TextBlock Text="{StaticResource WhatIsThisTool}" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource ToolIntroduction}" Style="{StaticResource ContentStyle}"/>
 
                         <Border Style="{StaticResource TipBorder}">
                             <StackPanel>
-                                <TextBlock Text="💡 核心优势" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 零中断：迁移过程中原程序继续正常访问文件" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 透明性：应用程序无需任何修改即可访问新位置的文件" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 可恢复：支持还原模式，可以将符号链接恢复为真实目录" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 安全性：自动备份、错误回滚，确保数据安全" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantageTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="适用场景" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource UseCasesTitle}" Style="{StaticResource TitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="✓ C盘空间不足，需要迁移大型游戏或软件到其他盘符" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 迁移用户文档、下载、桌面等系统文件夹" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 开发环境迁移（如 node_modules、.git 等大型目录）" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 数据库文件迁移" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 虚拟机镜像迁移" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase0}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase4}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase5}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="技术原理" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Style="{StaticResource ContentStyle}">
-                            符号链接是 Windows 文件系统的一个特性，它在文件系统层面创建一个快捷方式，但这个快捷方式对应用程序完全透明。当程序访问符号链接时，系统会自动将请求重定向到实际的目标位置，程序无需知道文件已经被移动。
-                        </TextBlock>
+                        <TextBlock Text="{StaticResource TechnicalPrincipleTitle}" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource TechnicalPrinciple}" Style="{StaticResource ContentStyle}"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
@@ -115,65 +112,65 @@
             <TabItem Header="🛠️ 手动模式">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="手动模式使用步骤" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource ManualModeTitle}" Style="{StaticResource TitleStyle}"/>
 
-                        <TextBlock Text="步骤 1：选择路径" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource Step1Title}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="源目录："/>
-                                    <Run Text="要迁移的目录，例如 C:\Games\MyGame" FontFamily="Consolas"/>
+                                    <Run Text="{StaticResource Step1SourceLabel}"/>
+                                    <Run Text="{StaticResource Step1SourceExample}" FontFamily="Consolas"/>
                                 </TextBlock>
                                 <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="目标目录："/>
-                                    <Run Text="迁移到的新位置，例如 D:\Games\MyGame" FontFamily="Consolas"/>
+                                    <Run Text="{StaticResource Step1TargetLabel}"/>
+                                    <Run Text="{StaticResource Step1TargetExample}" FontFamily="Consolas"/>
                                 </TextBlock>
-                                <TextBlock Text="• 点击 [浏览...] 按钮选择目录" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 设置高级选项（可选）：大文件阈值和复制线程数" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step1Action1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step1Action2}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="步骤 2：扫描分析" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource Step2Title}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="点击 [开始扫描] 后，工具会：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 统计源目录的文件数量和总大小" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 分析大文件分布" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 检查目标磁盘空间是否充足" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 验证路径的有效性" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step2Description}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step2Action1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step2Action2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step2Action3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step2Action4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="步骤 3：执行迁移" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource Step3Title}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="点击 [开始迁移] 后，工具会按以下阶段执行：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="1️⃣ 备份：创建源目录的安全备份" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="2️⃣ 复制小文件：快速复制小文件到目标位置" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="3️⃣ 复制大文件：使用 Robocopy 高效复制大文件" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="4️⃣ 验证：校验文件完整性" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="5️⃣ 清理：删除源目录的旧文件" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="6️⃣ 创建符号链接：在源位置创建指向目标的链接" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Description}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase4}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase5}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Phase6}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource WarningBorder}">
                             <StackPanel>
-                                <TextBlock Text="⚠️ 迁移过程注意事项" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 迁移过程可能需要较长时间，请耐心等待" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 建议在迁移前关闭正在使用该目录的程序" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 确保目标磁盘有足够的剩余空间" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 不要在迁移过程中关闭程序或断电" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3WarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource Step3Warning1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Warning2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Warning3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Warning4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="步骤 4：完成" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource Step4Title}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="迁移完成后：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 查看迁移结果和统计信息" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 源路径现在是一个符号链接，指向新位置" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 程序可以继续透明访问文件，无需任何修改" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step4Description}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step4Result1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step4Result2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource Step4Result3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -184,41 +181,39 @@
             <TabItem Header="⚡ 一键迁移">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="一键迁移模式" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Style="{StaticResource ContentStyle}">
-                            一键迁移模式专为批量迁移设计，可以通过配置文件一次性迁移多个目录，适合系统配置迁移、批量游戏迁移等场景。
-                        </TextBlock>
+                        <TextBlock Text="{StaticResource QuickMigrateTitle}" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource QuickMigrateDescription}" Style="{StaticResource ContentStyle}"/>
 
                         <Border Style="{StaticResource TipBorder}">
                             <StackPanel>
-                                <TextBlock Text="💡 快速上手" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="1. 点击主界面右上角的 [⏩ 一键迁移] 按钮" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="2. 在一键迁移界面，软件会自动扫描预配置的迁移任务" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="3. 选择要迁移的目录，点击 [开始扫描]" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="4. 确认后点击 [开始迁移]，等待完成" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStartTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource QuickStart1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="配置文件说明" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource ConfigFileTitle}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="配置文件位置："/>
-                                    <Run Text="quick-migrate-config.json" FontFamily="Consolas" FontWeight="Bold"/>
+                                    <Run Text="{StaticResource ConfigFileLocation}"/>
+                                    <Run Text="{StaticResource ConfigFileName}" FontFamily="Consolas" FontWeight="Bold"/>
                                 </TextBlock>
-                                <TextBlock Text="配置文件支持两种迁移源类型：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• Profiles：基于规则的批量迁移（如迁移某个文件夹下的所有子目录）" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• StandaloneSources：单独指定的迁移源" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource ConfigTypes}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource ConfigType1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource ConfigType2}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="高级功能" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource AdvancedFeaturesTitle}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="✓ 自动跳过已迁移的目录（检测符号链接）" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 支持自定义迁移规则和过滤条件" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 批量操作进度追踪" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="✓ 迁移完成后自动验证" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -229,60 +224,56 @@
             <TabItem Header="🔧 特殊模式">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="还原模式" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Style="{StaticResource ContentStyle}">
-                            还原模式用于将符号链接恢复为真实目录，数据会从目标位置复制回源位置。
-                        </TextBlock>
+                        <TextBlock Text="{StaticResource RestoreModeGuideTitle}" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource RestoreModeGuideDescription}" Style="{StaticResource ContentStyle}"/>
 
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="触发条件：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 当选择的源目录是一个符号链接时，自动切换到还原模式" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 工具会自动读取符号链接指向的目标路径" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreTriggerTitle}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreTrigger1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreTrigger2}" Style="{StaticResource ContentStyle}"/>
 
-                                <TextBlock Text="还原过程：" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
-                                <TextBlock Text="1. 验证符号链接和目标数据的有效性" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="2. 将数据从目标位置复制回源位置" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="3. 删除符号链接，恢复为真实目录" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="4. 询问是否删除目标位置的数据（可选）" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreProcessTitle}" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
+                                <TextBlock Text="{StaticResource RestoreProcess1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreProcess2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreProcess3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreProcess4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource WarningBorder}">
                             <StackPanel>
-                                <TextBlock Text="⚠️ 还原注意事项" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 还原需要源磁盘有足够的空间" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 建议先备份重要数据" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 还原后可选择删除目标位置的数据以释放空间" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreWarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource RestoreWarning1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreWarning2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RestoreWarning3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="修复模式" Style="{StaticResource TitleStyle}" Margin="0,20,0,8"/>
-                        <TextBlock Style="{StaticResource ContentStyle}">
-                            修复模式用于修复损坏的符号链接或重新建立符号链接关系。
-                        </TextBlock>
+                        <TextBlock Text="{StaticResource RepairModeTitle}" Style="{StaticResource TitleStyle}" Margin="0,20,0,8"/>
+                        <TextBlock Text="{StaticResource RepairModeDescription}" Style="{StaticResource ContentStyle}"/>
 
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="适用场景：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 符号链接指向错误的目标" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 符号链接被意外删除，需要重建" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 源路径被还原为普通目录，但目标数据仍然存在" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenariosTitle}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenario1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenario2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenario3}" Style="{StaticResource ContentStyle}"/>
 
-                                <TextBlock Text="使用方法：" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
-                                <TextBlock Text="1. 在步骤1中，工具会自动检测是否可以修复" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="2. 如果满足修复条件，会显示 [修复链接] 按钮" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="3. 点击修复按钮，工具会自动重建符号链接" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairMethodTitle}" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
+                                <TextBlock Text="{StaticResource RepairMethod1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairMethod2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource RepairMethod3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource TipBorder}">
                             <StackPanel>
-                                <TextBlock Text="💡 智能检测" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="工具会智能检测以下情况并自动提供修复选项：" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 源路径不存在，但目标路径有数据" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 源是普通目录（非空），目标路径也有数据" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 符号链接指向错误的目标路径" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SmartDetectionTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource SmartDetection}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SmartDetection1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SmartDetection2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SmartDetection3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -293,53 +284,51 @@
             <TabItem Header="⚠️ 注意事项">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="重要注意事项" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource ImportantNoticesTitle}" Style="{StaticResource TitleStyle}"/>
 
                         <Border Style="{StaticResource WarningBorder}">
                             <StackPanel>
-                                <TextBlock Text="⚠️ 权限要求" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="创建符号链接需要管理员权限或启用开发者模式。"/>
-                                </TextBlock>
-                                <TextBlock Text="• 方式1（推荐）：以管理员身份运行本程序" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 方式2：启用 Windows 开发者模式（设置 → 更新和安全 → 开发者选项）" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource PermissionWarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource PermissionWarning}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource PermissionMethod1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource PermissionMethod2}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource WarningBorder}">
                             <StackPanel>
-                                <TextBlock Text="⚠️ 数据安全" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 迁移前请确保重要数据已备份" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 建议先用小目录测试，熟悉流程后再迁移大型目录" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 工具提供自动备份和回滚功能，但不能替代手动备份" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 迁移过程中不要强制关闭程序或断电" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DataSafetyTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource DataSafety1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DataSafety2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DataSafety3}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DataSafety4}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="💾 磁盘空间" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 目标磁盘需要有足够的空间（至少是源目录大小的 1.1 倍）" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 迁移完成前，源磁盘仍需保留原始数据" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 验证完成后才会清理源目录的数据" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DiskSpaceTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource DiskSpace1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DiskSpace2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource DiskSpace3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="🔒 文件占用" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 建议在迁移前关闭正在使用目标目录的程序" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 如果有文件被占用，工具会提示您处理" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 可以在任务管理器中检查哪些进程正在使用该目录" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource FileOccupationTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource FileOccupation1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource FileOccupation2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource FileOccupation3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource SectionBorder}">
                             <StackPanel>
-                                <TextBlock Text="🎮 特殊情况" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="• 某些游戏或软件可能不支持符号链接，迁移后可能需要重新配置" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 系统保护目录（如 System32）不建议迁移" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 云同步文件夹（OneDrive、Dropbox等）迁移可能导致同步问题" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SpecialCasesTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource SpecialCase1}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SpecialCase2}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource SpecialCase3}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -350,72 +339,54 @@
             <TabItem Header="❓ 常见问题">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="15">
                     <StackPanel>
-                        <TextBlock Text="常见问题解答（FAQ）" Style="{StaticResource TitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQTitle}" Style="{StaticResource TitleStyle}"/>
 
-                        <TextBlock Text="Q1: 什么是符号链接？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ1Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                符号链接（Symbolic Link）是一种特殊的文件系统对象，它指向另一个文件或目录。对于应用程序来说，访问符号链接就像访问真实的文件或目录一样，系统会自动将请求重定向到目标位置。这使得我们可以将文件移动到其他位置，而不影响程序的正常运行。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ1A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q2: 迁移后程序还能正常运行吗？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ2Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                是的。符号链接对应用程序完全透明，程序访问符号链接时会自动重定向到实际的文件位置。大多数程序都支持符号链接，无需任何修改即可继续正常运行。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ2A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q3: 迁移失败会丢失数据吗？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ3Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                不会。本工具具有完善的安全机制：迁移前会自动创建备份，如果迁移过程中出现错误，会自动回滚到原始状态。但仍然建议您在迁移重要数据前手动进行备份。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ3A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q4: 可以迁移正在运行的程序目录吗？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ4Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                不建议。虽然理论上可以，但如果文件被占用，迁移可能会失败。建议先关闭相关程序，迁移完成后再重新打开。工具会在迁移前进行文件占用检测，并给出相应提示。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ4A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q5: 如何恢复到迁移前的状态？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ5Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                使用还原模式可以将符号链接恢复为真实目录。只需选择要还原的符号链接目录作为源路径，工具会自动检测并切换到还原模式，然后执行还原操作。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ5A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q6: 迁移需要多长时间？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ6Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                迁移时间取决于目录大小、文件数量和磁盘速度。一般来说：小文件多的目录耗时较长（受文件数量影响），大文件多的目录耗时较短（受传输速度影响）。工具会显示实时进度和预计剩余时间。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ6A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q7: 可以取消正在进行的迁移吗？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ7Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                可以。点击 [取消] 按钮可以中止迁移。工具会自动执行回滚操作，恢复到迁移前的状态。但是，建议尽量避免取消操作，让迁移正常完成。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ7A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
-                        <TextBlock Text="Q8: 符号链接会占用磁盘空间吗？" Style="{StaticResource SubTitleStyle}"/>
+                        <TextBlock Text="{StaticResource FAQ8Q}" Style="{StaticResource SubTitleStyle}"/>
                         <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Style="{StaticResource ContentStyle}">
-                                几乎不占用。符号链接本身只是一个指针，通常只占用几个字节。数据实际存储在目标位置，因此迁移后源磁盘会释放出原目录占用的空间。
-                            </TextBlock>
+                            <TextBlock Text="{StaticResource FAQ8A}" Style="{StaticResource ContentStyle}"/>
                         </Border>
 
                         <Border Style="{StaticResource TipBorder}">
                             <StackPanel>
-                                <TextBlock Text="💬 需要帮助？" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Style="{StaticResource ContentStyle}">
-                                    如果遇到其他问题或需要技术支持，请联系开发者：
-                                </TextBlock>
-                                <TextBlock Text="• 作者：诏无言" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="• 项目：玲珑星核 - Windows 符号链接迁移方案" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource NeedHelpTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource NeedHelpDescription}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource AuthorInfo}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource ProjectInfo}" Style="{StaticResource ContentStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

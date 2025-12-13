@@ -286,7 +286,7 @@
                         <StackPanel>
                             <!-- 标题和模式标签 -->
                             <Grid Margin="0,10,0,10">
-                                <TextBlock Text="选择源目录和目标目录" FontSize="18" FontWeight="SemiBold" 
+                                <TextBlock Text="选择源目录和目标目录" FontSize="18" FontWeight="SemiBold"
                                            HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                 <Border HorizontalAlignment="Right" VerticalAlignment="Center"
                                         Padding="10,4" CornerRadius="4">
@@ -314,8 +314,8 @@
                                     </TextBlock>
                                 </Border>
                             </Grid>
-                            
-                            <TextBlock Text="源目录（要迁移的目录）" FontWeight="SemiBold" Margin="0,10,0,5"/>
+
+                            <TextBlock Text="源目录（要迁移的目录）" FontWeight="SemiBold" Margin="0,15,0,5"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -391,8 +391,7 @@
                                 </StackPanel>
                             </Border>
                             
-                            <Border Background="#FFF9E6" Padding="10" Margin="0,15,0,0" CornerRadius="3"
-                                    Visibility="{Binding HasValidationError, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                            <Border Background="#FFF9E6" Padding="10" Margin="0,15,0,0" CornerRadius="3">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="⚠️" Margin="0,0,10,0"/>
                                     <TextBlock Text="{Binding ValidationMessage}" TextWrapping="Wrap"/>
@@ -401,9 +400,14 @@
                                     <Style TargetType="Border">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ValidationMessage, Converter={StaticResource StringToBoolConverter}}" Value="True">
+                                            <!-- 只有当有ValidationMessage且不是错误时才显示 -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding ValidationMessage, Converter={StaticResource StringToBoolConverter}}" Value="True"/>
+                                                    <Condition Binding="{Binding HasValidationError}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
                                                 <Setter Property="Visibility" Value="Visible"/>
-                                            </DataTrigger>
+                                            </MultiDataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -420,7 +424,7 @@
                                     <TextBlock Text="{Binding RepairHint}" TextWrapping="Wrap" Foreground="#424242" Margin="26,0,0,0"/>
                                 </StackPanel>
                             </Border>
-                            
+
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <!-- 修复按钮 -->
                                 <Button Command="{Binding StartRepairCommand}"
@@ -445,9 +449,310 @@
                                     </Button.Style>
                                 </Button>
                             </StackPanel>
+
+                            <!-- 模式说明区域（单栏模式 - 只有迁移/还原） -->
+                            <Border Padding="12" CornerRadius="5" Margin="0,15,0,0"
+                                    Visibility="{Binding CanRepair, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <!-- 默认：迁移模式样式 -->
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#E3F2FD" Offset="0"/>
+                                                    <GradientStop Color="#F5F9FF" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="BorderBrush" Value="#2196F3"/>
+                                        <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                                        <Style.Triggers>
+                                            <!-- 还原模式样式 -->
+                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                <Setter Property="Background">
+                                                    <Setter.Value>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                            <GradientStop Color="#FFF4E5" Offset="0"/>
+                                                            <GradientStop Color="#FFFAF0" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="BorderBrush" Value="#FF8C00"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <!-- 模式图标和标题 -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <TextBlock FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="🚀"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Text" Value="↩️"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock FontWeight="Bold" FontSize="13" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="{StaticResource MigrationModeTitle}"/>
+                                                    <Setter Property="Foreground" Value="#0078D4"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Text" Value="{StaticResource RestoreModeTitle}"/>
+                                                            <Setter Property="Foreground" Value="#FF8C00"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <!-- 模式说明内容 -->
+                                    <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="18">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <!-- 迁移模式说明 -->
+                                                <Setter Property="Text" Value="{StaticResource MigrationModeDescription}"/>
+                                                <Setter Property="Foreground" Value="#1565C0"/>
+                                                <Style.Triggers>
+                                                    <!-- 还原模式说明 -->
+                                                    <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                        <Setter Property="Text" Value="{StaticResource RestoreModeDescription}"/>
+                                                        <Setter Property="Foreground" Value="#E65100"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <!-- 快速提示 -->
+                                    <StackPanel Margin="0,8,0,0">
+                                        <TextBlock FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="💡 快速提示"/>
+                                                    <Setter Property="Foreground" Value="#0078D4"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Foreground" Value="#FF8C00"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- 迁移模式提示 -->
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Text="{StaticResource MigrationModeTip1}" FontSize="11" Foreground="#424242"/>
+                                            <TextBlock Text="{StaticResource MigrationModeTip2}" FontSize="11" Foreground="#424242"/>
+                                            <TextBlock Text="{StaticResource MigrationModeTip3}" FontSize="11" Foreground="#424242"/>
+                                        </StackPanel>
+
+                                        <!-- 还原模式提示 -->
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Text="{StaticResource RestoreModeTip1}" FontSize="11" Foreground="#424242"/>
+                                            <TextBlock Text="{StaticResource RestoreModeTip2}" FontSize="11" Foreground="#424242"/>
+                                            <TextBlock Text="{StaticResource RestoreModeTip3}" FontSize="11" Foreground="#424242"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 模式说明区域（双栏模式 - 迁移/还原 + 修复） -->
+                            <Grid Margin="0,15,0,0" Visibility="{Binding CanRepair, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 左栏：修复模式说明 -->
+                                <Border Grid.Column="0" Padding="12" CornerRadius="5" Background="#E8F5E9" BorderBrush="#4CAF50" BorderThickness="2,0,0,0">
+                                    <StackPanel>
+                                        <!-- 模式图标和标题 -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <TextBlock Text="🔧" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{StaticResource RepairModeTitle}" FontWeight="Bold" FontSize="13" Foreground="#2E7D32" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- 模式说明内容 -->
+                                        <TextBlock Text="{StaticResource RepairModeDescription}"
+                                                  TextWrapping="Wrap"
+                                                  FontSize="12"
+                                                  Foreground="#1B5E20"
+                                                  LineHeight="18"/>
+
+                                        <!-- 适用场景 -->
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock Text="💡 适用场景" FontWeight="SemiBold" FontSize="11" Foreground="#2E7D32" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{StaticResource RepairScenario1}" FontSize="11" Foreground="#424242" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{StaticResource RepairScenario2}" FontSize="11" Foreground="#424242" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{StaticResource RepairScenario3}" FontSize="11" Foreground="#424242" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                                <!-- 右栏：迁移/还原模式说明 -->
+                                <Border Grid.Column="2" Padding="12" CornerRadius="5">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <!-- 默认：迁移模式样式 -->
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#E3F2FD" Offset="0"/>
+                                                        <GradientStop Color="#F5F9FF" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Setter Property="BorderBrush" Value="#2196F3"/>
+                                            <Setter Property="BorderThickness" Value="2,0,0,0"/>
+                                            <Style.Triggers>
+                                                <!-- 还原模式样式 -->
+                                                <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                    <Setter Property="Background">
+                                                        <Setter.Value>
+                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                                <GradientStop Color="#FFF4E5" Offset="0"/>
+                                                                <GradientStop Color="#FFFAF0" Offset="1"/>
+                                                            </LinearGradientBrush>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Setter Property="BorderBrush" Value="#FF8C00"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <!-- 模式图标和标题 -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <TextBlock FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="🚀"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                                <Setter Property="Text" Value="↩️"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock FontWeight="Bold" FontSize="13" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="{StaticResource MigrationModeTitle}"/>
+                                                        <Setter Property="Foreground" Value="#0078D4"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                                <Setter Property="Text" Value="{StaticResource RestoreModeTitle}"/>
+                                                                <Setter Property="Foreground" Value="#FF8C00"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <!-- 模式说明内容 -->
+                                        <TextBlock TextWrapping="Wrap" FontSize="12" LineHeight="18">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <!-- 迁移模式说明 -->
+                                                    <Setter Property="Text" Value="{StaticResource MigrationModeDescription}"/>
+                                                    <Setter Property="Foreground" Value="#1565C0"/>
+                                                    <Style.Triggers>
+                                                        <!-- 还原模式说明 -->
+                                                        <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                            <Setter Property="Text" Value="{StaticResource RestoreModeDescription}"/>
+                                                            <Setter Property="Foreground" Value="#E65100"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- 快速提示 -->
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock FontWeight="SemiBold" FontSize="11" Margin="0,0,0,4">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="💡 快速提示"/>
+                                                        <Setter Property="Foreground" Value="#0078D4"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                                <Setter Property="Foreground" Value="#FF8C00"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- 迁移模式提示 -->
+                                            <StackPanel>
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <TextBlock Text="{StaticResource MigrationModeTip1}" FontSize="11" Foreground="#424242"/>
+                                                <TextBlock Text="{StaticResource MigrationModeTip2}" FontSize="11" Foreground="#424242"/>
+                                                <TextBlock Text="{StaticResource MigrationModeTip3}" FontSize="11" Foreground="#424242"/>
+                                            </StackPanel>
+
+                                            <!-- 还原模式提示 -->
+                                            <StackPanel>
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRestoreMode}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <TextBlock Text="{StaticResource RestoreModeTip1}" FontSize="11" Foreground="#424242"/>
+                                                <TextBlock Text="{StaticResource RestoreModeTip2}" FontSize="11" Foreground="#424242"/>
+                                                <TextBlock Text="{StaticResource RestoreModeTip3}" FontSize="11" Foreground="#424242"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </StackPanel>
                     </Border>
-                    
+
                     <!-- Step 2: Scan -->
                     <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
                             BorderBrush="#E0E0E0" BorderThickness="1"
