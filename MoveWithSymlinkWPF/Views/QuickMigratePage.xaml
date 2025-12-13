@@ -10,7 +10,11 @@
              xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
              mc:Ignorable="d"
              d:DesignHeight="600"
-        d:DesignWidth="900">
+        d:DesignWidth="900"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
@@ -187,13 +191,21 @@
             </Setter>
         </Style>
 
-        <Style TargetType="Button">
-            <Setter Property="Padding"
-                    Value="12,6"/>
-            <Setter Property="Margin"
-                    Value="5,0"/>
-            <Setter Property="MinWidth"
-                    Value="80"/>
+        <!-- 一键迁移页面的紧凑按钮样式 - 继承全局现代化样式 -->
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="32"/>
+        </Style>
+
+        <!-- 任务卡片中的超小按钮样式 -->
+        <Style x:Key="TaskButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Margin" Value="5,0,0,0"/>
+            <Setter Property="FontSize" Value="12"/>
         </Style>
 
         <!-- Normal Task Card Style -->
@@ -524,18 +536,14 @@
                                                                             Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             Visibility="{Binding DataContext.UseUnifiedTarget, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                                                            Padding="8,4"
-                                                                            MinWidth="60"
-                                                                            Margin="5,0,0,0"/>
+                                                                            Style="{StaticResource TaskButtonStyle}"/>
 
                                                                     <!-- 迁移按钮 -->
                                                                     <Button Content="迁移"
                                                                             Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
                                                                             IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
-                                                                            Padding="8,4"
-                                                                            MinWidth="60"
-                                                                            Margin="5,0,0,0"/>
+                                                                            Style="{StaticResource TaskButtonStyle}"/>
                                                                 </StackPanel>
                                                             </Grid>
 
@@ -774,17 +782,12 @@
                                                                     <Button Content="还原"
                                                                             Command="{Binding DataContext.RestoreTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
-                                                                            Padding="8,4"
-                                                                            MinWidth="60"
-                                                                            Margin="5,0,0,0"/>
+                                                                            Style="{StaticResource TaskButtonStyle}"/>
                                                                     <Button Content="清理备份"
                                                                             Command="{Binding DataContext.CleanupBackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                            CommandParameter="{Binding}"
-                                                                            Padding="8,4"
-                                                                            MinWidth="60"
-                                                                            Margin="5,0,0,0">
+                                                                            CommandParameter="{Binding}">
                                                                         <Button.Style>
-                                                                            <Style TargetType="Button">
+                                                                            <Style TargetType="Button" BasedOn="{StaticResource TaskButtonStyle}">
                                                                                 <Setter Property="Visibility"
                                                                                         Value="Collapsed"/>
                                                                                 <Style.Triggers>

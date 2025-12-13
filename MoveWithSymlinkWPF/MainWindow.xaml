@@ -8,9 +8,13 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
         mc:Ignorable="d"
-        Title="目录迁移工具 - Directory Migration Tool" 
+        Title="目录迁移工具 - Directory Migration Tool"
         Height="700" Width="1000"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
     
     <Window.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
@@ -20,30 +24,39 @@
         <converters:StepVisibilityConverter x:Key="StepVisibilityConverter"/>
         <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
         <converters:BoolToForegroundConverter x:Key="BoolToForegroundConverter"/>
-        
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="Margin" Value="5"/>
-            <Setter Property="MinWidth" Value="100"/>
-            <Setter Property="Height" Value="36"/>
-        </Style>
-        
-        <Style TargetType="TextBox">
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Height" Value="36"/>
-        </Style>
-        
+
         <Style x:Key="HeaderStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="24"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
         </Style>
-        
+
         <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,10,0,10"/>
+        </Style>
+
+        <!-- 页面切换淡入淡出动画 -->
+        <Style x:Key="FadeInContentControl" TargetType="ContentControl">
+            <Setter Property="Opacity" Value="1"/>
+            <Style.Triggers>
+                <EventTrigger RoutedEvent="ContentControl.Loaded">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                           From="0" To="1" Duration="0:0:0.4">
+                                <DoubleAnimation.EasingFunction>
+                                    <QuadraticEase EasingMode="EaseOut"/>
+                                </DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+                <Trigger Property="Content" Value="{x:Null}">
+                    <Setter Property="Opacity" Value="0"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
     
@@ -54,8 +67,17 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#F0F0F0" Padding="15">
+        <!-- Header - 现代化渐变设计 -->
+        <Border Grid.Row="0" Padding="15">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="#F8F9FA" Offset="0"/>
+                    <GradientStop Color="#E9ECEF" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="8" ShadowDepth="2" Direction="270"/>
+            </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -154,9 +176,12 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
-            <!-- Step Navigator (Manual Mode Only) -->
-            <Border Grid.Column="0" Background="#F8F8F8" Padding="12" Margin="0,0,12,0" CornerRadius="5"
+            <!-- Step Navigator (Manual Mode Only) - 现代卡片式 -->
+            <Border Grid.Column="0" Background="White" Padding="16" Margin="0,0,12,0" CornerRadius="10"
                     Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" Opacity="0.1" BlurRadius="16" ShadowDepth="4" Direction="270"/>
+                </Border.Effect>
                 <StackPanel>
                     <TextBlock Text="步骤" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,15"/>
                     
@@ -280,9 +305,11 @@
                 <StackPanel>
                     
                     <!-- Step 1: Path Selection -->
-                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
-                            BorderBrush="#E0E0E0" BorderThickness="1"
+                    <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=1}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4" Direction="270"/>
+                        </Border.Effect>
                         <StackPanel>
                             <!-- 标题和模式标签 -->
                             <Grid Margin="0,10,0,10">
@@ -322,7 +349,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding SourcePath, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseSourceCommand}"/>
+                                <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseSourceCommand}" Margin="8,0,0,0"/>
                             </Grid>
                             
                             <!-- 目标目录标签根据模式动态显示 -->
@@ -344,24 +371,10 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding TargetPath, UpdateSourceTrigger=PropertyChanged}"
-                                         IsReadOnly="{Binding IsTargetPathReadOnly}">
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="Padding" Value="8"/>
-                                            <Setter Property="VerticalContentAlignment" Value="Center"/>
-                                            <Setter Property="Height" Value="36"/>
-                                            <Setter Property="Background" Value="White"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsTargetPathReadOnly}" Value="True">
-                                                    <Setter Property="Background" Value="#F5F5F5"/>
-                                                    <Setter Property="Foreground" Value="#666666"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
-                                </TextBox>
+                                         IsReadOnly="{Binding IsTargetPathReadOnly}"/>
                                 <Button Grid.Column="1" Content="浏览..." Command="{Binding BrowseTargetCommand}"
-                                        IsEnabled="{Binding IsTargetPathReadOnly, Converter={StaticResource InverseBoolConverter}}"/>
+                                        IsEnabled="{Binding IsTargetPathReadOnly, Converter={StaticResource InverseBoolConverter}}"
+                                        Margin="8,0,0,0"/>
                             </Grid>
                             
                             <TextBlock Text="高级选项" FontWeight="SemiBold" Margin="0,15,0,5"/>
@@ -432,11 +445,12 @@
                                         IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
                                         Background="#4CAF50" Foreground="White" FontWeight="SemiBold"
                                         Content="修复链接"/>
-                                
+
                                 <!-- 扫描按钮 -->
                                 <Button Command="{Binding StartScanFromStep1Command}"
                                         IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold">
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"
+                                        Margin="12,0,0,0">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                             <Setter Property="Content" Value="开始扫描"/>
@@ -754,9 +768,11 @@
                     </Border>
 
                     <!-- Step 2: Scan -->
-                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
-                            BorderBrush="#E0E0E0" BorderThickness="1"
+                    <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=2}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4" Direction="270"/>
+                        </Border.Effect>
                         <StackPanel>
                             <!-- 标题和模式标签 -->
                             <Grid Margin="0,10,0,10">
@@ -822,7 +838,8 @@
                                         IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"/>
                                 <Button Command="{Binding StartMigrationFromStep2Command}"
                                         IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold">
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"
+                                        Margin="12,0,0,0">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                             <Setter Property="Content" Value="开始迁移"/>
@@ -839,9 +856,11 @@
                     </Border>
                     
                     <!-- Step 3: Migration -->
-                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
-                            BorderBrush="#E0E0E0" BorderThickness="1"
+                    <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=3}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4" Direction="270"/>
+                        </Border.Effect>
                         <StackPanel>
                             <!-- 标题和模式标签 -->
                             <Grid Margin="0,10,0,10">
@@ -911,15 +930,18 @@
                                         Visibility="{Binding IsMigrating, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                 <Button Content="完成" Command="{Binding ViewResultCommand}"
                                         Visibility="{Binding MigrationCompleted, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
+                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"
+                                        Margin="12,0,0,0"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                     
                     <!-- Step 4: Result -->
-                    <Border Background="White" Padding="15" Margin="0,0,0,8" CornerRadius="5"
-                            BorderBrush="#E0E0E0" BorderThickness="1"
+                    <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4" Direction="270"/>
+                        </Border.Effect>
                         <StackPanel>
                             <!-- 标题和模式标签 -->
                             <Grid Margin="0,10,0,10">
@@ -975,7 +997,8 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
                                 <Button Content="完成" Command="{Binding BackToStep1Command}"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
-                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"/>
+                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"
+                                        Margin="12,0,0,0"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -983,9 +1006,10 @@
                 </StackPanel>
             </ScrollViewer>
             
-            <!-- Quick Migrate Mode Content -->
-            <ContentControl Grid.Column="0" Grid.ColumnSpan="2" 
+            <!-- Quick Migrate Mode Content - 添加淡入淡出动画 -->
+            <ContentControl Grid.Column="0" Grid.ColumnSpan="2"
                            Content="{Binding QuickMigratePage}"
+                           Style="{StaticResource FadeInContentControl}"
                            Visibility="{Binding IsQuickMigrateMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
         </Grid>
         

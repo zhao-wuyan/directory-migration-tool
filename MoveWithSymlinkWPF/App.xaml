@@ -9,6 +9,363 @@
                 <!-- 使用说明文字资源 -->
                 <ResourceDictionary Source="Resources/UserGuideTexts.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- 现代化全局按钮样式 - 优化版 -->
+            <Style TargetType="Button">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="#0078D4"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="MinWidth" Value="100"/>
+                <Setter Property="Height" Value="38"/>
+                <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                <!-- 文本渲染优化 - 提高清晰度 -->
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                <Setter Property="RenderOptions.ClearTypeHint" Value="Enabled"/>
+                <Setter Property="UseLayoutRounding" Value="True"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="RenderTransform">
+                    <Setter.Value>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <!-- 优化：更柔和的阴影效果 -->
+                        <DropShadowEffect Color="#0078D4" Opacity="0.25" BlurRadius="12" ShadowDepth="2" Direction="270"/>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <!-- 悬停效果 -->
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <!-- 悬停时增强光晕 -->
+                                            <DropShadowEffect Color="#0078D4" Opacity="0.4" BlurRadius="16" ShadowDepth="2" Direction="270"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <!-- 按下效果 -->
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#004578"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <!-- 按下时减弱阴影 -->
+                                            <DropShadowEffect Color="#0078D4" Opacity="0.15" BlurRadius="8" ShadowDepth="1" Direction="270"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <!-- 禁用状态 -->
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                                    <Setter Property="Foreground" Value="#9CA3AF"/>
+                                    <Setter Property="Effect" Value="{x:Null}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Trigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
+                                                   To="1.03" Duration="0:0:0.15">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
+                                                   To="1.03" Duration="0:0:0.15">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                        <Trigger.ExitActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
+                                                   To="1.0" Duration="0:0:0.15">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
+                                                   To="1.0" Duration="0:0:0.15">
+                                        <DoubleAnimation.EasingFunction>
+                                            <QuadraticEase EasingMode="EaseOut"/>
+                                        </DoubleAnimation.EasingFunction>
+                                    </DoubleAnimation>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.ExitActions>
+                    </Trigger>
+                    <Trigger Property="IsPressed" Value="True">
+                        <Trigger.EnterActions>
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleX)"
+                                                   To="0.97" Duration="0:0:0.08"/>
+                                    <DoubleAnimation Storyboard.TargetProperty="(Button.RenderTransform).(ScaleTransform.ScaleY)"
+                                                   To="0.97" Duration="0:0:0.08"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- 次要按钮样式（Secondary Button） -->
+            <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Background" Value="#F5F5F5"/>
+                <Setter Property="Foreground" Value="#333333"/>
+                <Setter Property="BorderBrush" Value="#D1D5DB"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="8" ShadowDepth="1" Direction="270"/>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <!-- 悬停效果 -->
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#E8E8E8"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#000000" Opacity="0.12" BlurRadius="10" ShadowDepth="2" Direction="270"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <!-- 按下效果 -->
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#D8D8D8"/>
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#000000" Opacity="0.06" BlurRadius="6" ShadowDepth="1" Direction="270"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <!-- 禁用状态 -->
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="border" Property="Background" Value="#F9FAFB"/>
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                    <Setter Property="Foreground" Value="#9CA3AF"/>
+                                    <Setter Property="Effect" Value="{x:Null}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 全局现代化滚动条样式 -->
+            <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+                <Setter Property="Background" Value="#C0C0C0"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type Thumb}">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="5"
+                                    Margin="2"/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#909090"/>
+                    </Trigger>
+                    <Trigger Property="IsDragging" Value="True">
+                        <Setter Property="Background" Value="#606060"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="ModernScrollBar" TargetType="{x:Type ScrollBar}">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Width" Value="12"/>
+                <Setter Property="MinWidth" Value="12"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ScrollBar}">
+                            <Grid>
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
+                                <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Style.Triggers>
+                    <Trigger Property="Orientation" Value="Horizontal">
+                        <Setter Property="Height" Value="12"/>
+                        <Setter Property="MinHeight" Value="12"/>
+                        <Setter Property="Width" Value="Auto"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                                    <Grid>
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="6"/>
+                                        <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                            <Track.Thumb>
+                                                <Thumb Style="{StaticResource ScrollBarThumb}"/>
+                                            </Track.Thumb>
+                                        </Track>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- 全局现代化输入框样式 -->
+            <Style TargetType="TextBox">
+                <Setter Property="Padding" Value="12,10"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#D1D5DB"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Foreground" Value="#1F2937"/>
+                <Setter Property="CaretBrush" Value="#0078D4"/>
+                <Setter Property="SelectionBrush" Value="#B4D5FE"/>
+                <!-- 文本渲染优化 - 提高清晰度 -->
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                <Setter Property="UseLayoutRounding" Value="True"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    SnapsToDevicePixels="True">
+                                <Grid>
+                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                Focusable="false"
+                                                HorizontalScrollBarVisibility="Hidden"
+                                                VerticalScrollBarVisibility="Hidden"
+                                                VerticalAlignment="Center"
+                                                Margin="{TemplateBinding Padding}"/>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <!-- 悬停效果 -->
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#9CA3AF"/>
+                                </Trigger>
+                                <!-- 聚焦效果 -->
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                                    <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                                    <Setter TargetName="border" Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="#0078D4" Opacity="0.25" BlurRadius="8" ShadowDepth="0"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <!-- 禁用状态 -->
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                    <Setter Property="Foreground" Value="#9CA3AF"/>
+                                </Trigger>
+                                <!-- 只读状态 -->
+                                <Trigger Property="IsReadOnly" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="#F9FAFB"/>
+                                    <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                    <Setter Property="Foreground" Value="#6B7280"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- 全局ScrollViewer样式 -->
+            <Style TargetType="{x:Type ScrollViewer}">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
+
+                                <ScrollBar x:Name="PART_VerticalScrollBar"
+                                          Grid.Column="1"
+                                          Grid.Row="0"
+                                          Style="{StaticResource ModernScrollBar}"
+                                          Value="{TemplateBinding VerticalOffset}"
+                                          Maximum="{TemplateBinding ScrollableHeight}"
+                                          ViewportSize="{TemplateBinding ViewportHeight}"
+                                          Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+
+                                <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                          Grid.Column="0"
+                                          Grid.Row="1"
+                                          Orientation="Horizontal"
+                                          Style="{StaticResource ModernScrollBar}"
+                                          Value="{TemplateBinding HorizontalOffset}"
+                                          Maximum="{TemplateBinding ScrollableWidth}"
+                                          ViewportSize="{TemplateBinding ViewportWidth}"
+                                          Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -71,12 +71,12 @@
 
     <sys:String x:Key="Step3Title">步骤 3：执行迁移</sys:String>
     <sys:String x:Key="Step3Description">点击 [开始迁移] 后，工具会按以下阶段执行：</sys:String>
-    <sys:String x:Key="Step3Phase1">1️⃣ 备份：创建源目录的安全备份</sys:String>
-    <sys:String x:Key="Step3Phase2">2️⃣ 复制小文件：快速复制小文件到目标位置</sys:String>
-    <sys:String x:Key="Step3Phase3">3️⃣ 复制大文件：使用 Robocopy 高效复制大文件</sys:String>
-    <sys:String x:Key="Step3Phase4">4️⃣ 验证：校验文件完整性</sys:String>
-    <sys:String x:Key="Step3Phase5">5️⃣ 清理：删除源目录的旧文件</sys:String>
-    <sys:String x:Key="Step3Phase6">6️⃣ 创建符号链接：在源位置创建指向目标的链接</sys:String>
+    <sys:String x:Key="Step3Phase1">1️ 备份：创建源目录的安全备份</sys:String>
+    <sys:String x:Key="Step3Phase2">2️ 复制小文件：快速复制小文件到目标位置</sys:String>
+    <sys:String x:Key="Step3Phase3">3️ 复制大文件：使用 Robocopy 高效复制大文件</sys:String>
+    <sys:String x:Key="Step3Phase4">4️ 验证：校验文件完整性</sys:String>
+    <sys:String x:Key="Step3Phase5">5️ 清理：删除源目录的旧文件</sys:String>
+    <sys:String x:Key="Step3Phase6">6️ 创建符号链接：在源位置创建指向目标的链接</sys:String>
 
     <sys:String x:Key="Step3WarningTitle">⚠️ 迁移过程注意事项</sys:String>
     <sys:String x:Key="Step3Warning1">• 迁移过程可能需要较长时间，请耐心等待</sys:String>

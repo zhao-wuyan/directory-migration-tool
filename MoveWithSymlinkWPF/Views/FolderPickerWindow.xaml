@@ -4,12 +4,16 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="选择文件夹" 
-        Height="600" 
+        Title="选择文件夹"
+        Height="600"
         Width="800"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True"
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
     
     <Window.Resources>
         <!-- 符号链接图标样式 -->
@@ -93,13 +97,14 @@
                     Padding="10,5"
                     Margin="5,0,0,0"/>
             
-            <Button Grid.Column="4" 
-                    Content="✓ 选择当前" 
+            <Button Grid.Column="4"
+                    Content="✓ 选择当前"
                     Command="{Binding SelectCurrentPathCommand}"
                     Padding="10,5"
                     Margin="5,0,0,0"
                     ToolTip="选择当前显示的目录"
                     Background="#E8F5E9"
+                    Foreground="#2E7D32"
                     BorderBrush="#4CAF50"/>
         </Grid>
         
@@ -291,25 +296,21 @@
         <StackPanel Grid.Row="4" 
                    Orientation="Horizontal" 
                    HorizontalAlignment="Right">
-            <Button Content="确定" 
+            <Button Content="确定"
                     Command="{Binding ConfirmCommand}"
                     IsEnabled="{Binding HasSelection}"
                     Width="100"
                     Height="32"
                     Margin="0,0,10,0"
                     Background="#2196F3"
-                    Foreground="White"
                     BorderThickness="0"
                     Cursor="Hand"/>
             
-            <Button Content="取消" 
+            <Button Content="取消"
                     Command="{Binding CancelCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"
                     Width="100"
-                    Height="32"
-                    Background="#F5F5F5"
-                    BorderBrush="#CCCCCC"
-                    BorderThickness="1"
-                    Cursor="Hand"/>
+                    Height="32"/>
         </StackPanel>
     </Grid>
 </Window>
