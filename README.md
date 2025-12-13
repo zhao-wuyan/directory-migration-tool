@@ -1,5 +1,7 @@
 # 目录迁移工具 (Directory Migration Tool) · WPF 版本
 
+> 当前版本：v1.1.4
+
 一个使用符号链接透明迁移大型目录的 Windows 工具，支持 PowerShell CLI 和 WPF GUI 两种方式。
 
 ## 功能特性
@@ -14,6 +16,8 @@
 - ✅ **一键迁移模式**: 基于 `quick-migrate.json` 的批量迁移与还原
 - ✅ **可逆迁移（还原功能）**: 将符号链接一键还原为真实目录
 - ✅ **修复模式**: 基于现有目标目录重建符号链接（不复制数据）
+- ✅ **应用内用户指南**: 完整的帮助系统，包含使用步骤、常见问题和最佳实践
+- ✅ **现代化界面**: 统一的设计语言，流畅的动画效果，优秀的用户体验
 
 ## 系统要求
 
@@ -81,6 +85,15 @@
 
 ## GUI 使用向导
 
+### 📖 应用内帮助
+- 点击主界面右上角的 **[❓ 使用说明]** 按钮，可查看详细的用户指南
+- 用户指南包含：
+  - 软件概述和核心优势
+  - 手动模式使用步骤
+  - 一键迁移模式说明
+  - 还原模式和修复模式详解
+  - 常见问题解答（FAQ）
+
 ### 步骤 1: 选择路径
 - 选择源目录（要迁移的目录）
 - 选择目标目录（迁移到的位置）
@@ -129,8 +142,14 @@
 
 ## v1.1 更新摘要
 
-- 新增一键迁移模式：读取 `quick-migrate.json` 自动扫描任务，按“未迁移/已迁移”分组展示；顺序执行，单项失败不阻塞；底部统一日志；支持中断续传（`robocopy /Z /ZB`）。
-- 手动模式新增还原功能：选择符号链接源目录自动进入“还原模式”（橙色标签），目标路径只读；执行对称的 6 阶段反向流程；完成后可选择删除或保留目标数据（`restoreKeepTarget`）。
+### v1.1.4 (2025-12-14)
+- **🎨 UI现代化设计**：统一全局按钮样式，添加阴影和悬停动画效果；改进Tab控件设计，增加渐变背景和过渡动画；优化文本渲染清晰度和界面层次感。
+- **📖 应用内用户指南**：新增完整的用户指南窗口（[UserGuideWindow.xaml](MoveWithSymlinkWPF/Views/UserGuideWindow.xaml)），提供软件概述、使用步骤、常见问题等帮助内容；资源化文本管理（[UserGuideTexts.xaml](MoveWithSymlinkWPF/Resources/UserGuideTexts.xaml)），便于维护和本地化。
+- **⚡ 界面交互优化**：去除冗余复制按钮，优化Tab切换体验；调整边框圆角、间距和视觉元素，提升整体专业感。
+
+### v1.1.0 核心功能
+- 新增一键迁移模式：读取 `quick-migrate.json` 自动扫描任务，按"未迁移/已迁移"分组展示；顺序执行，单项失败不阻塞；底部统一日志；支持中断续传（`robocopy /Z /ZB`）。
+- 手动模式新增还原功能：选择符号链接源目录自动进入"还原模式"（橙色标签），目标路径只读；执行对称的 6 阶段反向流程；完成后可选择删除或保留目标数据（`restoreKeepTarget`）。
 - 标记文件与状态管理：引入 `.xinghe-migrate.lock/.done` 与 `.xinghe-reduction.lock/.done`；修复还原后标记文件残留问题，迁移前/还原后清理源目录标记；目录非空检查忽略标记文件。
 - 符号链接选择与对话框修复：处理系统对话框自动解析符号链接的问题，支持反向查找并提示使用符号链接路径进入还原模式；建议优先直接选择符号链接路径本身。
 - 兼容性与限制：支持 HKCU/HKLM、x64/x86 注册表视图；非管理员提示启用开发者模式；暂不支持网络路径（UNC）。
@@ -169,11 +188,18 @@ moveFloder/
 │   ├── ViewModels/             # 视图模型
 │   │   ├── MainViewModel.cs
 │   │   └── QuickMigrateViewModel.cs
+│   ├── Views/                  # 视图
+│   │   ├── QuickMigratePage.xaml
+│   │   ├── QuickMigratePage.xaml.cs
+│   │   ├── UserGuideWindow.xaml         # 用户指南窗口
+│   │   ├── UserGuideWindow.xaml.cs
+│   │   ├── FolderPickerWindow.xaml
+│   │   └── FolderPickerWindow.xaml.cs
+│   ├── Resources/              # 资源文件
+│   │   ├── UserGuideTexts.xaml          # 用户指南文本资源
+│   │   └── README-使用说明资源管理.md
 │   ├── Converters/             # XAML 转换器
 │   │   └── BooleanConverters.cs
-│   ├── Views/
-│   │   ├── QuickMigratePage.xaml
-│   │   └── QuickMigratePage.xaml.cs
 │   ├── MainWindow.xaml         # 主窗口
 │   ├── App.xaml                # 应用程序
 │   └── Properties/PublishProfiles/
@@ -325,6 +351,7 @@ MIT License
 
 ## 常见问题（WPF 版本）
 
+- **如何获取帮助**？点击主界面右上角的 **[❓ 使用说明]** 按钮，查看完整的用户指南。
 - 为什么 EXE 文件较大？自包含发布包含 .NET 运行时与依赖，通常 60–80MB。
 - 没有安装 .NET 可以运行吗？可以，自包含发布无需预装 .NET。
 - 是否需要管理员权限？是。应用含 UAC 清单，启动时会自动申请管理员权限。
