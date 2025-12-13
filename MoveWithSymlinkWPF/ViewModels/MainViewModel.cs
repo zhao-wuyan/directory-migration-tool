@@ -618,12 +618,15 @@ public partial class MainViewModel : ObservableObject
         // 执行文件占用检测
         if (!SimpleFileLockDetector.CanProceedWithMigration(SourcePath, TargetPath, out string errorMessage))
         {
+            // 生成解决方案建议
+            string solution = GetSolutionForError(errorMessage);
+
             var result = MessageBox.Show(
-                $"{errorMessage}\n\n点击\"确定\"重新检测，点击\"取消\"中止迁移。",
+                $"{errorMessage}\n\n{solution}\n\n点击\"确定\"重新检测，点击\"取消\"中止迁移。",
                 "文件占用检测",
                 MessageBoxButton.OKCancel,
                 MessageBoxImage.Warning);
-                
+
             if (result == MessageBoxResult.OK)
             {
                 // 用户选择重试，递归调用重新检测
@@ -631,10 +634,46 @@ public partial class MainViewModel : ObservableObject
             }
             return;
         }
-        
+
         // 检测通过，继续迁移
         CurrentStep = 3;
         await StartMigrationAsync();
+    }
+
+    /// <summary>
+    /// 根据错误消息生成解决方案建议
+    /// </summary>
+    private string GetSolutionForError(string errorMessage)
+    {
+        if (string.IsNullOrEmpty(errorMessage))
+            return string.Empty;
+
+        var lowerError = errorMessage.ToLower();
+
+        if (lowerError.Contains("access") || lowerError.Contains("denied") || lowerError.Contains("permission") || lowerError.Contains("权限"))
+        {
+            return "💡 建议解决方案：\n• 关闭可能占用该目录的程序（文件资源管理器、编辑器等）\n• 以管理员身份运行本程序\n• 检查文件夹属性，确保您有完全控制权限";
+        }
+        else if (lowerError.Contains("space") || lowerError.Contains("disk") || lowerError.Contains("空间") || lowerError.Contains("磁盘"))
+        {
+            return "💡 建议解决方案：\n• 清理目标磁盘，释放更多空间\n• 选择其他有足够空间的驱动器\n• 删除不需要的临时文件";
+        }
+        else if (lowerError.Contains("lock") || lowerError.Contains("used") || lowerError.Contains("占用") || lowerError.Contains("in use"))
+        {
+            return "💡 建议解决方案：\n• 关闭所有可能正在使用这些文件的程序\n• 检查任务管理器，结束相关进程\n• 如有必要，重启计算机后再尝试";
+        }
+        else if (lowerError.Contains("network") || lowerError.Contains("connection") || lowerError.Contains("网络") || lowerError.Contains("连接"))
+        {
+            return "💡 建议解决方案：\n• 检查网络连接是否正常\n• 确保网络路径可访问\n• 检查防火墙设置";
+        }
+        else if (lowerError.Contains("system") || lowerError.Contains("critical") || lowerError.Contains("系统") || lowerError.Contains("严重"))
+        {
+            return "💡 建议解决方案：\n• 重启计算机\n• 运行系统文件检查器：sfc /scannow\n• 检查磁盘错误：chkdsk /f";
+        }
+        else
+        {
+            return "💡 建议解决方案：\n• 查看详细日志获取更多信息\n• 尝试重启程序\n• 如问题持续，请联系技术支持";
+        }
     }
 
     [RelayCommand]
@@ -1363,6 +1402,19 @@ public partial class MainViewModel : ObservableObject
                 AddLog($"检查备份时出错: {ex.Message}");
             }
         });
+    }
+
+    /// <summary>
+    /// 显示使用说明窗口
+    /// </summary>
+    [RelayCommand]
+    private void ShowUserGuide()
+    {
+        var guideWindow = new Views.UserGuideWindow
+        {
+            Owner = Application.Current.MainWindow
+        };
+        guideWindow.ShowDialog();
     }
 
     private void AddLog(string message)
