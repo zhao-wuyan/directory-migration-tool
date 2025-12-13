@@ -4,6 +4,11 @@
              xmlns:local="clr-namespace:MoveWithSymlinkWPF"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 使用说明文字资源 -->
+                <ResourceDictionary Source="Resources/UserGuideTexts.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
