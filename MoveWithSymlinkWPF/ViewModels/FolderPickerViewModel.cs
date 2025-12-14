@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Services;
+using MoveWithSymlinkWPF.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -141,7 +142,7 @@ public partial class FolderPickerViewModel : ObservableObject
         }
         else
         {
-            MessageBox.Show("路径不存在！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            CustomMessageBox.ShowError("路径不存在！", "错误");
         }
     }
 
@@ -155,11 +156,11 @@ public partial class FolderPickerViewModel : ObservableObject
             
             // 检查是否为符号链接
             bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(CurrentPath);
-            string message = isSymlink 
+            string message = isSymlink
                 ? $"已选择当前路径（符号链接）：\n\n{CurrentPath}\n\n点击'确定'按钮完成选择。"
                 : $"已选择当前路径：\n\n{CurrentPath}\n\n点击'确定'按钮完成选择。";
-            
-            MessageBox.Show(message, "选择当前路径", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            CustomMessageBox.ShowInformation(message, "选择当前路径");
         }
     }
 
@@ -173,7 +174,7 @@ public partial class FolderPickerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"无法访问路径：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            CustomMessageBox.ShowError($"无法访问路径：{ex.Message}", "错误");
         }
     }
 
@@ -203,7 +204,7 @@ public partial class FolderPickerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"无法导航到根目录：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            CustomMessageBox.ShowError($"无法导航到根目录：{ex.Message}", "错误");
         }
     }
 
@@ -220,11 +221,9 @@ public partial class FolderPickerViewModel : ObservableObject
             HasSelection = true;
             
             // 显示提示
-            MessageBox.Show(
+            CustomMessageBox.ShowInformation(
                 $"已选择符号链接：\n\n{item.FullPath}\n\n点击'确定'按钮完成选择。",
-                "符号链接",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                "符号链接");
         }
         else
         {
@@ -294,11 +293,11 @@ public partial class FolderPickerViewModel : ObservableObject
         }
         catch (UnauthorizedAccessException)
         {
-            MessageBox.Show("没有权限访问此目录！", "访问被拒绝", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CustomMessageBox.ShowWarning("没有权限访问此目录！", "访问被拒绝");
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"加载文件夹失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            CustomMessageBox.ShowError($"加载文件夹失败：{ex.Message}", "错误");
         }
     }
 
