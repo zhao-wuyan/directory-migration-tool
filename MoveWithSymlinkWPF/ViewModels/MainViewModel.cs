@@ -621,13 +621,15 @@ public partial class MainViewModel : ObservableObject
             // 生成解决方案建议
             string solution = GetSolutionForError(errorMessage);
 
-            var result = MessageBox.Show(
-                $"{errorMessage}\n\n{solution}\n\n点击\"确定\"重新检测，点击\"取消\"中止迁移。",
-                "文件占用检测",
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Warning);
+            // 使用自定义对话框显示错误信息（支持滚动和自适应高度）
+            var errorWindow = new Views.ErrorMessageWindow(errorMessage, solution)
+            {
+                Owner = Application.Current.MainWindow
+            };
 
-            if (result == MessageBoxResult.OK)
+            var result = errorWindow.ShowDialog();
+
+            if (result == true && errorWindow.ShouldRetry)
             {
                 // 用户选择重试，递归调用重新检测
                 await PerformFileLockCheckAndStartMigration();
