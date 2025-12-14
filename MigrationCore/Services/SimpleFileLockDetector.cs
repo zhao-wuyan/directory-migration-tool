@@ -25,16 +25,30 @@ public static class SimpleFileLockDetector
         if (!TestDirectoryRename(sourcePath, out string renameError))
         {
             errorMessage = $"源目录无法操作：{renameError}";
+
+            // 尝试使用 handle.exe 获取占用进程信息
+            var lockingProcesses = HandleHelper.GetProcessesLockingPath(sourcePath);
+            if (lockingProcesses != null && lockingProcesses.Count > 0)
+            {
+                var formattedInfo = HandleHelper.FormatHandleInfo(lockingProcesses);
+                errorMessage += "\n\n" + formattedInfo;
+
+#if DEBUG
+                Console.WriteLine($"[SimpleFileLockDetector] 最终错误消息长度: {errorMessage.Length}");
+                Console.WriteLine($"[SimpleFileLockDetector] 最终错误消息:\n{errorMessage}");
+#endif
+            }
+
             return false;
         }
-        
+
         // 检测目标路径是否可写
         if (!TestFolderWriteAccess(targetPath, out string targetError))
         {
             errorMessage = $"目标目录不可写：{targetError}";
             return false;
         }
-        
+
         return true;
     }
 
@@ -61,6 +75,14 @@ public static class SimpleFileLockDetector
         if (!TestFolderOperation(sourceParent, out string sourceError))
         {
             errorMessage = $"源路径所在目录无法操作：{sourceError}\n\n请关闭可能占用该目录的程序后重试。";
+
+            // 尝试使用 handle.exe 获取占用进程信息
+            var lockingProcesses = HandleHelper.GetProcessesLockingPath(sourcePath);
+            if (lockingProcesses != null && lockingProcesses.Count > 0)
+            {
+                errorMessage += "\n\n" + HandleHelper.FormatHandleInfo(lockingProcesses);
+            }
+
             return false;
         }
 
@@ -309,7 +331,7 @@ public static class SimpleFileLockDetector
         catch (IOException ex)
         {
             // IOException 是Windows检测到文件占用的主要方式
-            error = $"目录被占用或锁定：{ex.Message}\n\n这可能是因为：\n• 有文件或文件夹正在被使用\n• 有程序正在扫描该目录\n• 文件资源管理器已打开该目录\n• 同步软件或云存储客户端正在访问";
+            error = $"目录被占用或锁定：{ex.Message}";
 #if DEBUG
             Console.WriteLine($"[SimpleFileLockDetector] 目录被占用: {directoryPath} - {ex.Message}");
 #endif

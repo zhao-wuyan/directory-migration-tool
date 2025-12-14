@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models;
 using MigrationCore.Services;
+using MoveWithSymlinkWPF.Helpers;
 using MoveWithSymlinkWPF.Services;
 using MoveWithSymlinkWPF.Views;
 using System.Collections.ObjectModel;
@@ -621,13 +622,15 @@ public partial class MainViewModel : ObservableObject
             // 生成解决方案建议
             string solution = GetSolutionForError(errorMessage);
 
-            var result = MessageBox.Show(
-                $"{errorMessage}\n\n{solution}\n\n点击\"确定\"重新检测，点击\"取消\"中止迁移。",
-                "文件占用检测",
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Warning);
+            // 使用自定义对话框显示错误信息（支持滚动和自适应高度）
+            var errorWindow = new Views.ErrorMessageWindow(errorMessage, solution)
+            {
+                Owner = Application.Current.MainWindow
+            };
 
-            if (result == MessageBoxResult.OK)
+            var result = errorWindow.ShowDialog();
+
+            if (result == true && errorWindow.ShouldRetry)
             {
                 // 用户选择重试，递归调用重新检测
                 await PerformFileLockCheckAndStartMigration();
@@ -764,13 +767,11 @@ public partial class MainViewModel : ObservableObject
                     // 还原成功后，询问用户是否删除目标目录数据
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        var cleanupResult = MessageBox.Show(
+                        var cleanupResult = CustomMessageBox.ShowQuestion(
                             $"还原完成！\n\n是否删除目标目录的数据？\n\n目标目录：{TargetPath}\n\n提示：删除后无法恢复。",
-                            "还原完成",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Question);
+                            "还原完成");
 
-                        if (cleanupResult == MessageBoxResult.Yes)
+                        if (cleanupResult)
                         {
                             // 用户选择删除目标目录
                             Task.Run(async () =>
@@ -796,11 +797,9 @@ public partial class MainViewModel : ObservableObject
                                     AddLog($"❌ 删除目标目录失败: {ex.Message}");
                                     Application.Current.Dispatcher.Invoke(() =>
                                     {
-                                        MessageBox.Show(
+                                        CustomMessageBox.ShowWarning(
                                             $"删除目标目录失败：\n{ex.Message}\n\n您可以稍后手动删除。",
-                                            "删除失败",
-                                            MessageBoxButton.OK,
-                                            MessageBoxImage.Warning);
+                                            "删除失败");
                                     });
                                 }
                             });
@@ -1184,17 +1183,15 @@ public partial class MainViewModel : ObservableObject
     {
         if (!CanRepair)
         {
-            MessageBox.Show("当前条件不满足修复要求", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            CustomMessageBox.ShowInformation("当前条件不满足修复要求", "提示");
             return;
         }
 
-        var result = MessageBox.Show(
+        var result = CustomMessageBox.ShowQuestion(
             $"确定要修复符号链接吗？\n\n源: {SourcePath}\n目标: {TargetPath}\n\n{RepairHint}",
-            "确认修复",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+            "确认修复");
 
-        if (result != MessageBoxResult.Yes)
+        if (!result)
             return;
 
         // 切换到修复模式并执行
@@ -1236,13 +1233,11 @@ public partial class MainViewModel : ObservableObject
                     
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        var askResult = MessageBox.Show(
+                        var askResult = CustomMessageBox.ShowQuestion(
                             $"修复过程中创建了备份目录：\n\n{backupPath}\n\n是否将此备份移入回收站？\n\n选择\"是\"将备份移入回收站（可恢复）\n选择\"否\"将保留备份供您后续处理",
-                            "清理备份",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Question);
+                            "清理备份");
 
-                        if (askResult == MessageBoxResult.Yes)
+                        if (askResult)
                         {
                             try
                             {
@@ -1251,30 +1246,24 @@ public partial class MainViewModel : ObservableObject
                                 if (success)
                                 {
                                     AddLog("✅ 备份已移入回收站");
-                                    MessageBox.Show(
-                                        $"备份已成功移入回收站\n\n{backupPath}\n\n提示：您可以在回收站中恢复此备份", 
-                                        "完成", 
-                                        MessageBoxButton.OK, 
-                                        MessageBoxImage.Information);
+                                    CustomMessageBox.ShowInformation(
+                                        $"备份已成功移入回收站\n\n{backupPath}\n\n提示：您可以在回收站中恢复此备份",
+                                        "完成");
                                 }
                                 else
                                 {
                                     AddLog("⚠️ 移入回收站失败");
-                                    MessageBox.Show(
-                                        $"无法将备份移入回收站\n\n备份目录保留在：{backupPath}", 
-                                        "操作失败", 
-                                        MessageBoxButton.OK, 
-                                        MessageBoxImage.Warning);
+                                    CustomMessageBox.ShowWarning(
+                                        $"无法将备份移入回收站\n\n备份目录保留在：{backupPath}",
+                                        "操作失败");
                                 }
                             }
                             catch (Exception ex)
                             {
                                 AddLog($"❌ 移入回收站失败: {ex.Message}");
-                                MessageBox.Show(
-                                    $"移入回收站失败：{ex.Message}\n\n备份目录保留在：{backupPath}", 
-                                    "操作失败", 
-                                    MessageBoxButton.OK, 
-                                    MessageBoxImage.Error);
+                                CustomMessageBox.ShowError(
+                                    $"移入回收站失败：{ex.Message}\n\n备份目录保留在：{backupPath}",
+                                    "操作失败");
                             }
                         }
                         else
@@ -1318,13 +1307,11 @@ public partial class MainViewModel : ObservableObject
                     
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        var askResult = MessageBox.Show(
+                        var askResult = CustomMessageBox.ShowQuestion(
                             $"修复过程中创建了备份目录：\n\n{backupPath}\n\n请确认修复成功后再自行删除此备份目录。\n\n是否打开备份所在目录？",
-                            "备份处理提示",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Information);
+                            "备份处理提示");
 
-                        if (askResult == MessageBoxResult.Yes)
+                        if (askResult)
                         {
                             try
                             {
@@ -1372,22 +1359,18 @@ public partial class MainViewModel : ObservableObject
                                     catch (Exception backupEx)
                                     {
                                         AddLog($"❌ 备用方法也失败: {backupEx.Message}");
-                                        MessageBox.Show(
+                                        CustomMessageBox.ShowWarning(
                                             $"无法打开文件夹：{ex.Message}\n\n文件夹位置：{folderPath}\n\n请手动导航到此位置。",
-                                            "打开失败",
-                                            MessageBoxButton.OK,
-                                            MessageBoxImage.Warning);
+                                            "打开失败");
                                     }
                                 }
                             }
                             catch (Exception ex)
                             {
                                 AddLog($"❌ 打开目录失败: {ex.Message}");
-                                MessageBox.Show(
+                                CustomMessageBox.ShowError(
                                     $"打开目录失败：{ex.Message}\n\n备份目录位置：{backupPath}",
-                                    "操作失败",
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Error);
+                                    "操作失败");
                             }
                         }
                         else
