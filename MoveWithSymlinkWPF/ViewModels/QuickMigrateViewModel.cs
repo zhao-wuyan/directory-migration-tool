@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models;
 using MigrationCore.Services;
 using Microsoft.Win32;
+using MoveWithSymlinkWPF.Helpers;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
@@ -171,18 +172,16 @@ public partial class QuickMigrateViewModel : ObservableObject
 #if DEBUG
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Example config exported successfully");
 #endif
-                MessageBox.Show(
+                CustomMessageBox.ShowInformation(
                     $"示例配置已导出到：\n{configPath}\n\n请根据实际需求修改后，重命名为 quick-migrate.json",
-                    "导出成功",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                    "导出成功");
             }
             else
             {
 #if DEBUG
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Failed to export example config");
 #endif
-                MessageBox.Show("导出失败", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.ShowError("导出失败", "错误");
             }
         }
         catch (Exception ex)
@@ -191,7 +190,7 @@ public partial class QuickMigrateViewModel : ObservableObject
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Exception in ExportExampleConfig: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
 #endif
-            MessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            CustomMessageBox.ShowError($"导出失败: {ex.Message}", "错误");
         }
     }
 
@@ -442,7 +441,7 @@ public partial class QuickMigrateViewModel : ObservableObject
         // 验证目标路径
         if (UseUnifiedTarget && string.IsNullOrWhiteSpace(UnifiedTargetRoot))
         {
-            MessageBox.Show("请先选择统一目标根目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CustomMessageBox.ShowWarning("请先选择统一目标根目录", "提示");
             return;
         }
 
@@ -492,13 +491,11 @@ public partial class QuickMigrateViewModel : ObservableObject
             catch (Exception ex)
             {
                 AddLog($"⚠️ [{task.DisplayName}] 扫描失败: {ex.Message}");
-                var result = MessageBox.Show(
-                    $"任务 \"{task.DisplayName}\" 扫描失败:\n{ex.Message}\n\n是否继续？", 
-                    "扫描警告", 
-                    MessageBoxButton.YesNo, 
-                    MessageBoxImage.Warning);
-                
-                if (result != MessageBoxResult.Yes)
+                var result = CustomMessageBox.ShowQuestion(
+                    $"任务 \"{task.DisplayName}\" 扫描失败:\n{ex.Message}\n\n是否继续？",
+                    "扫描警告");
+
+                if (!result)
                 {
                     IsExecuting = false;
                     _cancellationTokenSource?.Dispose();
@@ -534,11 +531,9 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         if (spaceCheckFailed)
         {
-            MessageBox.Show(
-                "目标磁盘空间不足，无法继续迁移！\n\n请查看日志了解详细信息。", 
-                "空间不足", 
-                MessageBoxButton.OK, 
-                MessageBoxImage.Error);
+            CustomMessageBox.ShowError(
+                "目标磁盘空间不足，无法继续迁移！\n\n请查看日志了解详细信息。",
+                "空间不足");
             IsExecuting = false;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
@@ -594,27 +589,23 @@ public partial class QuickMigrateViewModel : ObservableObject
         // 验证目标路径
         if (UseUnifiedTarget && string.IsNullOrWhiteSpace(UnifiedTargetRoot))
         {
-            MessageBox.Show("请先选择统一目标根目录", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            CustomMessageBox.ShowWarning("请先选择统一目标根目录", "提示");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(task.TargetPath))
         {
-            MessageBox.Show(
+            CustomMessageBox.ShowWarning(
                 "目标路径未设置。\n\n请点击\"浏览...\"按钮选择目标目录，或在配置文件中指定 unifiedTargetRoot。",
-                "目标路径无效",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                "目标路径无效");
             return;
         }
 
-        var result = MessageBox.Show(
+        var result = CustomMessageBox.ShowQuestion(
             $"确定要迁移以下任务吗？\n\n源: {task.SourcePath}\n目标: {task.TargetPath}\n\n迁移后，源位置将创建符号链接指向目标位置。",
-            "确认迁移",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+            "确认迁移");
 
-        if (result != MessageBoxResult.Yes)
+        if (!result)
             return;
 
         IsExecuting = true;
@@ -651,13 +642,11 @@ public partial class QuickMigrateViewModel : ObservableObject
         if (IsExecuting)
             return;
 
-        var result = MessageBox.Show(
+        var result = CustomMessageBox.ShowQuestion(
             $"确定要还原以下任务吗？\n\n源: {task.SourcePath}\n目标: {task.TargetPath}\n\n还原后，数据将从目标位置复制回源位置，符号链接将被删除。",
-            "确认还原",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+            "确认还原");
 
-        if (result != MessageBoxResult.Yes)
+        if (!result)
             return;
 
         IsExecuting = true;
@@ -678,17 +667,15 @@ public partial class QuickMigrateViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(task.BackupPath) || !Directory.Exists(task.BackupPath))
         {
-            MessageBox.Show("备份目录不存在", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            CustomMessageBox.ShowInformation("备份目录不存在", "提示");
             return;
         }
 
-        var result = MessageBox.Show(
+        var result = CustomMessageBox.ShowQuestion(
             $"确定要删除备份目录吗？\n\n{task.BackupPath}\n\n此操作不可恢复！",
-            "确认删除",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
+            "确认删除");
 
-        if (result != MessageBoxResult.Yes)
+        if (!result)
             return;
 
         IsExecuting = true;
