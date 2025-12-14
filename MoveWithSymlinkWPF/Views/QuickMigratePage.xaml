@@ -678,15 +678,19 @@
                                                                             BorderBrush="#E5E7EB"
                                                                             BorderThickness="1"
                                                                             CornerRadius="4"
-                                                                            Padding="8"
+                                                                            Padding="0"
                                                                             Margin="0,0,0,10">
-                                                                        <TextBlock Text="{Binding ErrorMessage}"
-                                                                                   TextWrapping="Wrap"
-                                                                                   FontFamily="Consolas"
-                                                                                   FontSize="10"
-                                                                                   Foreground="#374151"
-                                                                                   MaxHeight="80"
-                                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                                                      HorizontalScrollBarVisibility="Disabled"
+                                                                                      MaxHeight="200"
+                                                                                      Style="{StaticResource ModernScrollViewer}">
+                                                                            <TextBlock Text="{Binding ErrorMessage}"
+                                                                                       TextWrapping="Wrap"
+                                                                                       FontFamily="Consolas"
+                                                                                       FontSize="10"
+                                                                                       Foreground="#374151"
+                                                                                       Padding="8"/>
+                                                                        </ScrollViewer>
                                                                     </Border>
 
                                                                     <!-- Solution Suggestions -->
