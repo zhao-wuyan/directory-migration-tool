@@ -1,0 +1,67 @@
+---
+title: "Architecture Constraints"
+readMode: required
+priority: high
+category: arch
+keywords:
+  - architecture
+  - module
+  - layer
+  - boundary
+  - dependency
+  - structure
+---
+
+# Architecture Constraints
+
+## Module Structure
+
+## Layer Boundaries
+
+## Dependency Rules
+
+## Technology Constraints
+
+## Entries
+
+
+
+<spec-entry category="arch" keywords="" date="2026-10-25" sid="S-20261025-rj2c" title="现有模块分层与迁移公共流程" sourceRef="MigrationCore/MigrationCore.csproj;MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj;MigrationCore/Services/MigrationService.cs:6-12">
+
+### 现有模块分层与迁移公共流程
+
+MigrationCore/Models 和 MigrationCore/Services 承载核心模型与业务，MoveWithSymlinkWPF 通过 ProjectReference 依赖 MigrationCore，界面采用 WPF 与 MVVM。手动 MigrationService 和可逆 ReversibleMigrationService 共享 CopyOperationExecutor 与 MigrationWorkflowHelper；新增迁移行为应复用现有公共流程，不建立第二套复制或链接逻辑。两个项目目标框架为 net8.0-windows10.0.19041.0。
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-11-08" sid="S-20261108-d0c17b62a8de2f88" title="保留普通个人数据人工迁移能力，与受支持软件目录准入分离；不得借此豁免系统、高危或身份不明软件目录。" sourceRef="session:20261108-grill-scan-requirements:KDC-d0c17b62a8de2f88">
+
+### 保留普通个人数据人工迁移能力，与受支持软件目录准入分离；不得借此豁免系统、高危或身份不明软件目录。
+
+保留普通个人数据人工迁移能力，与受支持软件目录准入分离；不得借此豁免系统、高危或身份不明软件目录。
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-11-08" sid="S-20261108-75026d022d18bc8c" title="常用软件目录须通过开源策略参考和 Windows 多来源证据广泛发现，并重点适配 NovaStudio、NovaMax、Docker；目录发现不构成迁移或清理授权。" sourceRef="session:20261108-grill-scan-requirements:KDC-75026d022d18bc8c">
+
+### 常用软件目录须通过开源策略参考和 Windows 多来源证据广泛发现，并重点适配 NovaStudio、NovaMax、Docker；目录发现不构成迁移或清理授权。
+
+常用软件目录须通过开源策略参考和 Windows 多来源证据广泛发现，并重点适配 NovaStudio、NovaMax、Docker；目录发现不构成迁移或清理授权。
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-11-08" sid="S-20261108-453f8c79281e7cf9" title="Nova 系列重点迁移模型、输出、知识库、数据库等业务数据，程序本体和共享运行环境保留原位，不作为必须整体迁移目标。" sourceRef="session:20261108-grill-scan-requirements:KDC-453f8c79281e7cf9">
+
+### Nova 系列重点迁移模型、输出、知识库、数据库等业务数据，程序本体和共享运行环境保留原位，不作为必须整体迁移目标。
+
+Nova 系列重点迁移模型、输出、知识库、数据库等业务数据，程序本体和共享运行环境保留原位，不作为必须整体迁移目标。
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-11-08" sid="S-20261108-0bbf6af15afde9fd" title="用户自行关闭关联应用和容器，工具仅检测、复核并阻断；不得代退出、强杀、停止或重启容器，也不得全局关闭 Docker。" sourceRef="session:20261108-grill-scan-requirements:KDC-0bbf6af15afde9fd">
+
+### 用户自行关闭关联应用和容器，工具仅检测、复核并阻断；不得代退出、强杀、停止或重启容器，也不得全局关闭 Docker。
+
+用户自行关闭关联应用和容器，工具仅检测、复核并阻断；不得代退出、强杀、停止或重启容器，也不得全局关闭 Docker。
+
+</spec-entry>

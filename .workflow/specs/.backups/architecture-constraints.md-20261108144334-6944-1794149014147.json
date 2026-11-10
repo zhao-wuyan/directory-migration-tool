@@ -1,0 +1,35 @@
+---
+title: "Architecture Constraints"
+readMode: required
+priority: high
+category: arch
+keywords:
+  - architecture
+  - module
+  - layer
+  - boundary
+  - dependency
+  - structure
+---
+
+# Architecture Constraints
+
+## Module Structure
+
+## Layer Boundaries
+
+## Dependency Rules
+
+## Technology Constraints
+
+## Entries
+
+
+
+<spec-entry category="arch" keywords="" date="2026-10-25" sid="S-20261025-rj2c" title="现有模块分层与迁移公共流程" sourceRef="MigrationCore/MigrationCore.csproj;MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj;MigrationCore/Services/MigrationService.cs:6-12">
+
+### 现有模块分层与迁移公共流程
+
+MigrationCore/Models 和 MigrationCore/Services 承载核心模型与业务，MoveWithSymlinkWPF 通过 ProjectReference 依赖 MigrationCore，界面采用 WPF 与 MVVM。手动 MigrationService 和可逆 ReversibleMigrationService 共享 CopyOperationExecutor 与 MigrationWorkflowHelper；新增迁移行为应复用现有公共流程，不建立第二套复制或链接逻辑。两个项目目标框架为 net8.0-windows10.0.19041.0。
+
+</spec-entry>
