@@ -827,8 +827,7 @@ public partial class QuickMigrateViewModel : ObservableObject
                 SampleMilliseconds = 2000
             };
 
-            bool keepTarget = _config?.Defaults.RestoreKeepTarget ?? false;
-            var service = new ReversibleMigrationService(config, MigrationMode.Restore, keepTarget);
+            var service = new ReversibleMigrationService(config, MigrationMode.Restore);
 
             var progress = new Progress<MigrationProgress>(p =>
             {

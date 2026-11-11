@@ -146,8 +146,7 @@ public static class QuickMigrateConfigLoader
                 LargeFileThresholdMB = 1024,
                 RobocopyThreads = 8,
                 TargetStrategy = "unified",
-                UnifiedTargetRoot = "D:\\Migrated",
-                RestoreKeepTarget = false
+                UnifiedTargetRoot = "D:\\Migrated"
             },
             Profiles = new List<QuickMigrateProfile>
             {

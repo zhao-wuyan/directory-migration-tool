@@ -59,7 +59,7 @@ function Publish-LabProject([string]$Project, [string]$Output, [string]$Log) {
     }
 }
 
-if ($Suite -notin @('Boundary', 'Identity', 'Probe', 'Copy')) { throw "NotCovered: suite '$Suite' is not implemented yet." }
+if ($Suite -notin @('Boundary', 'Identity', 'Probe', 'Copy', 'Switch')) { throw "NotCovered: suite '$Suite' is not implemented yet." }
 
 . (Join-Path $PSScriptRoot 'TestDiskGuard.ps1')
 $null = Assert-LabPrerequisites
@@ -124,7 +124,6 @@ try {
             targetStrategy = 'unified'
             unifiedTargetRoot = $target
             robocopyThreads = 2
-            restoreKeepTarget = $true
         }
         profiles = @()
         standaloneSources = @([ordered]@{ displayName = 'Test Lab Sample'; absolutePath = $source; enabled = $true })

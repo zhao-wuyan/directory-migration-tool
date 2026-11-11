@@ -68,7 +68,8 @@ public sealed class MigrationTransactionStore
         if (current.Revision != expectedRevision || record.Revision != expectedRevision)
             throw new IOException($"事务 revision 冲突：期望 {expectedRevision}，实际 {current.Revision}");
         if (current.SourcePath != record.SourcePath || current.TargetPath != record.TargetPath
-            || current.SourceIdentity != record.SourceIdentity || current.TargetParentIdentity != record.TargetParentIdentity)
+            || current.SourceIdentity != record.SourceIdentity || current.TargetParentIdentity != record.TargetParentIdentity
+            || (current.SourceParentIdentity is not null && current.SourceParentIdentity != record.SourceParentIdentity))
             throw new IOException("不能改变已登记事务的源、目标或初始身份。");
         var saved = record with { Revision = checked(expectedRevision + 1), UpdatedAtUtc = DateTimeOffset.UtcNow };
         await WriteSnapshot(saved, true, ct).ConfigureAwait(false);

@@ -60,12 +60,17 @@ internal static partial class Program
     {
         if (args is ["--lab", _, "--run-id", _, "--suite", "Identity", "--read-transaction", _, "--state-directory", _])
             return await ReadTransactionChild(args);
+        if (args is ["--lab", _, "--run-id", _, "--suite", "Switch", "--switch-source", _, "--switch-target", _, "--stop-stage", _])
+            return await SwitchChild(args);
+        if (args is ["--lab", _, "--run-id", _, "--suite", "Switch", "--recover-transaction", _])
+            return await RecoverSwitchChild(args);
         string suite = args.Length == 6 ? args[5] : "Invalid";
         string[] names = suite switch
         {
             "Identity" => IdentityCaseNames,
             "Probe" => ProbeCaseNames,
             "Copy" => CopyCaseNames,
+            "Switch" => SwitchCaseNames,
             _ => ["roots", "unknown-drive", "wrong-serial", "wrong-guid", "component-boundary",
                 "system-path-parser", "untrusted-reparse", "cross-volume-copy", "source-rename",
                 "actual-link-target", "fixture-only-deletion"]
@@ -84,6 +89,7 @@ internal static partial class Program
             if (suite == "Identity") await RunIdentityCases(lab, attemptId.Value, cases);
             else if (suite == "Probe") await RunProbeCases(lab, attemptId.Value, cases);
             else if (suite == "Copy") await RunCopyCases(lab, attemptId.Value, cases);
+            else if (suite == "Switch") await RunSwitchCases(lab, attemptId.Value, cases);
             else await RunCases(lab, attemptId.Value, cases);
         }
         catch (Exception ex)
@@ -107,8 +113,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");

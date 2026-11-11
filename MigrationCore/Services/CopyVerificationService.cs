@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Text.Json;
 using MigrationCore.Models;
 
 namespace MigrationCore.Services;
@@ -16,6 +17,52 @@ public sealed class CopyVerificationService
     {
         AttributesToSkip = 0, IgnoreInaccessible = false, RecurseSubdirectories = false, ReturnSpecialDirectories = false
     };
+
+    // 路径无关的规范摘要：重命名后仍可与持久化基线比较，不重新认领当前集合。
+    public static string Fingerprint(FileManifest manifest, bool includeIdentity)
+    {
+        using var hash = SHA256.Create();
+        using var stream = new CryptoStream(Stream.Null, hash, CryptoStreamMode.Write);
+        using (var json = new Utf8JsonWriter(stream))
+        {
+            json.WriteStartArray();
+            json.WriteNumberValue((int)manifest.Mode);
+            foreach (var pair in manifest.Entries.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                FileManifestEntry item = pair.Value;
+                json.WriteStartArray();
+                json.WriteStringValue(pair.Key.ToUpperInvariant());
+                json.WriteBooleanValue(item.IsDirectory);
+                json.WriteNumberValue(item.Length);
+                json.WriteNumberValue(item.LastWriteTimeUtc.Ticks);
+                json.WriteNumberValue((int)item.Attributes);
+                json.WriteStringValue(item.AclSddl);
+                json.WriteStringValue(item.Hash);
+                foreach (var ads in item.AlternateStreams)
+                {
+                    json.WriteStartArray();
+                    json.WriteStringValue(ads.Name);
+                    json.WriteNumberValue(ads.Length);
+                    json.WriteStringValue(ads.Hash);
+                    json.WriteEndArray();
+                }
+                if (includeIdentity)
+                {
+                    json.WriteStartArray();
+                    json.WriteStringValue(item.Identity.VolumeGuid);
+                    json.WriteNumberValue(item.Identity.VolumeSerial);
+                    json.WriteNumberValue(item.Identity.FileId);
+                    json.WriteBooleanValue(item.Identity.IsReparsePoint);
+                    json.WriteBooleanValue(item.Identity.IsDirectory);
+                    json.WriteEndArray();
+                }
+                json.WriteEndArray();
+            }
+            json.WriteEndArray();
+        }
+        stream.FlushFinalBlock();
+        return Convert.ToHexString(hash.Hash!);
+    }
 
     public async Task<FileManifest> CaptureAsync(string root, VerificationMode mode, CancellationToken ct)
     {

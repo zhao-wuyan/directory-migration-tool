@@ -659,8 +659,8 @@ public partial class MainViewModel : ObservableObject
             // 根据模式选择服务
             if (MigrationMode == MigrationMode.Restore)
             {
-                // 还原模式 - 使用 ReversibleMigrationService，初始不删除目标数据
-                var restoreService = new ReversibleMigrationService(config, MigrationMode.Restore, keepTargetOnRestore: true);
+                // 还原保留旧目标与已登记备份，不在成功回调中清理数据。
+                var restoreService = new ReversibleMigrationService(config, MigrationMode.Restore);
                 result = await restoreService.ExecuteAsync(progress, logProgress, _cancellationTokenSource.Token);
             }
             else if (MigrationMode == MigrationMode.Repair)
@@ -703,52 +703,8 @@ public partial class MainViewModel : ObservableObject
                                    $"总文件: {result.Stats?.TotalFiles}\n" +
                                    $"总大小: {FileStatsService.FormatBytes(result.Stats?.TotalBytes ?? 0)}";
 
-                    // 还原成功后，询问用户是否删除目标目录数据
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        var cleanupResult = CustomMessageBox.ShowQuestion(
-                            $"还原完成！\n\n是否删除目标目录的数据？\n\n目标目录：{TargetPath}\n\n提示：删除后无法恢复。",
-                            "还原完成");
-
-                        if (cleanupResult)
-                        {
-                            // 用户选择删除目标目录
-                            Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    AddLog("正在删除目标目录数据...");
-                                    await Task.Run(() =>
-                                    {
-                                        if (Directory.Exists(TargetPath))
-                                        {
-                                            Directory.Delete(TargetPath, true);
-                                        }
-                                    });
-                                    AddLog($"✅ 已删除目标目录: {TargetPath}");
-                                    Application.Current.Dispatcher.Invoke(() =>
-                                    {
-                                        ResultMessage += "\n\n✅ 目标目录数据已删除";
-                                    });
-                                }
-                                catch (Exception ex)
-                                {
-                                    AddLog($"❌ 删除目标目录失败: {ex.Message}");
-                                    Application.Current.Dispatcher.Invoke(() =>
-                                    {
-                                        CustomMessageBox.ShowWarning(
-                                            $"删除目标目录失败：\n{ex.Message}\n\n您可以稍后手动删除。",
-                                            "删除失败");
-                                    });
-                                }
-                            });
-                        }
-                        else
-                        {
-                            AddLog("用户选择保留目标目录数据");
-                            ResultMessage += "\n\n📁 已保留目标目录数据";
-                        }
-                    });
+                    AddLog("还原前的目标数据与已登记备份均保留，等待用户验证。");
+                    ResultMessage += "\n\n已保留原目标数据；技术完成不等于用户验收。";
                 }
                 else
                 {

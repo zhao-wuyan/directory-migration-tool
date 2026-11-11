@@ -46,10 +46,6 @@ public class QuickMigrateDefaults
     /// </summary>
     public string UnifiedTargetRoot { get; set; } = string.Empty;
 
-    /// <summary>
-    /// 还原时是否保留目标数据（默认 false，会删除）
-    /// </summary>
-    public bool RestoreKeepTarget { get; set; } = false;
 }
 
 /// <summary>

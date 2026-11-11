@@ -28,42 +28,30 @@ public static class SymbolicLinkHelper
     /// <summary>
     /// 使用 cmd mklink 命令创建符号链接（备选方案）
     /// </summary>
-    public static bool CreateSymbolicLinkViaCmdAsync(string linkPath, string targetPath, out string error)
+    public static async Task<(bool Success, string Error)> CreateSymbolicLinkViaCmdAsync(string linkPath, string targetPath)
     {
-        error = string.Empty;
+        // cmd 会解释元字符；不能让合法但有特殊字符的路径变成额外命令。
+        if (linkPath.IndexOfAny(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']) >= 0
+            || targetPath.IndexOfAny(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']) >= 0)
+            return (false, "路径含 cmd 元字符，拒绝命令回退；P/Invoke 创建失败。");
+        using var job = new OwnedProcessJob();
         try
         {
-            var processStartInfo = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c mklink /D \"{linkPath}\" \"{targetPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = System.Diagnostics.Process.Start(processStartInfo);
-            if (process == null)
-            {
-                error = "无法启动 cmd 进程";
-                return false;
-            }
-
-            process.WaitForExit();
-            
-            if (process.ExitCode != 0)
-            {
-                error = process.StandardError.ReadToEnd();
-                return false;
-            }
-
-            return Directory.Exists(linkPath);
+            job.StartCommand(Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+                $"/d /u /c mklink /D \"{linkPath}\" \"{targetPath}\"",
+                Path.GetDirectoryName(linkPath)!, System.Text.Encoding.Unicode);
+            Task<string> output = job.Output.ReadToEndAsync();
+            Task<string> error = job.Error.ReadToEndAsync();
+            job.Resume();
+            await Task.WhenAll(output, error, job.WaitForExitAsync(CancellationToken.None)).ConfigureAwait(false);
+            if (!job.HasExited || job.ActiveProcesses != 0) throw new IOException("无法确认本任务 mklink 已退出。");
+            return job.ExitCode == 0 ? (true, "") : (false, await error + await output);
         }
-        catch (Exception ex)
+        catch
         {
-            error = ex.Message;
-            return false;
+            job.Stop();
+            await job.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
         }
     }
 

@@ -48,6 +48,23 @@ internal sealed class OwnedProcessJob : IDisposable
 
     public void Start(string executable, IEnumerable<string> arguments, string workingDirectory, Encoding encoding)
     {
+        var command = new StringBuilder();
+        AppendArgument(command, executable);
+        foreach (string argument in arguments) { command.Append(' '); AppendArgument(command, argument); }
+        StartProcess(executable, command, workingDirectory, encoding);
+    }
+
+    // cmd 内建命令不使用 CRT argv 规则；调用者负责固定命令及已校验路径的引用。
+    public void StartCommand(string executable, string arguments, string workingDirectory, Encoding encoding)
+    {
+        var command = new StringBuilder();
+        AppendArgument(command, executable);
+        command.Append(' ').Append(arguments);
+        StartProcess(executable, command, workingDirectory, encoding);
+    }
+
+    private void StartProcess(string executable, StringBuilder command, string workingDirectory, Encoding encoding)
+    {
         if (_created) throw new InvalidOperationException("一个 Job 只允许启动一次根进程。");
         _stdout = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
         _stderr = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
@@ -82,9 +99,6 @@ internal sealed class OwnedProcessJob : IDisposable
                 },
                 Attributes = attributes
             };
-            var command = new StringBuilder();
-            AppendArgument(command, executable);
-            foreach (string argument in arguments) { command.Append(' '); AppendArgument(command, argument); }
             if (!CreateProcessW(executable, command, IntPtr.Zero, IntPtr.Zero, true,
                     0x4 | 0x08000000 | 0x00080000, IntPtr.Zero, workingDirectory, ref startup, out process))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "无法创建复制进程。");

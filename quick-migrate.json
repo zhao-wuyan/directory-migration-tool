@@ -3,8 +3,7 @@
     "largeFileThresholdMB": 1024,
     "robocopyThreads": 8,
     "targetStrategy": "unified",
-    "unifiedTargetRoot": "D:\\Migrated",
-    "restoreKeepTarget": false
+    "unifiedTargetRoot": "D:\\Migrated"
   },
   "profiles": [
     {

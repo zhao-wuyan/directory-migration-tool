@@ -52,6 +52,7 @@ public sealed record MigrationTransactionRecord
     public VerificationMode VerificationMode { get; init; }
     public string SourcePath { get; init; } = "";
     public string TargetPath { get; init; } = "";
+    public DirectoryIdentity? SourceParentIdentity { get; init; }
     public DirectoryIdentity? TargetParentIdentity { get; init; }
     public string? StagingPath { get; init; }
     public DirectoryIdentity? StagingParentIdentity { get; init; }
@@ -64,6 +65,8 @@ public sealed record MigrationTransactionRecord
     public DirectoryIdentity? BackupIdentity { get; init; }
     public DirectoryIdentity? LinkIdentity { get; init; }
     public VerificationSummary? VerificationSummary { get; init; }
+    public string? SourceManifestDigest { get; init; }
+    public string? VerifiedManifestDigest { get; init; }
     public BackupState BackupState { get; init; } = BackupState.RetainedUnverified;
     public DateTimeOffset? UserVerifiedAtUtc { get; init; }
     public BackupDeletionRequest? DeletionRequest { get; init; }
