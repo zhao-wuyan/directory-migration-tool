@@ -20,6 +20,118 @@ namespace MigrationCore.Services;
 /// </summary>
 public static class MigrationWorkflowHelper
 {
+    public static async Task<MigrationTransactionRecord> PrepareTransactionAsync(MigrationConfig config,
+        MigrationMode mode, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        config.SourcePath = PathIdentityService.Normalize(config.SourcePath);
+        config.TargetPath = PathIdentityService.Normalize(config.TargetPath);
+        MigrationRuntime.AssertDataPath(config.SourcePath, allowLink: mode == MigrationMode.Restore);
+        MigrationRuntime.AssertDataPath(config.TargetPath);
+        var relation = PathValidator.ValidatePathRelation(config.SourcePath, config.TargetPath);
+        if (!relation.IsValid) throw new IOException(relation.Error);
+        var targetAdmission = PathValidator.ValidateTargetPath(config.TargetPath);
+        if (!targetAdmission.IsValid) throw new IOException(targetAdmission.Error);
+        var sourceAdmission = PathValidator.ValidateSourcePath(mode == MigrationMode.Restore ? config.TargetPath : config.SourcePath);
+        if (!sourceAdmission.IsValid) throw new IOException(sourceAdmission.Error);
+        var identity = new PathIdentityService();
+        DirectoryIdentity sourceIdentity = identity.ReadDirectory(config.SourcePath, false);
+        var store = new MigrationTransactionStore();
+        if (mode == MigrationMode.Restore)
+        {
+            if (!sourceIdentity.IsReparsePoint) throw new IOException("还原源不是已登记的链接。");
+            DirectoryIdentity targetIdentity = identity.ReadDirectory(config.TargetPath, false);
+            if (targetIdentity.IsReparsePoint) throw new IOException("还原目标不是普通实体目录。");
+            MigrationTransactionRecord record = (await store.ReadAllAsync(ct).ConfigureAwait(false))
+                .SingleOrDefault(r => r.SourcePath.Equals(config.SourcePath, StringComparison.OrdinalIgnoreCase)
+                    && r.TargetPath.Equals(config.TargetPath, StringComparison.OrdinalIgnoreCase)
+                    && r.LinkIdentity == sourceIdentity && r.TargetIdentity == targetIdentity
+                    && r.Stage == MigrationStage.AwaitingUserVerification)
+                ?? throw new IOException("没有身份匹配的可还原事务，不能按目录名认领。");
+            identity.RequireSame(config.SourcePath, targetIdentity, true);
+            if (record.BackupIdentity is not null && record.BackupState is not (BackupState.Deleted or BackupState.Recycled))
+                identity.RequireSame(record.BackupPath ?? throw new IOException("备份路径缺失。"), record.BackupIdentity);
+            return await store.SaveAsync(record with
+            {
+                Mode = MigrationMode.Restore, Stage = MigrationStage.Prepared,
+                ProbePath = config.TargetPath + "_lock_test_" + record.TransactionId.ToString("D"),
+                VerificationSummary = null, UserVerifiedAtUtc = null, DeletionRequest = null
+            }, record.Revision, ct).ConfigureAwait(false);
+        }
+        if (mode != MigrationMode.Migrate || sourceIdentity.IsReparsePoint)
+            throw new IOException("迁移源必须是普通实体目录。");
+        DirectoryIdentity? target = identity.ReadIfExists(config.TargetPath);
+        if (target is not null && (target.IsReparsePoint || !target.IsDirectory
+            || Directory.EnumerateFileSystemEntries(config.TargetPath).Any()))
+            throw new IOException("目标非空或归属不明，不得覆盖或自动改用其他路径。");
+        string parent = Path.GetDirectoryName(config.TargetPath) ?? throw new IOException("目标父路径缺失。");
+        identity.EnsureOrdinaryDirectory(parent);
+        var prepared = new MigrationTransactionRecord
+        {
+            Mode = mode, SourcePath = config.SourcePath, TargetPath = config.TargetPath,
+            SourceIdentity = sourceIdentity, TargetParentIdentity = identity.ReadDirectory(parent, false),
+            ReservedEmptyTargetIdentity = target, VerificationMode = config.VerificationMode
+        };
+        prepared = prepared with { ProbePath = prepared.SourcePath + "_lock_test_" + prepared.TransactionId.ToString("D") };
+        return await store.CreateAsync(prepared, ct).ConfigureAwait(false);
+    }
+
+    public static async Task<DirectoryProbeResult> ProbeAsync(MigrationConfig config, MigrationMode mode,
+        IProgress<string>? log, CancellationToken ct)
+    {
+        MigrationTransactionRecord? record = null;
+        try
+        {
+            record = await PrepareTransactionAsync(config, mode, ct).ConfigureAwait(false);
+            return mode == MigrationMode.Restore
+                ? await SimpleFileLockDetector.CheckRestoreAsync(record, log, ct).ConfigureAwait(false)
+                : await SimpleFileLockDetector.CheckMigrationAsync(record, log, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            string actual = mode == MigrationMode.Restore ? config.TargetPath : config.SourcePath;
+            bool recovery = false;
+            string error = ex.Message;
+            if (record is not null)
+            {
+                try
+                {
+                    var identity = new PathIdentityService();
+                    DirectoryIdentity? expected = mode == MigrationMode.Restore ? record.TargetIdentity : record.SourceIdentity;
+                    if (record.ProbePath is not null && identity.ReadIfExists(record.ProbePath) == expected)
+                    {
+                        actual = record.ProbePath;
+                        recovery = true;
+                    }
+                    else identity.RequireSame(actual, expected);
+                }
+                catch (Exception identityError)
+                {
+                    recovery = true;
+                    error += $"；实际位置无法完全确认：{identityError.Message}";
+                }
+            }
+            return new DirectoryProbeResult
+            {
+                CanProceed = false, RecoveryRequired = recovery, ActualDataPath = actual,
+                Transaction = record, Error = error
+            };
+        }
+    }
+
+    public static void ApplyProbeResult(MigrationResult result, DirectoryProbeResult probe)
+    {
+        result.TransactionId = probe.Transaction?.TransactionId;
+        result.Stage = probe.RecoveryRequired ? MigrationStage.RecoveryRequired
+            : probe.CanProceed ? MigrationStage.Prepared
+            : probe.Transaction?.Stage == MigrationStage.Cancelled ? MigrationStage.Cancelled : MigrationStage.Failed;
+        result.BackupPath = probe.Transaction?.BackupPath;
+        result.BackupState = probe.Transaction?.BackupState;
+        result.RollbackOutcome = probe.RecoveryRequired ? RollbackOutcome.RecoveryRequired : RollbackOutcome.NotRequired;
+        result.RecoveryPaths = probe.CanProceed ? [] : [probe.ActualDataPath];
+        result.ErrorMessage = probe.Error;
+    }
+
     /// <summary>
     /// 创建符号链接（包含备份源目录的操作）
     /// </summary>

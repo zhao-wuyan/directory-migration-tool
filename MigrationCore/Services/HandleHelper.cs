@@ -5,6 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace MigrationCore.Services;
 
+public enum HandleDiagnosticStatus { Found, NotFound, Unavailable, TimedOut }
+
+public sealed record HandleDiagnosticResult(HandleDiagnosticStatus Status,
+    IReadOnlyList<HandleHelper.HandleInfo> Handles, string? Error = null, bool ProcessExited = true, int? ProcessId = null);
+
 /// <summary>
 /// Handle.exe 工具辅助类，用于检测文件占用
 /// </summary>
@@ -34,35 +39,71 @@ public static class HandleHelper
     }
 
     /// <summary>
-    /// 获取占用指定路径的进程列表
+    /// 输出读取和进程等待共享五秒截止；失败不是“无人占用”。
     /// </summary>
-    /// <param name="path">要检查的文件或目录路径</param>
-    /// <returns>占用该路径的进程列表，如果 handle.exe 不可用则返回 null</returns>
-    public static List<HandleInfo>? GetProcessesLockingPath(string path)
+    public static async Task<HandleDiagnosticResult> GetProcessesLockingPathAsync(string path, CancellationToken ct)
     {
+        Process? process = null;
+        Task? lifecycle = null;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
         try
         {
-            string? handleExePath = FindHandleExecutable();
-            if (handleExePath == null)
+            deadline.Token.ThrowIfCancellationRequested();
+            path = PathIdentityService.Normalize(path);
+            MigrationRuntime.AssertDataPath(path, allowLink: true);
+            string? executable = FindHandleExecutable();
+            if (executable is null)
+                return new(HandleDiagnosticStatus.Unavailable, [], "未找到可用的 Handle.exe，不能据此认定无人占用。");
+            var start = new ProcessStartInfo(executable)
             {
-                return null;
-            }
-
-            // 执行 handle.exe
-            var output = ExecuteHandle(handleExePath, path);
-            if (string.IsNullOrEmpty(output))
-            {
-                return new List<HandleInfo>();
-            }
-
-            // 解析输出
-            return ParseHandleOutput(output, path);
+                UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8
+            };
+            start.ArgumentList.Add(path);
+            start.ArgumentList.Add("-nobanner");
+            // 不替用户自动接受工具许可；许可提示也受同一个截止约束。
+            process = Process.Start(start) ?? throw new IOException("无法启动 Handle 诊断进程。");
+            Task<string> output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+            Task<string> error = process.StandardError.ReadToEndAsync(deadline.Token);
+            lifecycle = Task.WhenAll(output, error, process.WaitForExitAsync(deadline.Token));
+            await lifecycle.WaitAsync(deadline.Token).ConfigureAwait(false);
+            string text = await output.ConfigureAwait(false);
+            string stderr = await error.ConfigureAwait(false);
+            var handles = ParseHandleOutput(text, path);
+            if (process.ExitCode == 0 && handles.Count != 0)
+                return new(HandleDiagnosticStatus.Found, handles, FormatHandleInfo(handles), true, process.Id);
+            bool noMatches = text.Split('\n').Any(line => line.Trim().TrimEnd('.')
+                .Equals("No matching handles found", StringComparison.OrdinalIgnoreCase));
+            if (process.ExitCode is 0 or 1 && noMatches && string.IsNullOrWhiteSpace(stderr))
+                return new(HandleDiagnosticStatus.NotFound, [], "Handle 未发现匹配句柄，重命名失败仍须处理。", true, process.Id);
+            return new(HandleDiagnosticStatus.Unavailable, [],
+                $"Handle 退出码 {process.ExitCode}，输出不可确认为成功诊断：{stderr} {text}", true, process.Id);
         }
-        catch
+        catch (Exception ex)
         {
-            // 发生任何错误都返回 null，表示无法获取信息
-            return null;
+            string error = ex.Message;
+            bool exited = process is null || process.HasExited;
+            if (process is not null && !exited)
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                    exited = process.HasExited;
+                }
+                catch (Exception stopError) { error += $"；无法确认诊断进程退出：{stopError.Message}"; }
+            }
+            if (lifecycle is not null && exited)
+            {
+                try { await lifecycle.ConfigureAwait(false); }
+                catch (Exception readError) { error += $"；输出读取结束：{readError.Message}"; }
+            }
+            HandleDiagnosticStatus status = deadline.IsCancellationRequested && !ct.IsCancellationRequested
+                ? HandleDiagnosticStatus.TimedOut : HandleDiagnosticStatus.Unavailable;
+            return new(status, [], error, exited, process?.Id);
         }
+        finally { process?.Dispose(); }
     }
 
     /// <summary>
@@ -98,6 +139,7 @@ public static class HandleHelper
             return handlePath;
         }
 
+        if (MigrationRuntime.IsTestLab) return null;
         // 如果找不到，尝试在系统 PATH 中查找
         var pathEnv = Environment.GetEnvironmentVariable("PATH");
         if (!string.IsNullOrEmpty(pathEnv))
@@ -115,105 +157,29 @@ public static class HandleHelper
         return null;
     }
 
-    /// <summary>
-    /// 执行 handle.exe 并获取输出
-    /// </summary>
-    private static string ExecuteHandle(string handleExePath, string path)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = handleExePath,
-            Arguments = $"\"{path}\" -accepteula -nobanner",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8
-        };
-
-        using var process = Process.Start(startInfo);
-        if (process == null)
-        {
-            return string.Empty;
-        }
-
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(5000); // 最多等待 5 秒
-
-        return output;
-    }
 
     /// <summary>
-    /// 解析 handle.exe 的输出
+    /// 只接受可解析且落在请求路径分量边界内的句柄；未知输出由调用方报告不可用。
     /// </summary>
     private static List<HandleInfo> ParseHandleOutput(string output, string targetPath)
     {
         var result = new List<HandleInfo>();
-
-        // handle.exe 的输出格式示例：
-        // explorer.exe       pid: 1234   type: File          C:\testMove\01
-        // chrome.exe         pid: 5678   type: File          C:\testMove\01\test.txt
-
-#if DEBUG
-        Console.WriteLine($"[HandleHelper] 开始解析 handle.exe 输出，总行数: {output.Split('\n').Length}");
-#endif
-
-        var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
+        foreach (string line in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
         {
-            // 跳过空行和标题行
-            if (string.IsNullOrWhiteSpace(line) ||
-                line.Contains("Handle v") ||
-                line.Contains("Copyright") ||
-                line.Contains("Sysinternals") ||
-                line.Contains("No matching handles found"))
+            var match = Regex.Match(line, @"^(\S+)\s+pid:\s*(\d+)\s+type:\s*(\w+)\s+(.+)$", RegexOptions.IgnoreCase);
+            if (!match.Success) continue;
+            string path = match.Groups[4].Value.Trim();
+            int drive = path.IndexOf(":\\", StringComparison.Ordinal);
+            if (drive > 0) path = path[(drive - 1)..];
+            if (!PathIdentityService.IsWithin(path, targetPath)) continue;
+            result.Add(new HandleInfo
             {
-                continue;
-            }
-
-            try
-            {
-                // 使用正则表达式解析输出
-                // 格式: 进程名.exe       pid: 数字   type: 类型          路径
-                var match = Regex.Match(line, @"^(\S+)\s+pid:\s*(\d+)\s+type:\s*(\w+)\s+(.+)$", RegexOptions.IgnoreCase);
-
-                if (match.Success)
-                {
-                    var info = new HandleInfo
-                    {
-                        ProcessName = match.Groups[1].Value,
-                        ProcessId = int.Parse(match.Groups[2].Value),
-                        HandleType = match.Groups[3].Value,
-                        FilePath = match.Groups[4].Value.Trim()
-                    };
-
-                    result.Add(info);
-#if DEBUG
-                    Console.WriteLine($"[HandleHelper] 解析成功: {info.ProcessName} (PID: {info.ProcessId})");
-#endif
-                }
-                else
-                {
-#if DEBUG
-                    Console.WriteLine($"[HandleHelper] 无法解析行: {line}");
-#endif
-                }
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                Console.WriteLine($"[HandleHelper] 解析异常: {ex.Message}, 行内容: {line}");
-#endif
-                // 解析失败则跳过该行
-                continue;
-            }
+                ProcessName = match.Groups[1].Value,
+                ProcessId = int.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture),
+                HandleType = match.Groups[3].Value,
+                FilePath = path
+            });
         }
-
-#if DEBUG
-        Console.WriteLine($"[HandleHelper] 解析完成，共找到 {result.Count} 个占用进程");
-#endif
-
         return result;
     }
 

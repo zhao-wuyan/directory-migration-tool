@@ -67,7 +67,7 @@ public sealed class PathIdentityService
     public DirectoryIdentity? ReadIfExists(string path)
     {
         try { return ReadEntry(path); }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 2) { return null; }
+        catch (Win32Exception ex) when (ex.NativeErrorCode is 2 or 3) { return null; }
     }
 
     public void RequireMissing(string path)

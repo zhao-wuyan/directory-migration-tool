@@ -63,13 +63,9 @@ public class ReversibleMigrationService
         {
             // Phase 0: 文件占用检测
             ReportPhase(progress, logProgress, 0, "检测文件占用", _mode);
-            if (!SimpleFileLockDetector.CanProceedWithMigration(_config.SourcePath, _config.TargetPath, out string errorMessage, logProgress))
-            {
-                // 检测失败，不在这里输出日志（避免重复），由外层统一处理
-                result.Success = false;
-                result.ErrorMessage = errorMessage;
-                return result;
-            }
+            var probe = await MigrationWorkflowHelper.ProbeAsync(_config, MigrationMode.Migrate, logProgress, cancellationToken);
+            MigrationWorkflowHelper.ApplyProbeResult(result, probe);
+            if (!probe.CanProceed) return result;
             logProgress?.Report("✅ 文件占用检测通过");
 
             // Phase 1: 路径解析与验证
@@ -229,13 +225,9 @@ public class ReversibleMigrationService
         {
             // Phase 0: 文件占用检测
             ReportPhase(progress, logProgress, 0, "检测文件占用", _mode);
-            if (!SimpleFileLockDetector.CanProceedWithRestore(_config.SourcePath, _config.TargetPath, out string errorMessage, logProgress))
-            {
-                // 检测失败，不在这里输出日志（避免重复），由外层统一处理
-                result.Success = false;
-                result.ErrorMessage = errorMessage;
-                return result;
-            }
+            var probe = await MigrationWorkflowHelper.ProbeAsync(_config, MigrationMode.Restore, logProgress, cancellationToken);
+            MigrationWorkflowHelper.ApplyProbeResult(result, probe);
+            if (!probe.CanProceed) return result;
             logProgress?.Report("✅ 文件占用检测通过");
 
             // Phase 1: 路径解析与验证

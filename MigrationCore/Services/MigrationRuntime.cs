@@ -84,9 +84,9 @@ public static class MigrationRuntime
         _volumes = volumes;
     }
 
-    public static void AssertDataPath(string path)
+    public static void AssertDataPath(string path, bool allowLink = false)
     {
-        if (_volumes is not null) RequireLabPath(path, _volumes, true);
+        if (_volumes is not null) RequireLabPath(path, _volumes, true, allowLink);
     }
 
     public static void AssertStatePath(string path)
@@ -132,7 +132,7 @@ public static class MigrationRuntime
             foreach (JsonElement child in element.EnumerateArray()) CheckUniqueFields(child);
     }
 
-    private static void RequireLabPath(string path, LabVolume[] volumes, bool allowMissing)
+    private static void RequireLabPath(string path, LabVolume[] volumes, bool allowMissing, bool allowLink = false)
     {
         path = PathIdentityService.Normalize(path);
         var identity = new PathIdentityService();
@@ -141,10 +141,20 @@ public static class MigrationRuntime
         if (volume is null) throw new IOException($"路径越出测试数据区：{path}");
         identity.RequireSame(volume.Root, volume.Identity);
         string existing = path;
-        while (allowMissing && !Directory.Exists(existing) && !File.Exists(existing))
+        DirectoryIdentity? objectIdentity = identity.ReadIfExists(existing);
+        while (allowMissing && objectIdentity is null)
+        {
             existing = Path.GetDirectoryName(existing) ?? throw new IOException("无法定位测试父路径。");
-        DirectoryIdentity objectIdentity = identity.ReadEntry(existing);
-        if (objectIdentity.VolumeGuid != volume.Identity.VolumeGuid || objectIdentity.IsReparsePoint)
-            throw new IOException("测试路径身份或重解析点不符。");
+            objectIdentity = identity.ReadIfExists(existing);
+        }
+        if (objectIdentity is null || objectIdentity.VolumeGuid != volume.Identity.VolumeGuid)
+            throw new IOException("测试路径缺失或卷身份不符。");
+        if (objectIdentity.IsReparsePoint)
+        {
+            if (!allowLink || existing != path) throw new IOException("测试路径包含未知重解析点。");
+            string target = new DirectoryInfo(existing).LinkTarget ?? throw new IOException("无法读取待核对的链接目标。");
+            string resolved = Path.IsPathFullyQualified(target) ? target : Path.GetFullPath(target, Path.GetDirectoryName(existing)!);
+            RequireLabPath(resolved, volumes, false);
+        }
     }
 }

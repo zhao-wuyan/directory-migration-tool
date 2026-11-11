@@ -59,7 +59,7 @@ function Publish-LabProject([string]$Project, [string]$Output, [string]$Log) {
     }
 }
 
-if ($Suite -notin @('Boundary', 'Identity')) { throw "NotCovered: suite '$Suite' is not implemented yet." }
+if ($Suite -notin @('Boundary', 'Identity', 'Probe')) { throw "NotCovered: suite '$Suite' is not implemented yet." }
 
 . (Join-Path $PSScriptRoot 'TestDiskGuard.ps1')
 $null = Assert-LabPrerequisites

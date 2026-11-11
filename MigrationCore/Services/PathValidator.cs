@@ -7,11 +7,10 @@ public static class PathValidator
 {
     private static readonly string[] BlockedPaths = new[]
     {
-        @"C:\Windows",
-        @"C:\Program Files",
-        @"C:\Program Files (x86)",
-        @"C:\ProgramData\Microsoft",
-        @"C:\System Volume Information"
+        Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Microsoft")
     };
 
     private static readonly string[] WarningPaths = new[]
@@ -21,6 +20,22 @@ public static class PathValidator
         @"Google Drive",
         @"iCloudDrive"
     };
+
+    private static string? GetMutationPathError(string path)
+    {
+        try
+        {
+            string full = PathIdentityService.Normalize(path);
+            if (full.Length == 3) return "不允许操作驱动器根目录。";
+            foreach (string blocked in BlockedPaths)
+                if (Path.IsPathFullyQualified(blocked) && PathIdentityService.IsWithin(full, blocked))
+                    return $"不允许操作系统关键目录：{blocked}";
+            if (PathIdentityService.IsWithin(full, Path.Combine(full[..3], "System Volume Information")))
+                return "不允许操作卷系统信息目录。";
+            return null;
+        }
+        catch (Exception ex) { return $"路径无效：{ex.Message}"; }
+    }
 
     /// <summary>
     /// 判断文件是否为迁移标记文件
@@ -55,18 +70,10 @@ public static class PathValidator
         if (string.IsNullOrWhiteSpace(sourcePath))
             return (false, "源路径不能为空", null);
 
-        if (!Directory.Exists(sourcePath))
-            return (false, "源目录不存在", null);
-
-        // 检查是否为阻止的系统目录
-        string fullPath = Path.GetFullPath(sourcePath);
-        foreach (var blocked in BlockedPaths)
-        {
-            if (fullPath.StartsWith(blocked, StringComparison.OrdinalIgnoreCase))
-            {
-                return (false, $"不允许迁移系统关键目录: {blocked}", null);
-            }
-        }
+        string? pathError = GetMutationPathError(sourcePath);
+        if (pathError is not null) return (false, pathError, null);
+        string fullPath = PathIdentityService.Normalize(sourcePath);
+        if (!Directory.Exists(fullPath)) return (false, "源目录不存在", null);
 
         // 检查是否为云盘同步目录
         string? warning = null;
@@ -92,7 +99,9 @@ public static class PathValidator
 
         try
         {
-            string fullPath = Path.GetFullPath(targetPath);
+            string? pathError = GetMutationPathError(targetPath);
+            if (pathError is not null) return (false, pathError);
+            string fullPath = PathIdentityService.Normalize(targetPath);
             string? parentDir = Path.GetDirectoryName(fullPath);
             
             if (string.IsNullOrEmpty(parentDir))
@@ -164,6 +173,8 @@ public static class PathValidator
             // 目标不能在源内部
             if (dstFull.StartsWith(srcFull + "\\", StringComparison.OrdinalIgnoreCase))
                 return (false, "目标路径不能位于源目录内部");
+            if (srcFull.StartsWith(dstFull + "\\", StringComparison.OrdinalIgnoreCase))
+                return (false, "源路径不能位于目标目录内部");
 
             return (true, null);
         }
