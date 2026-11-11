@@ -232,6 +232,7 @@ internal static partial class Program
         try
         {
             Task<string> error = process.StandardError.ReadToEndAsync();
+            Task<string> output = process.StandardOutput.ReadToEndAsync();
             Require(process.WaitForInputIdle(10000), "Test UI did not become input idle.");
             var watch = Stopwatch.StartNew();
             do
@@ -244,9 +245,24 @@ internal static partial class Program
                 "Test UI did not expose a real window: " + (process.HasExited ? await error : "still running"));
             Require(process.MainWindowTitle.Contains("Test Lab", StringComparison.Ordinal), "Window is not the dedicated test instance.");
             o["windowTitle"] = process.MainWindowTitle; o["stateDirectory"] = MigrationRuntime.TransactionDirectory;
+            string script = Path.Combine(AppContext.BaseDirectory, "BackupUi.ps1"); OrdinarySingleFile(script);
+            string screenshot = Path.Combine(lab.WorkRoot, "Results", $"{Guid.NewGuid():D}-startup.png");
+            lab.BeforeWrite(); DiskLabPath.AssertOrdinaryPath(screenshot, true);
+            var readyStart = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (string arg in new[] { "-NoProfile", "-NonInteractive", "-File", script, "-AppProcessId", process.Id.ToString(),
+                "-Mode", "Startup", "-Screenshot", screenshot }) readyStart.ArgumentList.Add(arg);
+            using (var ready = Process.Start(readyStart) ?? throw new IOException("Cannot observe actual UI readiness."))
+            {
+                Task<string> readyOutput = ready.StandardOutput.ReadToEndAsync(), readyError = ready.StandardError.ReadToEndAsync();
+                try { await ready.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30)); }
+                finally { if (!ready.HasExited) { ready.Kill(true); await ready.WaitForExitAsync(); } }
+                Require(ready.ExitCode == 0, "Initialization did not finish: " + await readyError);
+                o["initialization"] = await readyOutput;
+            }
             Require(process.CloseMainWindow(), "Test UI did not accept normal close.");
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
             Require(process.ExitCode == 0, "Test UI failed: " + await error);
+            o["startupOutput"] = await output;
         }
         finally
         {

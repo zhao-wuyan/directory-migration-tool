@@ -20,7 +20,8 @@ internal static partial class Program
     private sealed class CaseEvidence(string name)
     {
         public string Name { get; } = name;
-        public string Status { get; set; } = "NotRun";
+        public string Suite { get; init; } = "";
+        public string Status { get; set; } = "NotCovered";
         public string? Error { get; set; }
         public Dictionary<string, object?> Observations { get; } = new();
     }
@@ -65,18 +66,8 @@ internal static partial class Program
         if (args is ["--lab", _, "--run-id", _, "--suite", "Switch", "--recover-transaction", _])
             return await RecoverSwitchChild(args);
         string suite = args.Length == 6 ? args[5] : "Invalid";
-        string[] names = suite switch
-        {
-            "Identity" => IdentityCaseNames,
-            "Probe" => ProbeCaseNames,
-            "Copy" => CopyCaseNames,
-            "Switch" => SwitchCaseNames,
-            "Backup" => BackupCaseNames,
-            _ => ["roots", "unknown-drive", "wrong-serial", "wrong-guid", "component-boundary",
-                "system-path-parser", "untrusted-reparse", "cross-volume-copy", "source-rename",
-                "actual-link-target", "fixture-only-deletion"]
-        };
-        var cases = names.Select(name => new CaseEvidence(name)).ToArray();
+        string[] suites = suite == "All" ? ["Boundary", "Identity", "Probe", "Copy", "Switch", "Regression", "Backup"] : [suite];
+        var cases = suites.SelectMany(s => CaseNames(s).Select(name => new CaseEvidence(name) { Suite = s })).ToArray();
         var started = DateTimeOffset.UtcNow;
         Guid? runId = null;
         Guid? attemptId = null;
@@ -87,12 +78,19 @@ internal static partial class Program
             runId = lab.RunId;
             attemptId = Guid.NewGuid();
             MigrationRuntime.InitializeTestLab(args[1], lab.RunId);
-            if (suite == "Identity") await RunIdentityCases(lab, attemptId.Value, cases);
-            else if (suite == "Probe") await RunProbeCases(lab, attemptId.Value, cases);
-            else if (suite == "Copy") await RunCopyCases(lab, attemptId.Value, cases);
-            else if (suite == "Switch") await RunSwitchCases(lab, attemptId.Value, cases);
-            else if (suite == "Backup") await RunBackupCases(lab, attemptId.Value, cases);
-            else await RunCases(lab, attemptId.Value, cases);
+            foreach (string current in suites)
+            {
+                var selected = cases.Where(c => c.Suite == current).ToArray();
+                if (current == "Identity") await RunIdentityCases(lab, attemptId.Value, selected);
+                else if (current == "Probe") await RunProbeCases(lab, attemptId.Value, selected);
+                else if (current == "Copy") await RunCopyCases(lab, attemptId.Value, selected);
+                else if (current == "Switch") await RunSwitchCases(lab, attemptId.Value, selected);
+                else if (current == "Regression") await RunRegressionCases(lab, attemptId.Value, selected);
+                else if (current == "Backup") await RunBackupCases(lab, attemptId.Value, selected);
+                else await RunCases(lab, attemptId.Value, selected);
+            }
+            Require(cases.All(c => c.Status == "Passed"), "Some declared cases were not executed.");
+            if (suite == "All") Require(Acceptance(cases).All(a => a.Status == "Passed"), "A01-A21 coverage is incomplete.");
         }
         catch (Exception ex)
         {
@@ -108,6 +106,7 @@ internal static partial class Program
             finishedAtUtc = DateTimeOffset.UtcNow,
             status = failure is null ? "Passed" : "Failed",
             error = failure,
+            acceptance = suite == "All" ? Acceptance(cases) : null,
             cases
         }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         return failure is null ? 0 : 1;
@@ -115,8 +114,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup" or "All"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup|All.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");

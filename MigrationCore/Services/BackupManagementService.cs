@@ -131,7 +131,7 @@ public sealed class BackupManagementService
                 {
                     ct.ThrowIfCancellationRequested();
                     current = FullPath(record, item.RelativePath);
-                    await DeleteEntryAsync(current, item, record.VerificationMode, ct).ConfigureAwait(false);
+                    await DeleteEntryAsync(current, record.BackupPath!, item, record.VerificationMode, ct).ConfigureAwait(false);
                     removed.Add(item.RelativePath);
                     results.Add(new BackupDeletionItem(current, BackupItemOutcome.Deleted));
                 }
@@ -141,7 +141,7 @@ public sealed class BackupManagementService
                     current = FullPath(record, item.RelativePath);
                     directories.Remove(item.RelativePath, out SafeFileHandle? guard);
                     guard?.Dispose();
-                    await DeleteEntryAsync(current, item, record.VerificationMode, ct).ConfigureAwait(false);
+                    await DeleteEntryAsync(current, record.BackupPath!, item, record.VerificationMode, ct).ConfigureAwait(false);
                     removed.Add(item.RelativePath);
                     results.Add(new BackupDeletionItem(current, BackupItemOutcome.Deleted));
                 }
@@ -198,11 +198,11 @@ public sealed class BackupManagementService
         return result;
     }
 
-    private async Task DeleteEntryAsync(string path, FileManifestEntry expected, VerificationMode mode, CancellationToken ct)
+    private async Task DeleteEntryAsync(string path, string root, FileManifestEntry expected, VerificationMode mode, CancellationToken ct)
     {
         using (SafeFileHandle handle = OpenGuard(path, expected.Identity, delete: true))
         {
-            FileManifestEntry actual = await _verification.CaptureDeletionEntryAsync(path, expected.IsDirectory, mode, ct).ConfigureAwait(false);
+            FileManifestEntry actual = await _verification.CaptureDeletionEntryAsync(path, root, expected.IsDirectory, mode, ct).ConfigureAwait(false);
             if (!CopyVerificationService.SameEntry(expected, actual, identity: true, writeTime: !expected.IsDirectory))
                 throw new IOException($"对象元数据或内容已变化，停止删除：{path}");
             ct.ThrowIfCancellationRequested();

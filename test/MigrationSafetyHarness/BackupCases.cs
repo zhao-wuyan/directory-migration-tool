@@ -190,7 +190,13 @@ internal static partial class Program
         });
         await Case("A19-permanent-delete", async o =>
         {
-            var f = await Fixture("permanent", o); var request = await Request(f, true); string backup = CopyRecord(f).BackupPath!;
+            var f = NewSwitchFixture(lab, attempt, "backup-permanent");
+            string parent = Path.Combine(f.Source, "父目录"), child = Path.Combine(parent, "子目录");
+            NewDirectory(lab, lab.Source, f.Source, parent); NewDirectory(lab, lab.Source, parent, child);
+            byte[] nested = Encoding.UTF8.GetBytes("nested backup must use the same manifest root");
+            f.Files[Path.Combine("父目录", "子目录", "nested.txt")] = (WriteFile(lab, lab.Source, child, Path.Combine(child, "nested.txt"), nested), nested);
+            AssertSwitched(f, await MigrateSwitch(f), o);
+            var request = await Request(f, true); string backup = CopyRecord(f).BackupPath!;
             var expectedItems = (await new CopyVerificationService().CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None))
                 .Entries.Keys.Select(p => Path.Combine(backup, p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var result = await service.DeleteAsync(request.RequestId);

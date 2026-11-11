@@ -1,8 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][int]$AppProcessId,
-    [Parameter(Mandatory = $true)][string]$BackupPath,
-    [Parameter(Mandatory = $true)][ValidateSet('Exercise', 'Restart')][string]$Mode,
+    [string]$BackupPath,
+    [Parameter(Mandatory = $true)][ValidateSet('Exercise', 'Restart', 'Startup')][string]$Mode,
     [Parameter(Mandatory = $true)][string]$Screenshot
 )
 Set-StrictMode -Version Latest
@@ -84,6 +84,11 @@ function Second-Dialog {
 
 try {
     Wait-Until { Main-Ready } 'startup initialization'
+    if ($Mode -eq 'Startup') {
+        Save-Screenshot $Screenshot
+        [ordered]@{ mode = $Mode; processId = $AppProcessId; initializationCompleted = $true; screenshot = $Screenshot } | ConvertTo-Json -Compress
+        exit 0
+    }
     Invoke-Control (Find-Control Name '手动模式')
     Require ((Value (Control MainBackupPath)) -ceq $BackupPath) 'Result did not recover the exact backup path.'
     $verification = (Control MainVerification).Current.Name

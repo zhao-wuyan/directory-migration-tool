@@ -88,8 +88,8 @@ public sealed class CopyVerificationService
         return new FileManifest(root, rootIdentity, mode, entries);
     }
 
-    internal Task<FileManifestEntry> CaptureDeletionEntryAsync(string path, bool directory, VerificationMode mode, CancellationToken ct) =>
-        CaptureEntryAsync(directory ? new DirectoryInfo(path) : new FileInfo(path), path, mode, null, FileShare.Read | FileShare.Delete, ct);
+    internal Task<FileManifestEntry> CaptureDeletionEntryAsync(string path, string root, bool directory, VerificationMode mode, CancellationToken ct) =>
+        CaptureEntryAsync(directory ? new DirectoryInfo(path) : new FileInfo(path), root, mode, null, FileShare.Read | FileShare.Delete, ct);
 
     private async Task<FileManifestEntry> CaptureEntryAsync(FileSystemInfo info, string root, VerificationMode mode,
         Dictionary<string, byte[]>? directorySecurity, FileShare share, CancellationToken ct)
@@ -105,15 +105,9 @@ public sealed class CopyVerificationService
         FileSystemSecurity security = directory ? ((DirectoryInfo)info).GetAccessControl(SecuritySections) : ((FileInfo)info).GetAccessControl(SecuritySections);
         byte[] descriptor = security.GetSecurityDescriptorBinaryForm();
         string parentPath = Path.GetDirectoryName(info.FullName) ?? throw new IOException("无法定位 ACL 父目录。");
-        byte[]? parentSecurity = null;
-        if (directorySecurity is null || !directorySecurity.TryGetValue(parentPath, out parentSecurity))
-        {
-            _identity.ReadDirectory(parentPath, false);
-            parentSecurity = new DirectoryInfo(parentPath).GetAccessControl(SecuritySections).GetSecurityDescriptorBinaryForm();
-            directorySecurity?.Add(parentPath, parentSecurity);
-        }
-        string acl = CanonicalAcl(descriptor, parentSecurity, directory);
-        if (directory && directorySecurity is not null) directorySecurity[info.FullName] = descriptor;
+        byte[] parentSecurity = CanonicalDirectorySecurity(parentPath, root, directorySecurity);
+        (string acl, byte[]? canonicalDirectory) = CanonicalAcl(descriptor, parentSecurity, directory, directory && directorySecurity is not null);
+        if (canonicalDirectory is not null) directorySecurity![info.FullName] = canonicalDirectory;
         List<AlternateStreamManifest>? streams = null;
         foreach (var stream in EnumerateStreams(info.FullName))
         {
@@ -185,7 +179,37 @@ public sealed class CopyVerificationService
         return Convert.ToHexString(digest);
     }
 
-    private static string CanonicalAcl(byte[] descriptor, byte[] parent, bool directory)
+    private byte[] CanonicalDirectorySecurity(string path, string root, Dictionary<string, byte[]>? cache)
+    {
+        if (cache is not null && cache.TryGetValue(path, out byte[]? known)) return known;
+        // 继承语义取决于父目录，不能混用原始和规范化后的父描述符。
+        var pending = new Stack<string>();
+        byte[]? parent = null;
+        string? current = path;
+        while (current is not null)
+        {
+            if (cache is not null && cache.TryGetValue(current, out parent)) break;
+            if (!PathIdentityService.IsWithin(current, root))
+            {
+                if (_identity.ReadDirectory(current, false).IsReparsePoint) throw new IOException($"ACL 父目录不是普通目录：{current}");
+                parent = new DirectoryInfo(current).GetAccessControl(SecuritySections).GetSecurityDescriptorBinaryForm();
+                cache?.Add(current, parent);
+                break;
+            }
+            pending.Push(current);
+            current = Path.GetDirectoryName(current);
+        }
+        while (pending.TryPop(out current))
+        {
+            if (_identity.ReadDirectory(current, false).IsReparsePoint) throw new IOException($"ACL 祖先不是普通目录：{current}");
+            byte[] descriptor = new DirectoryInfo(current).GetAccessControl(SecuritySections).GetSecurityDescriptorBinaryForm();
+            parent = parent is null ? descriptor : CanonicalAcl(descriptor, parent, true, true).DirectoryDescriptor!;
+            cache?.Add(current, parent);
+        }
+        return parent ?? throw new IOException("无法核对完整 ACL 父目录链。");
+    }
+
+    private static (string Sddl, byte[]? DirectoryDescriptor) CanonicalAcl(byte[] descriptor, byte[] parent, bool directory, bool captureDescriptor)
     {
         // 由 Windows 转为等价继承格式，不把旧式/自动继承布局误当成权限变化。
         // 保留 Owner、Group、所有 ACE 与审计信息；不手工删除或排序访问规则。
@@ -197,7 +221,19 @@ public sealed class CopyVerificationService
         {
             if (!ConvertSecurityDescriptorToStringSecurityDescriptorW(converted, 1, 0xF, out IntPtr text, out _))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "无法生成完整 ACL 摘要。");
-            try { return Marshal.PtrToStringUni(text) ?? throw new IOException("ACL 摘要缺失。"); }
+            try
+            {
+                string sddl = Marshal.PtrToStringUni(text) ?? throw new IOException("ACL 摘要缺失。");
+                byte[]? canonical = null;
+                if (captureDescriptor)
+                {
+                    uint length = GetSecurityDescriptorLength(converted);
+                    if (length == 0) throw new IOException("规范化 ACL 描述符无效。");
+                    canonical = new byte[checked((int)length)];
+                    Marshal.Copy(converted, canonical, 0, canonical.Length);
+                }
+                return (sddl, canonical);
+            }
             finally { LocalFree(text); }
         }
         finally { DestroyPrivateObjectSecurity(ref converted); }
@@ -217,6 +253,8 @@ public sealed class CopyVerificationService
     [DllImport("advapi32.dll", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyPrivateObjectSecurity(ref IntPtr descriptor);
+    [DllImport("advapi32.dll", ExactSpelling = true)]
+    private static extern uint GetSecurityDescriptorLength(IntPtr descriptor);
     [DllImport("kernel32.dll", ExactSpelling = true)]
     private static extern IntPtr LocalFree(IntPtr memory);
 
