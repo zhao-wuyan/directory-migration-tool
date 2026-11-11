@@ -59,8 +59,7 @@ function Publish-LabProject([string]$Project, [string]$Output, [string]$Log) {
     }
 }
 
-if ($LaunchUi) { throw 'Blocked: UI launch requires the verified B1 state-directory injection.' }
-if ($Suite -ne 'Boundary') { throw "NotCovered: suite '$Suite' is not implemented in B0." }
+if ($Suite -notin @('Boundary', 'Identity')) { throw "NotCovered: suite '$Suite' is not implemented yet." }
 
 . (Join-Path $PSScriptRoot 'TestDiskGuard.ps1')
 $null = Assert-LabPrerequisites
@@ -152,6 +151,7 @@ try {
         DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE = 'true'
         DOTNET_NOLOGO = '1'
         MIGRATION_TEST_LAB_RUN_ID = $RunId.ToString('D')
+        MIGRATION_TEST_LAB_APP = $app
     }
     foreach ($key in $processEnvironment.Keys) {
         $oldEnvironment[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
@@ -167,6 +167,7 @@ try {
     } finally { Pop-Location }
     $externalConfig = Join-Path $app 'quick-migrate.json'
     Write-LabBuildFile $externalConfig $config
+    Write-LabBuildFile (Join-Path $harness 'quick-migrate.json') $config
     if ([IO.File]::ReadAllText($externalConfig) -cne $config) { throw 'External test configuration mismatch.' }
     foreach ($packageFile in 'MigrationCore.dll', 'version.json', 'Resources\bin\Handle\handle64.exe') {
         $null = [DiskLabPath]::AssertOrdinaryPath((Join-Path $app $packageFile), $false)
@@ -176,14 +177,22 @@ try {
     $null = [DiskLabPath]::AssertOrdinaryPath($runner, $false)
     $null = Assert-LabMounted -Lab $lab
     Assert-LabHostSpace -MinimumBytes 1GB
-    $evidencePath = Join-Path $results "$attempt-Boundary.json"
-    $evidence = & $runner --lab (Join-Path $workRoot 'lab.json') --run-id ($RunId.ToString('D')) --suite Boundary
+    $evidencePath = Join-Path $results "$attempt-$Suite.json"
+    $evidence = & $runner --lab (Join-Path $workRoot 'lab.json') --run-id ($RunId.ToString('D')) --suite $Suite
     $runnerExit = $LASTEXITCODE
     Write-LabBuildFile $evidencePath ($evidence -join [Environment]::NewLine)
-    Write-Host "Boundary evidence: $evidencePath"
-    if ($runnerExit -ne 0) { throw "Boundary did not pass (exit $runnerExit). Evidence: $evidencePath" }
-    if (-not $evidence) { throw "Boundary produced no evidence: $evidencePath" }
+    Write-Host "$Suite evidence: $evidencePath"
+    if ($runnerExit -ne 0) { throw "$Suite did not pass (exit $runnerExit). Evidence: $evidencePath" }
+    if (-not $evidence) { throw "$Suite produced no evidence: $evidencePath" }
     $evidence
+    if ($LaunchUi) {
+        $runtimeConfig = @([IO.Directory]::EnumerateFiles($app, '*.runtimeconfig.json'))
+        if ($runtimeConfig.Count -ne 1) { throw 'Cannot identify the test app executable.' }
+        $exe = $runtimeConfig[0] -replace '\.runtimeconfig\.json$', '.exe'
+        $null = [DiskLabPath]::AssertOrdinaryPath($exe, $false)
+        & $exe --test-lab (Join-Path $workRoot 'lab.json') --run-id ($RunId.ToString('D'))
+        if ($LASTEXITCODE -ne 0) { throw "Test UI failed with exit $LASTEXITCODE." }
+    }
 } finally {
     foreach ($key in $oldEnvironment.Keys) {
         [Environment]::SetEnvironmentVariable($key, $oldEnvironment[$key], 'Process')

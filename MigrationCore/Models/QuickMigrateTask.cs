@@ -103,6 +103,16 @@ public partial class QuickMigrateTask : ObservableObject
     [ObservableProperty]
     private DateTime? _migratedAt;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TransactionId))]
+    [NotifyPropertyChangedFor(nameof(BackupState))]
+    [NotifyPropertyChangedFor(nameof(VerificationSummary))]
+    private MigrationTransactionRecord? _transaction;
+
+    public Guid? TransactionId => Transaction?.TransactionId;
+    public BackupState? BackupState => Transaction?.BackupState;
+    public VerificationSummary? VerificationSummary => Transaction?.VerificationSummary;
+
     /// <summary>
     /// 备份路径（如果存在）
     /// </summary>

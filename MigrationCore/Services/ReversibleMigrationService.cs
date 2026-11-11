@@ -122,7 +122,7 @@ public class ReversibleMigrationService
             try
             {
                 await RollbackMigrationAsync(logProgress);
-                result.WasRolledBack = true;
+                result.RollbackOutcome = RollbackOutcome.RecoveryRequired;
             }
             catch (Exception rollbackEx)
             {
@@ -291,7 +291,7 @@ public class ReversibleMigrationService
             try
             {
                 await RollbackRestoreAsync(logProgress);
-                result.WasRolledBack = true;
+                result.RollbackOutcome = RollbackOutcome.RecoveryRequired;
             }
             catch (Exception rollbackEx)
             {

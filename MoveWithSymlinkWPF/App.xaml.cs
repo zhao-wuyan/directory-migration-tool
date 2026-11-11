@@ -12,6 +12,17 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        try
+        {
+            MigrationCore.Services.MigrationRuntime.ConfigureFromArguments(e.Args);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            Shutdown(2);
+            return;
+        }
+
         base.OnStartup(e);
 
 #if DEBUG
@@ -30,6 +41,11 @@ public partial class App : Application
         Console.WriteLine("Global exception handlers registered");
         Console.WriteLine();
 #endif
+
+        var window = new MainWindow();
+        if (MigrationCore.Services.MigrationRuntime.IsTestLab) window.Title += " — Test Lab";
+        MainWindow = window;
+        window.Show();
     }
 
 #if DEBUG

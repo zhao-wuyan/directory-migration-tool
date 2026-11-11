@@ -828,7 +828,7 @@ public partial class MainViewModel : ObservableObject
                                       MigrationMode == MigrationMode.Repair ? "修复" : "迁移";
                 ResultMessage = $"❌ {operationType}失败\n\n" +
                                $"错误信息: {result.ErrorMessage}\n\n" +
-                               (result.WasRolledBack ? "✓ 已回滚至原始状态\n" : "") +
+                               (result.RollbackOutcome == RollbackOutcome.Restored ? "✓ 已核对并恢复原始目录\n" : "需核对实际数据位置，不能认定已恢复\n") +
                                "请查看下方日志了解详细信息。";
             }
 

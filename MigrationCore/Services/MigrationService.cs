@@ -97,7 +97,7 @@ public class MigrationService
             try
             {
                 await RollbackAsync(logProgress);
-                result.WasRolledBack = true;
+                result.RollbackOutcome = RollbackOutcome.RecoveryRequired;
             }
             catch (Exception rollbackEx)
             {

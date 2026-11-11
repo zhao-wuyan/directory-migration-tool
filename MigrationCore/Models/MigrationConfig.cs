@@ -15,6 +15,8 @@ public class MigrationConfig
     /// </summary>
     public string TargetPath { get; set; } = string.Empty;
 
+    public VerificationMode VerificationMode { get; set; } = VerificationMode.Basic;
+
     /// <summary>
     /// 大文件阈值（MB）
     /// </summary>

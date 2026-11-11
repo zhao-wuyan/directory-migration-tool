@@ -19,6 +19,15 @@ public static class QuickMigrateConfigLoader
     /// <returns>配置对象，如果文件不存在则返回 null</returns>
     public static QuickMigrateConfig? LoadConfig(string? configPath = null)
     {
+        if (MigrationRuntime.IsTestLab)
+        {
+            string expected = MigrationRuntime.TestConfigPath ?? throw new IOException("测试配置路径未注入。");
+            if (configPath is not null && !Path.GetFullPath(configPath).Equals(expected, StringComparison.OrdinalIgnoreCase))
+                throw new IOException("测试实例不能加载其他配置。");
+            return JsonSerializer.Deserialize<QuickMigrateConfig>(MigrationRuntime.ReadTestConfiguration(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new IOException("测试配置损坏，不得回退生产配置。");
+        }
         try
         {
             if (string.IsNullOrEmpty(configPath))

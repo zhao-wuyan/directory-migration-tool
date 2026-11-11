@@ -17,121 +17,66 @@ public static class MigrationStateDetector
     /// </summary>
     /// <param name="task">任务</param>
     /// <returns>更新后的任务</returns>
-    public static QuickMigrateTask DetectMigrationState(QuickMigrateTask task)
+    public static QuickMigrateTask DetectMigrationState(QuickMigrateTask task, MigrationTransactionStore? store = null)
     {
-        string sourcePath = task.SourcePath;
-        string? targetPath = task.TargetPath;
-
-        // 检查源路径是否是符号链接
-        bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(sourcePath);
-
-        if (isSymlink)
+        try
         {
-            // 源是符号链接，表示已迁移
-            task.MigrationState = MigrationState.Migrated;
-
-            // 尝试获取符号链接实际指向的目标
-            string? actualTarget = null;
-            try
+            store ??= new MigrationTransactionStore();
+            MigrationTransactionRecord? record = task.TransactionId is Guid id
+                ? store.LoadAsync(id).GetAwaiter().GetResult() ?? throw new IOException("已登记事务缺失。")
+                : store.ReadAllAsync().GetAwaiter().GetResult()
+                    .Where(r => r.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(r => r.UpdatedAtUtc).FirstOrDefault();
+            task.Transaction = record;
+            task.IsResumable = false;
+            var identity = new PathIdentityService();
+            if (record is not null)
             {
-                var dirInfo = new DirectoryInfo(sourcePath);
-                if (dirInfo.Exists && dirInfo.LinkTarget != null)
+                task.BackupPath = record.BackupPath;
+                if (record.TargetIdentity is not null) identity.RequireSame(record.TargetPath, record.TargetIdentity);
+                if (record.BackupIdentity is not null && record.BackupState is not (BackupState.Recycled or BackupState.Deleted))
+                    identity.RequireSame(record.BackupPath ?? throw new IOException("备份路径缺失。"), record.BackupIdentity);
+                if (record.Stage == MigrationStage.AwaitingUserVerification)
                 {
-                    actualTarget = dirInfo.LinkTarget;
-                    task.SymlinkTarget = actualTarget;
-                    
-                    // 如果任务没有设置目标路径，从符号链接读取
-                    if (string.IsNullOrEmpty(targetPath))
+                    if (record.Mode != MigrationMode.Restore)
                     {
-                        task.TargetPath = actualTarget;
-                        targetPath = actualTarget;
+                        identity.RequireSame(record.SourcePath, record.LinkIdentity);
+                        identity.RequireSame(record.SourcePath, record.TargetIdentity, true);
+                        task.SymlinkTarget = record.TargetPath;
                     }
-                    else if (!string.Equals(Path.GetFullPath(targetPath), Path.GetFullPath(actualTarget), StringComparison.OrdinalIgnoreCase))
-                    {
-                        // 配置中的目标路径与符号链接实际指向不一致，使用实际目标
-                        task.TargetPath = actualTarget;
-                        targetPath = actualTarget;
-                    }
+                    else identity.RequireSame(record.SourcePath, record.StagingIdentity);
+                    task.MigrationState = record.Mode == MigrationMode.Restore ? MigrationState.Pending : MigrationState.Migrated;
+                    task.StatusMessage = record.UserVerifiedAtUtc is null ? "技术动作完成，备份保留，待用户验证" : "用户已验证，备份处理仍需独立授权";
                 }
-            }
-            catch
-            {
-                // 忽略错误
+                else
+                {
+                    task.MigrationState = MigrationState.Inconsistent;
+                    task.StatusMessage = $"待恢复：{record.Stage}；{record.LastError}";
+                }
+                return task;
             }
 
-            // 检查符号链接实际指向的目标是否存在（优先使用实际目标）
-            string pathToCheck = actualTarget ?? targetPath ?? string.Empty;
-            if (!string.IsNullOrEmpty(pathToCheck) && !Directory.Exists(pathToCheck))
+            // 旧目录名和标记只能提示候选，不构成恢复或删除授权。
+            string? candidate = FindBackupPath(task.SourcePath);
+            task.BackupPath = candidate;
+            DirectoryIdentity? source = identity.ReadIfExists(task.SourcePath);
+            if (candidate is not null || source is null || source.IsReparsePoint)
             {
                 task.MigrationState = MigrationState.Inconsistent;
-                task.StatusMessage = "符号链接存在但目标缺失";
+                task.StatusMessage = candidate is null ? "缺少可靠事务记录，请核对实际数据位置" : "发现未确认备份候选，不能自动认领或删除";
             }
-
-            // 检查是否有备份需要清理
-            var backupPath = FindBackupPath(sourcePath);
-            if (backupPath != null)
+            else
             {
-                task.MigrationState = MigrationState.NeedsCleanup;
-                task.BackupPath = backupPath;
-                task.StatusMessage = "已迁移，但存在备份待清理";
+                task.MigrationState = MigrationState.Pending;
+                task.StatusMessage = "待迁移";
             }
         }
-        else if (Directory.Exists(sourcePath))
+        catch (Exception ex)
         {
-            // 源是普通目录
-            task.MigrationState = MigrationState.Pending;
-
-            // 检查是否是中断的迁移
-            if (!string.IsNullOrEmpty(targetPath) && Directory.Exists(targetPath))
-            {
-                // 检查目标目录中的标记文件
-                bool hasLockFile = File.Exists(Path.Combine(targetPath, MigrateLockFile));
-                bool hasDoneFile = File.Exists(Path.Combine(targetPath, MigrateDoneFile));
-
-                if (hasLockFile && !hasDoneFile)
-                {
-                    // 复制中断
-                    task.IsResumable = true;
-                    task.StatusMessage = "复制未完成，可恢复";
-                }
-                else if (hasDoneFile)
-                {
-                    // 复制完成但未创建符号链接
-                    var backupPath = FindBackupPath(sourcePath);
-                    if (backupPath != null)
-                    {
-                        task.MigrationState = MigrationState.NeedsCompletion;
-                        task.BackupPath = backupPath;
-                        task.StatusMessage = "复制完成，待创建符号链接";
-                    }
-                }
-            }
-
-            // 检查是否有备份但源未被替换为符号链接
-            var backup = FindBackupPath(sourcePath);
-            if (backup != null && !string.IsNullOrEmpty(targetPath) && Directory.Exists(targetPath))
-            {
-                task.MigrationState = MigrationState.NeedsCompletion;
-                task.BackupPath = backup;
-                task.StatusMessage = "已备份且数据已复制，待创建符号链接";
-            }
+            task.MigrationState = MigrationState.Inconsistent;
+            task.IsResumable = false;
+            task.StatusMessage = $"事务或路径身份无法确认：{ex.Message}";
         }
-        else
-        {
-            // 源不存在
-            // 检查是否有备份
-            var backupPath = FindBackupPath(sourcePath);
-            if (backupPath != null)
-            {
-                if (!string.IsNullOrEmpty(targetPath) && Directory.Exists(targetPath))
-                {
-                    task.MigrationState = MigrationState.NeedsCompletion;
-                    task.BackupPath = backupPath;
-                    task.StatusMessage = "源已备份，待创建符号链接";
-                }
-            }
-        }
-
         return task;
     }
 

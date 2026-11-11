@@ -30,9 +30,12 @@ public class MigrationResult
     /// </summary>
     public FileStats? Stats { get; set; }
 
-    /// <summary>
-    /// 是否已回滚
-    /// </summary>
-    public bool WasRolledBack { get; set; }
+    public Guid? TransactionId { get; set; }
+    public MigrationStage Stage { get; set; } = MigrationStage.Prepared;
+    public string? BackupPath { get; set; }
+    public BackupState? BackupState { get; set; }
+    public VerificationSummary? VerificationSummary { get; set; }
+    public RollbackOutcome RollbackOutcome { get; set; } = RollbackOutcome.NotRequired;
+    public string[] RecoveryPaths { get; set; } = [];
 }
 

@@ -5,6 +5,8 @@ namespace MigrationCore.Models;
 /// </summary>
 public class MigrationProgress
 {
+    public MigrationStage? Stage { get; set; }
+
     /// <summary>
     /// 完成百分比（0-100）
     /// </summary>
