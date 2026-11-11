@@ -21,6 +21,15 @@ public static class MigrationStateDetector
             if (record is not null)
             {
                 task.BackupPath = record.BackupPath;
+                task.Status = record.Stage == MigrationStage.Cancelled ? QuickMigrateTaskStatus.Skipped
+                    : record.Stage == MigrationStage.AwaitingUserVerification ? QuickMigrateTaskStatus.Completed : QuickMigrateTaskStatus.Failed;
+                task.ErrorMessage = record.LastError;
+                if (record.BackupDeletionInProgress)
+                {
+                    task.MigrationState = MigrationState.Inconsistent;
+                    task.StatusMessage = "备份处理未确认结束，按不完整副本保留审计，禁止重试";
+                    return task;
+                }
                 if (!record.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase)
                     || !record.TargetPath.Equals(task.TargetPath, StringComparison.OrdinalIgnoreCase))
                     throw new IOException("当前配置与已登记事务路径不同，不能认领另一目标。");

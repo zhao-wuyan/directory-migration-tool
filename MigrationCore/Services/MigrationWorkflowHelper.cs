@@ -41,6 +41,7 @@ public static class MigrationWorkflowHelper
                     && (r.Stage == MigrationStage.AwaitingUserVerification
                         || r.Stage is MigrationStage.Cancelled or MigrationStage.Failed))
                 ?? throw new IOException("没有身份匹配的可还原事务，不能按目录名认领。");
+            if (record.BackupDeletionInProgress) throw new IOException("备份处理尚未结束，不能开始还原。");
             identity.RequireSame(config.SourcePath, targetIdentity, true);
             if (record.BackupIdentity is not null && record.BackupState is not (BackupState.Deleted or BackupState.Recycled))
                 identity.RequireSame(record.BackupPath ?? throw new IOException("备份路径缺失。"), record.BackupIdentity);
@@ -299,6 +300,7 @@ public static class MigrationWorkflowHelper
         if (known.Length == 1)
         {
             var record = known[0];
+            if (record.BackupDeletionInProgress) throw new IOException("备份处理尚未结束，不能开始修复。");
             if (source is not null)
             {
                 identity.RequireSame(config.SourcePath, source.IsReparsePoint ? record.LinkIdentity : record.SourceIdentity);
@@ -354,6 +356,7 @@ public static class MigrationWorkflowHelper
                 record = await new MigrationTransactionStore().SaveAsync(record with
                 {
                     Stage = MigrationStage.SourceRenamed, BackupIdentity = record.SourceIdentity,
+                    BackupManifestDigest = record.SourceManifestDigest,
                     BackupState = BackupState.RetainedUnverified
                 }, record.Revision, CancellationToken.None).ConfigureAwait(false);
                 Publish(record, progress);
@@ -517,6 +520,7 @@ public static class MigrationWorkflowHelper
         var current = await new MigrationTransactionStore().LoadAsync(record.TransactionId, ct).ConfigureAwait(false)
             ?? throw new IOException("事务记录缺失。");
         if (current.Revision != record.Revision) throw new IOException("事务已变化，拒绝旧快照。");
+        if (current.BackupDeletionInProgress) throw new IOException("备份处理尚未结束，不能切换或回滚目录。");
         MigrationRuntime.AssertDataPath(current.SourcePath, allowLink: true);
         MigrationRuntime.AssertDataPath(current.TargetPath);
         if (current.BackupPath is not null) MigrationRuntime.AssertDataPath(current.BackupPath);

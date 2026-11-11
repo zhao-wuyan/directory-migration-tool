@@ -12,5 +12,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         ViewModel = new MainViewModel();
         DataContext = ViewModel;
+        Closing += (_, args) =>
+        {
+            if (!ViewModel.IsOperationBusy) return;
+            args.Cancel = true;
+            ViewModel.CancelCurrentOperations();
+        };
     }
 }

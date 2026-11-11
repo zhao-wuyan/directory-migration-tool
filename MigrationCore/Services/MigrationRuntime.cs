@@ -113,7 +113,20 @@ public static class MigrationRuntime
         if (settings.GetProperty("profiles").GetArrayLength() != 0) throw new IOException("测试配置不能扫描生产 profiles。");
         RequireLabPath(settings.GetProperty("defaults").GetProperty("unifiedTargetRoot").GetString()!, volumes, false);
         foreach (JsonElement source in settings.GetProperty("standaloneSources").EnumerateArray())
-            RequireLabPath(source.GetProperty("absolutePath").GetString()!, volumes, false);
+        {
+            string sourcePath = PathIdentityService.Normalize(source.GetProperty("absolutePath").GetString()!);
+            RequireLabPath(sourcePath, volumes, false, allowLink: true);
+            DirectoryIdentity leaf = new PathIdentityService().ReadDirectory(sourcePath, false);
+            if (!leaf.IsReparsePoint) continue;
+            string state = Path.Combine(volumes[0].Root, "LabState", "Transactions");
+            var identity = new PathIdentityService();
+            if (identity.ReadDirectory(state, false).IsReparsePoint) throw new IOException("测试状态目录不是普通目录。");
+            var record = new MigrationTransactionStore(state).ReadAllAsync().GetAwaiter().GetResult().SingleOrDefault(r =>
+                r.SourcePath.Equals(sourcePath, StringComparison.OrdinalIgnoreCase) && r.LinkIdentity == leaf);
+            if (record is null || record.TargetIdentity is null) throw new IOException("测试配置包含未登记的源链接。");
+            RequireLabPath(record.TargetPath, volumes, false);
+            identity.RequireSame(sourcePath, record.TargetIdentity, true);
+        }
         return text;
     }
 

@@ -71,6 +71,15 @@ public sealed class MigrationTransactionStore
             || current.SourceIdentity != record.SourceIdentity || current.TargetParentIdentity != record.TargetParentIdentity
             || (current.SourceParentIdentity is not null && current.SourceParentIdentity != record.SourceParentIdentity))
             throw new IOException("不能改变已登记事务的源、目标或初始身份。");
+        if (current.BackupDeletionInProgress && (record.Mode != current.Mode || record.Stage != current.Stage
+            || record.TargetIdentity != current.TargetIdentity || record.LinkIdentity != current.LinkIdentity
+            || record.StagingIdentity != current.StagingIdentity
+            || record.DeletionRequest?.RequestId != current.DeletionRequest?.RequestId || record.DeletionRequest?.Consumed != true))
+            throw new IOException("备份处理尚未结束，不能抢占或改写迁移阶段。");
+        if (record.BackupDeletionInProgress && !current.BackupDeletionInProgress)
+            foreach (var other in await ReadAllUnlocked(ct).ConfigureAwait(false))
+                if (other.TransactionId != record.TransactionId && ReferencesBackup(record, other))
+                    throw new IOException($"备份仍被其他事务引用：{other.TransactionId}");
         var saved = record with { Revision = checked(expectedRevision + 1), UpdatedAtUtc = DateTimeOffset.UtcNow };
         await WriteSnapshot(saved, true, ct).ConfigureAwait(false);
         return saved;
@@ -134,6 +143,7 @@ public sealed class MigrationTransactionStore
             4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
         {
             await JsonSerializer.SerializeAsync(file, record, JsonOptions, ct).ConfigureAwait(false);
+            if (file.Length > 4 * 1024 * 1024) throw new IOException("事务快照超过可安全读取的容量，保留原记录和临时快照。");
             await file.FlushAsync(ct).ConfigureAwait(false);
             file.Flush(true);
         }
@@ -146,9 +156,21 @@ public sealed class MigrationTransactionStore
     private static bool PathsOverlap(MigrationTransactionRecord a, MigrationTransactionRecord b)
     {
         return Overlap(a.SourcePath, b.SourcePath) || Overlap(a.SourcePath, b.TargetPath)
-            || Overlap(a.TargetPath, b.SourcePath) || Overlap(a.TargetPath, b.TargetPath);
+            || Overlap(a.TargetPath, b.SourcePath) || Overlap(a.TargetPath, b.TargetPath)
+            || (a.BackupDeletionInProgress && ReferencesBackup(a, b))
+            || (b.BackupDeletionInProgress && ReferencesBackup(b, a));
 
         static bool Overlap(string x, string y) => PathIdentityService.IsWithin(x, y) || PathIdentityService.IsWithin(y, x);
+    }
+
+    internal static bool ReferencesBackup(MigrationTransactionRecord owner, MigrationTransactionRecord other)
+    {
+        if (owner.TransactionId == other.TransactionId || owner.BackupPath is null) return false;
+        bool Touches(string? path) => path is not null && (PathIdentityService.IsWithin(path, owner.BackupPath)
+            || PathIdentityService.IsWithin(owner.BackupPath, path));
+        return Touches(other.SourcePath) || Touches(other.TargetPath) || Touches(other.BackupPath) || Touches(other.StagingPath)
+            || (owner.BackupIdentity is not null && (other.TargetIdentity == owner.BackupIdentity
+                || other.BackupIdentity == owner.BackupIdentity || (other.IsActive && other.SourceIdentity == owner.BackupIdentity)));
     }
 
     private static void Validate(MigrationTransactionRecord record)

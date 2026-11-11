@@ -71,6 +71,7 @@ internal static partial class Program
             "Probe" => ProbeCaseNames,
             "Copy" => CopyCaseNames,
             "Switch" => SwitchCaseNames,
+            "Backup" => BackupCaseNames,
             _ => ["roots", "unknown-drive", "wrong-serial", "wrong-guid", "component-boundary",
                 "system-path-parser", "untrusted-reparse", "cross-volume-copy", "source-rename",
                 "actual-link-target", "fixture-only-deletion"]
@@ -90,6 +91,7 @@ internal static partial class Program
             else if (suite == "Probe") await RunProbeCases(lab, attemptId.Value, cases);
             else if (suite == "Copy") await RunCopyCases(lab, attemptId.Value, cases);
             else if (suite == "Switch") await RunSwitchCases(lab, attemptId.Value, cases);
+            else if (suite == "Backup") await RunBackupCases(lab, attemptId.Value, cases);
             else await RunCases(lab, attemptId.Value, cases);
         }
         catch (Exception ex)
@@ -113,8 +115,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");

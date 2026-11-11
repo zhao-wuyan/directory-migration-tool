@@ -8,6 +8,8 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Diagnostics;
+using MoveWithSymlinkWPF.Views;
 
 namespace MoveWithSymlinkWPF.ViewModels;
 
@@ -94,60 +96,46 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     private QuickMigrateConfig? _config;
     private CancellationTokenSource? _cancellationTokenSource;
+    [ObservableProperty]
+    private BackupDeletionMode _backupMode = BackupDeletionMode.Recycle;
+    [ObservableProperty]
+    private bool _useContentHash;
+    public Task Initialization { get; }
+    private bool OtherEntryBusy => Application.Current.MainWindow?.DataContext is MainViewModel main && main.IsMigrating;
 
     public QuickMigrateViewModel()
     {
-        _ = LoadConfigAsync();
+        Initialization = LoadConfigAsync();
     }
 
     [RelayCommand]
     private async Task LoadConfigAsync()
     {
+        if (IsExecuting || IsLoading) return;
         IsLoading = true;
         StatusMessage = "正在加载配置...";
-        
-#if DEBUG
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] QuickMigrateViewModel: LoadConfigAsync started");
-#endif
-
-        await Task.Run(() =>
+        try
         {
-            _config = QuickMigrateConfigLoader.LoadConfig();
-#if DEBUG
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config loaded: {(_config != null ? "Success" : "Failed")}");
-#endif
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                if (_config == null)
-                {
-                    HasConfig = false;
-                    StatusMessage = "未找到配置文件 quick-migrate.json";
-                    IsLoading = false;
-#if DEBUG
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config file not found");
-#endif
-                    return;
-                }
-
-                HasConfig = true;
-                UseUnifiedTarget = _config.Defaults.TargetStrategy == "unified";
-                UnifiedTargetRoot = _config.Defaults.UnifiedTargetRoot;
-
-#if DEBUG
-                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Config loaded successfully, scanning tasks...");
-#endif
-                // 扫描并构建任务列表
-                ScanAndBuildTasks();
-
-                IsLoading = false;
-            });
-        });
+            _config = await Task.Run(() => QuickMigrateConfigLoader.LoadConfig());
+            HasConfig = _config is not null;
+            if (_config is null) { StatusMessage = "未找到配置文件 quick-migrate.json"; return; }
+            UseUnifiedTarget = _config.Defaults.TargetStrategy == "unified";
+            UnifiedTargetRoot = _config.Defaults.UnifiedTargetRoot;
+            ScanAndBuildTasks();
+        }
+        catch (Exception ex)
+        {
+            HasConfig = false;
+            StatusMessage = $"配置或事务无法安全读取：{ex.Message}";
+            AddLog(StatusMessage);
+        }
+        finally { IsLoading = false; }
     }
 
     [RelayCommand]
     private void RefreshScan()
     {
+        if (IsExecuting || OtherEntryBusy) return;
         _ = LoadConfigAsync();
     }
 
@@ -199,17 +187,6 @@ public partial class QuickMigrateViewModel : ObservableObject
         if (_config == null)
             return;
 
-        // 保存当前失败和完成的任务状态（按 SourcePath 标识）
-        var failedTaskStates = PendingTaskGroups
-            .SelectMany(g => g.Tasks)
-            .Where(t => t.Status == QuickMigrateTaskStatus.Failed)
-            .ToDictionary(t => t.SourcePath, t => new { t.ErrorMessage, t.ErrorType, t.StatusMessage });
-
-        var completedTaskStates = PendingTaskGroups
-            .SelectMany(g => g.Tasks)
-            .Where(t => t.Status == QuickMigrateTaskStatus.Completed)
-            .Select(t => t.SourcePath)
-            .ToHashSet();
 
         PendingTaskGroups.Clear();
         MigratedTaskGroups.Clear();
@@ -298,22 +275,6 @@ public partial class QuickMigrateViewModel : ObservableObject
             // 为每个任务订阅 PropertyChanged 事件
             foreach (var task in group.Tasks)
             {
-                // 恢复失败状态
-                if (failedTaskStates.TryGetValue(task.SourcePath, out var failedState))
-                {
-                    task.Status = QuickMigrateTaskStatus.Failed;
-                    task.ErrorMessage = failedState.ErrorMessage;
-                    task.ErrorType = failedState.ErrorType;
-                    task.StatusMessage = failedState.StatusMessage;
-                    task.ShowProgress = false;
-                }
-                // 恢复完成状态
-                else if (completedTaskStates.Contains(task.SourcePath))
-                {
-                    task.Status = QuickMigrateTaskStatus.Completed;
-                    task.StatusMessage = "已完成";
-                    task.ShowProgress = false;
-                }
 
                 task.PropertyChanged += (s, e) =>
                 {
@@ -356,6 +317,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private void BrowseUnifiedTarget()
     {
+        if (IsExecuting || OtherEntryBusy) return;
         // 使用自定义文件夹选择器
         var picker = new Views.FolderPickerWindow
         {
@@ -407,6 +369,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private void BrowseTaskTarget(QuickMigrateTask task)
     {
+        if (IsExecuting || OtherEntryBusy) return;
         // 使用自定义文件夹选择器
         var picker = new Views.FolderPickerWindow
         {
@@ -426,7 +389,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private async Task StartQuickMigrationAsync()
     {
-        if (!HasValidTasks || IsExecuting)
+        if (!HasValidTasks || IsExecuting || OtherEntryBusy)
             return;
 
         // 收集所有已勾选的未迁移任务
@@ -583,7 +546,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private async Task MigrateSingleTaskAsync(QuickMigrateTask task)
     {
-        if (IsExecuting)
+        if (IsExecuting || OtherEntryBusy)
             return;
 
         // 验证目标路径
@@ -639,7 +602,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     [RelayCommand]
     private async Task RestoreTaskAsync(QuickMigrateTask task)
     {
-        if (IsExecuting)
+        if (IsExecuting || OtherEntryBusy)
             return;
 
         var result = CustomMessageBox.ShowQuestion(
@@ -652,53 +615,66 @@ public partial class QuickMigrateViewModel : ObservableObject
         IsExecuting = true;
         LogMessages.Clear();
         AddLog($"开始还原: {task.DisplayName}");
-
-        await ExecuteSingleRestoreTaskAsync(task);
-
-        AddLog("还原操作完成");
-        IsExecuting = false;
-
-        // 刷新任务列表
-        ScanAndBuildTasks();
+        _cancellationTokenSource = new CancellationTokenSource();
+        try { await ExecuteSingleRestoreTaskAsync(task); }
+        finally
+        {
+            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
+            IsExecuting = false;
+            ScanAndBuildTasks();
+        }
     }
 
     [RelayCommand]
-    private async Task CleanupBackupAsync(QuickMigrateTask task)
+    private async Task VerifyTaskDataAsync(QuickMigrateTask task)
     {
-        if (string.IsNullOrEmpty(task.BackupPath) || !Directory.Exists(task.BackupPath))
-        {
-            CustomMessageBox.ShowInformation("备份目录不存在", "提示");
-            return;
-        }
-
-        var result = CustomMessageBox.ShowQuestion(
-            $"确定要删除备份目录吗？\n\n{task.BackupPath}\n\n此操作不可恢复！",
-            "确认删除");
-
-        if (!result)
-            return;
-
+        if (IsExecuting || OtherEntryBusy || task.TransactionId is not Guid id) return;
         IsExecuting = true;
-        AddLog($"清理备份: {task.BackupPath}");
-
-        await Task.Run(() =>
+        _cancellationTokenSource = new CancellationTokenSource();
+        try
         {
-            try
-            {
-                Directory.Delete(task.BackupPath, true);
-                AddLog("✅ 备份已清理");
-                task.BackupPath = null;
-                task.MigrationState = MigrationState.Migrated;
-                task.StatusMessage = "已迁移";
-            }
-            catch (Exception ex)
-            {
-                AddLog($"❌ 清理失败: {ex.Message}");
-            }
-        });
+            await Task.Run(() => new BackupManagementService().MarkUserVerifiedAsync(id, _cancellationTokenSource.Token));
+            AddLog($"[{task.DisplayName}] 用户已验证，尚未授予删除权限。");
+        }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能确认验证"); }
+        finally
+        {
+            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
+            IsExecuting = false; ScanAndBuildTasks();
+        }
+    }
 
-        IsExecuting = false;
-        ScanAndBuildTasks();
+    [RelayCommand]
+    private async Task ManageTaskBackupAsync(QuickMigrateTask task)
+    {
+        if (IsExecuting || OtherEntryBusy || task.TransactionId is not Guid id) return;
+        IsExecuting = true;
+        _cancellationTokenSource = new CancellationTokenSource();
+        try
+        {
+            var result = await BackupConfirmationWindow.ShowDeletionAsync(id, BackupMode, _cancellationTokenSource.Token);
+            if (result is not null) AddLog($"[{task.DisplayName}] 备份处理：{result.Status}；{result.Error}");
+        }
+        catch (OperationCanceledException) { AddLog("已取消，审计及所有未处理实体保留。"); }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "备份未处理"); }
+        finally
+        {
+            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
+            IsExecuting = false; ScanAndBuildTasks();
+        }
+    }
+
+    [RelayCommand]
+    private void OpenTaskBackupDirectory(QuickMigrateTask task)
+    {
+        try
+        {
+            string path = task.BackupPath ?? throw new IOException("没有原始备份位置。");
+            MigrationRuntime.AssertDataPath(path);
+            if (!Directory.Exists(path)) throw new IOException($"目录当前不存在：{path}");
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能打开备份目录"); }
     }
 
     [RelayCommand]
@@ -750,7 +726,8 @@ public partial class QuickMigrateViewModel : ObservableObject
                 TargetPath = task.TargetPath,
                 LargeFileThresholdMB = _config?.Defaults.LargeFileThresholdMB ?? 1024,
                 RobocopyThreads = _config?.Defaults.RobocopyThreads ?? 8,
-                SampleMilliseconds = 2000
+                SampleMilliseconds = 2000,
+                VerificationMode = UseContentHash ? VerificationMode.ContentHash : VerificationMode.Basic,
             };
 
             var service = new ReversibleMigrationService(config, MigrationMode.Migrate);
@@ -772,6 +749,12 @@ public partial class QuickMigrateViewModel : ObservableObject
             });
 
             var result = await service.ExecuteAsync(progress, logProgress, _cancellationTokenSource?.Token ?? default);
+            await ApplyTaskResultAsync(task, result);
+            if (result.Stage == MigrationStage.Cancelled)
+            {
+                task.Status = QuickMigrateTaskStatus.Skipped; task.StatusMessage = "已取消，副本保留"; task.ShowProgress = false;
+                return;
+            }
 
             if (result.Success)
             {
@@ -785,7 +768,7 @@ public partial class QuickMigrateViewModel : ObservableObject
             else
             {
                 task.Status = QuickMigrateTaskStatus.Failed;
-                task.ErrorMessage = result.ErrorMessage;
+                task.ErrorMessage = result.ErrorMessage + "\n" + string.Join("\n", result.RecoveryPaths);
                 task.ShowProgress = false;
                 task.ErrorType = ClassifyError(result.ErrorMessage);
                 FailedCount++;
@@ -824,7 +807,8 @@ public partial class QuickMigrateViewModel : ObservableObject
                 TargetPath = task.TargetPath,
                 LargeFileThresholdMB = _config?.Defaults.LargeFileThresholdMB ?? 1024,
                 RobocopyThreads = _config?.Defaults.RobocopyThreads ?? 8,
-                SampleMilliseconds = 2000
+                SampleMilliseconds = 2000,
+                VerificationMode = UseContentHash ? VerificationMode.ContentHash : VerificationMode.Basic,
             };
 
             var service = new ReversibleMigrationService(config, MigrationMode.Restore);
@@ -846,6 +830,12 @@ public partial class QuickMigrateViewModel : ObservableObject
             });
 
             var result = await service.ExecuteAsync(progress, logProgress, _cancellationTokenSource?.Token ?? default);
+            await ApplyTaskResultAsync(task, result);
+            if (result.Stage == MigrationStage.Cancelled)
+            {
+                task.Status = QuickMigrateTaskStatus.Skipped; task.StatusMessage = "已取消，副本保留"; task.ShowProgress = false;
+                return;
+            }
 
             if (result.Success)
             {
@@ -858,7 +848,7 @@ public partial class QuickMigrateViewModel : ObservableObject
             else
             {
                 task.Status = QuickMigrateTaskStatus.Failed;
-                task.ErrorMessage = result.ErrorMessage;
+                task.ErrorMessage = result.ErrorMessage + "\n" + string.Join("\n", result.RecoveryPaths);
                 task.ShowProgress = false;
                 task.ErrorType = ClassifyError(result.ErrorMessage);
                 HasErrors = true;
@@ -879,6 +869,16 @@ public partial class QuickMigrateViewModel : ObservableObject
             task.ShowProgress = false;
             AddLog($"[{task.DisplayName}] ❌ 异常: {ex.Message}");
         }
+    }
+
+    private static async Task ApplyTaskResultAsync(QuickMigrateTask task, MigrationResult result)
+    {
+        if (result.TransactionId is Guid id)
+        {
+            task.Transaction = await new MigrationTransactionStore().LoadAsync(id);
+            task.BackupPath = task.Transaction?.BackupPath;
+        }
+        task.StatusMessage = task.TransactionStatusText;
     }
 
     private void AddLog(string message)

@@ -7,8 +7,10 @@
         xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
+        xmlns:models="clr-namespace:MigrationCore.Models;assembly=MigrationCore"
         mc:Ignorable="d"
         Title="目录迁移工具 - Directory Migration Tool"
+        AutomationProperties.AutomationId="MigrationMainWindow"
         Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
         TextOptions.TextFormattingMode="Display"
@@ -90,8 +92,9 @@
                     <TextBlock Text="使用符号链接透明迁移大型目录" FontSize="14" Foreground="Gray"/>
                 </StackPanel>
                 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0" IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
                     <Button Content="手动模式" Command="{Binding ShowManualModeCommand}"
+                            IsEnabled="{Binding QuickMigratePage.DataContext.IsExecuting, Converter={StaticResource InverseBoolConverter}}"
                             Padding="15,8" Margin="5,0"
                             Background="{Binding IsManualMode, Converter={StaticResource BoolToColorConverter}}"
                             Foreground="{Binding IsManualMode, Converter={StaticResource BoolToForegroundConverter}}"/>
@@ -395,6 +398,7 @@
                                 <TextBlock Grid.Column="2" Text="复制线程数:" VerticalAlignment="Center" Margin="20,0,10,0"/>
                                 <TextBox Grid.Column="3" Text="{Binding RobocopyThreads, UpdateSourceTrigger=PropertyChanged}"/>
                             </Grid>
+                            <CheckBox Content="完整内容哈希（可选；默认快速核对不读取全部内容）" IsChecked="{Binding UseContentHash}" Margin="0,10,0,0"/>
                             
                             <Border Background="#FFF4CE" Padding="10" Margin="0,15,0,0" CornerRadius="3"
                                     Visibility="{Binding HasValidationError, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -992,6 +996,27 @@
                             
                             <Border Background="#F8F8F8" Padding="15" CornerRadius="3" Margin="0,0,0,10">
                                 <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
+                            </Border>
+                            <Border BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" CornerRadius="3">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding BackupTask.TransactionStatusText}" TextWrapping="Wrap" AutomationProperties.AutomationId="MainTransactionStatus"/>
+                                    <TextBlock Text="{Binding BackupTask.VerificationText}" TextWrapping="Wrap" Margin="0,5,0,0" AutomationProperties.AutomationId="MainVerification"/>
+                                    <TextBlock Text="{Binding BackupTask.BackupStatusText}" Margin="0,5,0,0"/>
+                                    <TextBox Text="{Binding BackupTask.BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="38" Margin="0,5,0,0" AutomationProperties.AutomationId="MainBackupPath"/>
+                                    <WrapPanel Margin="0,8,0,0" IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
+                                        <Button Content="打开目录" Command="{Binding OpenBackupDirectoryCommand}"/>
+                                        <Button Content="确认已验证" Command="{Binding VerifyDataCommand}" IsEnabled="{Binding BackupTask.CanVerifyData}" AutomationProperties.AutomationId="MainVerifyData"/>
+                                        <ComboBox SelectedValue="{Binding BackupMode}" SelectedValuePath="Tag" Width="190" Margin="5,0" AutomationProperties.AutomationId="MainBackupMode">
+                                            <ComboBoxItem Content="回收（当前不可用，保留）" Tag="{x:Static models:BackupDeletionMode.Recycle}"/>
+                                            <ComboBoxItem Content="永久删除（双确认）" Tag="{x:Static models:BackupDeletionMode.Permanent}"/>
+                                        </ComboBox>
+                                        <Button Content="处理原始备份" Command="{Binding ManageBackupCommand}" IsEnabled="{Binding BackupTask.CanManageBackup}" AutomationProperties.AutomationId="MainManageBackup"/>
+                                    </WrapPanel>
+                                    <Expander Header="逐项处理结果" Margin="0,8,0,0">
+                                        <ScrollViewer MaxHeight="150"><TextBlock Text="{Binding BackupTask.DeletionDetails}" TextWrapping="Wrap"/></ScrollViewer>
+                                    </Expander>
+                                    <Button Content="取消当前操作（等待安全结束）" Command="{Binding CancelMigrationCommand}" Visibility="{Binding IsMigrating, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                </StackPanel>
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">

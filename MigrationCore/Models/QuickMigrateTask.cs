@@ -53,6 +53,8 @@ public partial class QuickMigrateTask : ObservableObject
     /// 迁移状态
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanVerifyData))]
+    [NotifyPropertyChangedFor(nameof(CanManageBackup))]
     private MigrationState _migrationState = MigrationState.Pending;
 
     /// <summary>
@@ -107,16 +109,49 @@ public partial class QuickMigrateTask : ObservableObject
     [NotifyPropertyChangedFor(nameof(TransactionId))]
     [NotifyPropertyChangedFor(nameof(BackupState))]
     [NotifyPropertyChangedFor(nameof(VerificationSummary))]
+    [NotifyPropertyChangedFor(nameof(BackupStatusText))]
+    [NotifyPropertyChangedFor(nameof(VerificationText))]
+    [NotifyPropertyChangedFor(nameof(TransactionStatusText))]
+    [NotifyPropertyChangedFor(nameof(CanVerifyData))]
+    [NotifyPropertyChangedFor(nameof(CanManageBackup))]
+    [NotifyPropertyChangedFor(nameof(DeletionDetails))]
     private MigrationTransactionRecord? _transaction;
 
     public Guid? TransactionId => Transaction?.TransactionId;
-    public BackupState? BackupState => Transaction?.BackupState;
+    public BackupState? BackupState => Transaction?.BackupPath is null ? null : Transaction.BackupState;
     public VerificationSummary? VerificationSummary => Transaction?.VerificationSummary;
+    public string VerificationText => VerificationSummary?.Description ?? "尚未完成核对";
+    public string TransactionStatusText => Transaction is null ? "无可信事务；不能认领或删除候选备份"
+        : Transaction.BackupDeletionInProgress ? "备份处理未确认结束，禁止重试，请核对实际位置"
+        : Transaction.Stage != MigrationStage.AwaitingUserVerification ? $"待恢复/未完成：{Transaction.Stage}"
+        : Transaction.UserVerifiedAtUtc is null ? "技术完成，待用户验证" : "用户已验证；处理备份仍需独立双确认";
+    public string BackupStatusText => BackupState switch
+    {
+        Models.BackupState.RetainedUnverified => "原件备份保留，待用户验证",
+        Models.BackupState.UserVerified => "用户已验证，备份仍保留",
+        Models.BackupState.DeleteRequested => "备份保留；处理请求尚需有效确认",
+        Models.BackupState.Recycled => "已核实移入回收站",
+        Models.BackupState.Deleted => "已永久删除",
+        Models.BackupState.PartiallyDeleted => "部分删除/处理中，不能作为完整备份",
+        Models.BackupState.Missing => "备份缺失，请人工核对",
+        Models.BackupState.IdentityChanged => "备份身份变化，禁止处理",
+        Models.BackupState.DeleteFailed => "处理未完成；查看逐项结果及实际目录",
+        _ => BackupPath is null ? "未创建原始备份" : "未确认的备份候选，仅可查看"
+    };
+    public bool CanVerifyData => MigrationState != Models.MigrationState.Inconsistent
+        && Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false, UserVerifiedAtUtc: null };
+    public bool CanManageBackup => Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false,
+        UserVerifiedAtUtc: not null, BackupPath: not null, BackupIdentity: not null, BackupManifestDigest: not null }
+        && Transaction.BackupState is not (Models.BackupState.Deleted or Models.BackupState.Recycled or Models.BackupState.PartiallyDeleted
+            or Models.BackupState.Missing or Models.BackupState.IdentityChanged) && MigrationState != Models.MigrationState.Inconsistent;
+    public string DeletionDetails => Transaction?.LastDeletionResult is not { } result ? ""
+        : $"{result.Status}：{result.Error}\n" + string.Join("\n", result.Items.Select(i => $"{i.Outcome}：{i.Path} {i.Error}"));
 
     /// <summary>
     /// 备份路径（如果存在）
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackupStatusText))]
     private string? _backupPath;
 
     /// <summary>

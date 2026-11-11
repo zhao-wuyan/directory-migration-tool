@@ -1,58 +1,24 @@
-using Microsoft.VisualBasic.FileIO;
+using MigrationCore.Models;
 
 namespace MigrationCore.Services;
 
-/// <summary>
-/// 回收站辅助类 - 提供将文件/文件夹移入回收站的功能
-/// </summary>
+/// <summary>不能证明只回收且失败不永久降级时，明确拒绝而不尝试有风险的 Shell 删除。</summary>
 public static class RecycleBinHelper
 {
-    /// <summary>
-    /// 将目录移入回收站
-    /// </summary>
-    /// <param name="directoryPath">要移入回收站的目录路径</param>
-    /// <returns>是否成功</returns>
-    public static bool MoveDirectoryToRecycleBin(string directoryPath)
+    public const string UnsupportedReason = "Unsupported：尚无可证明失败时绝不永久降级的 Shell 只回收保证；未调用删除 API，备份保留。";
+
+    public static BackupDeletionResult MoveDirectoryToRecycleBin(Guid requestId, Guid transactionId,
+        string directoryPath, FileManifest manifest)
     {
-        if (!Directory.Exists(directoryPath))
-            return false;
-
-        try
+        MigrationRuntime.AssertDataPath(directoryPath);
+        new PathIdentityService().RequireSame(directoryPath, manifest.RootIdentity);
+        return new BackupDeletionResult
         {
-            FileSystem.DeleteDirectory(
-                directoryPath,
-                UIOption.OnlyErrorDialogs,
-                RecycleOption.SendToRecycleBin);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 将文件移入回收站
-    /// </summary>
-    /// <param name="filePath">要移入回收站的文件路径</param>
-    /// <returns>是否成功</returns>
-    public static bool MoveFileToRecycleBin(string filePath)
-    {
-        if (!File.Exists(filePath))
-            return false;
-
-        try
-        {
-            FileSystem.DeleteFile(
-                filePath,
-                UIOption.OnlyErrorDialogs,
-                RecycleOption.SendToRecycleBin);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+            RequestId = requestId, TransactionId = transactionId, Status = BackupDeletionStatus.Unsupported,
+            Items = manifest.Entries.Select(p => new BackupDeletionItem(
+                p.Key.Length == 0 ? directoryPath : Path.Combine(directoryPath, p.Key),
+                BackupItemOutcome.Unsupported, UnsupportedReason)).ToArray(),
+            Error = UnsupportedReason, CompletedAtUtc = DateTimeOffset.UtcNow
+        };
     }
 }
-

@@ -36,10 +36,15 @@ public sealed record BackupDeletionRequest
     public BackupDeletionMode Mode { get; init; }
     public DirectoryIdentity? BackupIdentity { get; init; }
     public DirectoryIdentity? TargetIdentity { get; init; }
+    public DirectoryIdentity? SourceIdentity { get; init; }
+    public string? TargetManifestDigest { get; init; }
+    public string? LiveSourceManifestDigest { get; init; }
     public string ManifestDigest { get; init; } = "";
     public DateTimeOffset? FirstConfirmedAtUtc { get; init; }
     public DateTimeOffset? SecondConfirmedAtUtc { get; init; }
     public bool Consumed { get; init; }
+    public DateTimeOffset? ConsumedAtUtc { get; init; }
+    public string? SecondConfirmationText { get; init; }
 }
 
 public sealed record MigrationTransactionRecord
@@ -67,13 +72,18 @@ public sealed record MigrationTransactionRecord
     public VerificationSummary? VerificationSummary { get; init; }
     public string? SourceManifestDigest { get; init; }
     public string? VerifiedManifestDigest { get; init; }
+    public string? BackupManifestDigest { get; init; }
     public BackupState BackupState { get; init; } = BackupState.RetainedUnverified;
     public DateTimeOffset? UserVerifiedAtUtc { get; init; }
     public BackupDeletionRequest? DeletionRequest { get; init; }
+    public BackupDeletionRequest[] DeletionRequestHistory { get; init; } = [];
+    public bool BackupDeletionInProgress { get; init; }
+    public BackupDeletionResult? LastDeletionResult { get; init; }
+    public BackupDeletionResult[] DeletionResultHistory { get; init; } = [];
     public string? LastError { get; init; }
     public DateTimeOffset UpdatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 
-    public bool IsActive => Stage is MigrationStage.Prepared or MigrationStage.ProbeRenamed
+    public bool IsActive => BackupDeletionInProgress || Stage is MigrationStage.Prepared or MigrationStage.ProbeRenamed
         or MigrationStage.Copying or MigrationStage.CopyVerified or MigrationStage.SourceRenamed
         or MigrationStage.LinkCreated or MigrationStage.RecoveryRequired;
 }

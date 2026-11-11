@@ -117,6 +117,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _resultMessage = string.Empty;
 
+    [ObservableProperty]
+    private QuickMigrateTask? _backupTask;
+    [ObservableProperty]
+    private BackupDeletionMode _backupMode = BackupDeletionMode.Recycle;
+    [ObservableProperty]
+    private bool _useContentHash;
+    public bool IsOperationBusy => IsMigrating || (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting);
+
     public ObservableCollection<string> LogMessages { get; } = new();
 
     private FileStats? _scannedStats;
@@ -131,6 +139,7 @@ public partial class MainViewModel : ObservableObject
         
         // 初始化一键迁移页面
         QuickMigratePage = new QuickMigratePage();
+        _ = RestoreLastTransactionAsync();
         
 #if DEBUG
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] MainViewModel initialized");
@@ -141,6 +150,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowManualMode()
     {
+        if (IsOperationBusy) return;
         IsManualMode = true;
         IsQuickMigrateMode = false;
 #if DEBUG
@@ -151,6 +161,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowQuickMigrate()
     {
+        if (IsOperationBusy) return;
         IsManualMode = false;
         IsQuickMigrateMode = true;
 #if DEBUG
@@ -621,6 +632,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task StartMigrationAsync()
     {
+        if (IsOperationBusy) return;
+        BackupTask = null;
         IsMigrating = true;
         MigrationCompleted = false;
         ProgressPercent = 0;
@@ -636,6 +649,7 @@ public partial class MainViewModel : ObservableObject
                 TargetPath = TargetPath,
                 LargeFileThresholdMB = LargeFileThresholdMB,
                 RobocopyThreads = RobocopyThreads,
+                VerificationMode = UseContentHash ? VerificationMode.ContentHash : VerificationMode.Basic,
                 SampleMilliseconds = 1000
             };
 
@@ -678,6 +692,7 @@ public partial class MainViewModel : ObservableObject
 
             MigrationSuccess = result.Success;
             MigrationCompleted = true;
+            if (result.TransactionId is Guid transactionId) await RefreshBackupTaskAsync(transactionId);
 
             if (result.Success)
             {
@@ -725,13 +740,10 @@ public partial class MainViewModel : ObservableObject
                                $"错误信息: {result.ErrorMessage}\n\n" +
                                (result.RollbackOutcome == RollbackOutcome.Restored ? "✓ 已核对并恢复原始目录\n" : "需核对实际数据位置，不能认定已恢复\n") +
                                "请查看下方日志了解详细信息。";
+                if (result.RecoveryPaths.Length > 0) ResultMessage += "\n\n保留/待核对位置：\n" + string.Join("\n", result.RecoveryPaths);
             }
 
-            // 如果失败，不自动跳转，让用户查看日志；如果成功，自动跳转到结果页面
-            if (result.Success)
-            {
-                CurrentStep = 4;
-            }
+            CurrentStep = 4;
         }
         catch (Exception ex)
         {
@@ -762,6 +774,7 @@ public partial class MainViewModel : ObservableObject
     private void CancelMigration()
     {
         _cancellationTokenSource?.Cancel();
+        ProgressMessage = "正在取消，等待后台及本任务进程真实退出；请勿关闭应用。";
     }
 
     [RelayCommand]
@@ -776,6 +789,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void BackToStep1()
     {
+        if (IsOperationBusy) return;
+        BackupTask = null;
         CurrentStep = 1;
         HasValidationError = false;
         ValidationMessage = string.Empty;
@@ -810,6 +825,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void CloseApplication()
     {
+        if (IsOperationBusy) { CancelCurrentOperations(); return; }
         Application.Current.Shutdown();
     }
 
@@ -1094,193 +1110,8 @@ public partial class MainViewModel : ObservableObject
         CurrentStep = 3;
         await StartMigrationAsync();
         
-        // 修复完成后检查是否有备份需要处理
-        if (MigrationSuccess && MigrationCompleted)
-        {
-            await CheckAndCleanupRepairBackupV2Async(); // 使用新的备份处理方法
-        }
     }
 
-    /// <summary>
-    /// 检查并询问用户是否清理修复过程中产生的备份
-    /// </summary>
-    private async Task CheckAndCleanupRepairBackupAsync()
-    {
-        await Task.Run(() =>
-        {
-            try
-            {
-                // 查找可能的备份目录
-                string? parentDir = Path.GetDirectoryName(SourcePath);
-                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
-                    return;
-
-                string sourceName = Path.GetFileName(SourcePath);
-                string backupPrefix = $"{sourceName}.bak_";
-
-                var backups = Directory.GetDirectories(parentDir, $"{backupPrefix}*")
-                    .OrderByDescending(d => Directory.GetLastWriteTime(d))
-                    .ToList();
-
-                if (backups.Any())
-                {
-                    string backupPath = backups.First();
-                    
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        var askResult = CustomMessageBox.ShowQuestion(
-                            $"修复过程中创建了备份目录：\n\n{backupPath}\n\n是否将此备份移入回收站？\n\n选择\"是\"将备份移入回收站（可恢复）\n选择\"否\"将保留备份供您后续处理",
-                            "清理备份");
-
-                        if (askResult)
-                        {
-                            try
-                            {
-                                AddLog($"正在将备份移入回收站: {backupPath}");
-                                bool success = RecycleBinHelper.MoveDirectoryToRecycleBin(backupPath);
-                                if (success)
-                                {
-                                    AddLog("✅ 备份已移入回收站");
-                                    CustomMessageBox.ShowInformation(
-                                        $"备份已成功移入回收站\n\n{backupPath}\n\n提示：您可以在回收站中恢复此备份",
-                                        "完成");
-                                }
-                                else
-                                {
-                                    AddLog("⚠️ 移入回收站失败");
-                                    CustomMessageBox.ShowWarning(
-                                        $"无法将备份移入回收站\n\n备份目录保留在：{backupPath}",
-                                        "操作失败");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                AddLog($"❌ 移入回收站失败: {ex.Message}");
-                                CustomMessageBox.ShowError(
-                                    $"移入回收站失败：{ex.Message}\n\n备份目录保留在：{backupPath}",
-                                    "操作失败");
-                            }
-                        }
-                        else
-                        {
-                            AddLog($"备份已保留: {backupPath}");
-                        }
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLog($"检查备份时出错: {ex.Message}");
-            }
-        });
-    }
-
-    /// <summary>
-    /// 检查并提示用户处理修复过程中产生的备份（新版本）
-    /// </summary>
-    private async Task CheckAndCleanupRepairBackupV2Async()
-    {
-        await Task.Run(() =>
-        {
-            try
-            {
-                // 查找可能的备份目录
-                string? parentDir = Path.GetDirectoryName(SourcePath);
-                if (string.IsNullOrEmpty(parentDir) || !Directory.Exists(parentDir))
-                    return;
-
-                string sourceName = Path.GetFileName(SourcePath);
-                string backupPrefix = $"{sourceName}.bak_";
-
-                var backups = Directory.GetDirectories(parentDir, $"{backupPrefix}*")
-                    .OrderByDescending(d => Directory.GetLastWriteTime(d))
-                    .ToList();
-
-                if (backups.Any())
-                {
-                    string backupPath = backups.First();
-                    
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        var askResult = CustomMessageBox.ShowQuestion(
-                            $"修复过程中创建了备份目录：\n\n{backupPath}\n\n请确认修复成功后再自行删除此备份目录。\n\n是否打开备份所在目录？",
-                            "备份处理提示");
-
-                        if (askResult)
-                        {
-                            try
-                            {
-                                AddLog($"打开备份所在目录: {Path.GetDirectoryName(backupPath)}");
-                                
-                                // 打开文件夹
-                                string? folderPath = Path.GetDirectoryName(backupPath);
-                                if (!string.IsNullOrEmpty(folderPath))
-                                {
-                                    folderPath = backupPath; // 如果获取父目录失败，直接使用备份路径
-                                }
-                                
-                                // 使用更可靠的方式打开文件管理器
-                                ProcessStartInfo startInfo = new ProcessStartInfo
-                                {
-                                    Arguments = folderPath,
-                                    FileName = "explorer.exe",
-                                    UseShellExecute = true,
-                                    WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
-                                };
-                                
-                                try
-                                {
-                                    Process.Start(startInfo);
-                                    AddLog("✅ 文件管理器已启动");
-                                }
-                                catch (Exception ex)
-                                {
-                                    AddLog($"⚠️ 打开文件夹失败: {ex.Message}");
-                                    
-                                    // 尝试使用备用方法
-                                    try
-                                    {
-                                        // 使用cmd命令打开
-                                        ProcessStartInfo cmdInfo = new ProcessStartInfo
-                                        {
-                                            Arguments = $"/c start \"\"{folderPath}\"\"",
-                                            FileName = "cmd.exe",
-                                            UseShellExecute = true,
-                                            CreateNoWindow = true
-                                        };
-                                        Process.Start(cmdInfo);
-                                        AddLog("✅ 使用备用方法打开文件夹");
-                                    }
-                                    catch (Exception backupEx)
-                                    {
-                                        AddLog($"❌ 备用方法也失败: {backupEx.Message}");
-                                        CustomMessageBox.ShowWarning(
-                                            $"无法打开文件夹：{ex.Message}\n\n文件夹位置：{folderPath}\n\n请手动导航到此位置。",
-                                            "打开失败");
-                                    }
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                AddLog($"❌ 打开目录失败: {ex.Message}");
-                                CustomMessageBox.ShowError(
-                                    $"打开目录失败：{ex.Message}\n\n备份目录位置：{backupPath}",
-                                    "操作失败");
-                            }
-                        }
-                        else
-                        {
-                            AddLog($"备份已保留，请用户自行处理: {backupPath}");
-                        }
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLog($"检查备份时出错: {ex.Message}");
-            }
-        });
-    }
 
     /// <summary>
     /// 显示使用说明窗口
@@ -1293,6 +1124,109 @@ public partial class MainViewModel : ObservableObject
             Owner = Application.Current.MainWindow
         };
         guideWindow.ShowDialog();
+    }
+
+    private async Task RestoreLastTransactionAsync()
+    {
+        IsMigrating = true;
+        try
+        {
+            if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm) await vm.Initialization;
+            var records = await new MigrationTransactionStore().ReadAllAsync();
+            var record = records.OrderByDescending(r => r.UpdatedAtUtc).FirstOrDefault();
+            if (record is null) return;
+            SourcePath = record.SourcePath;
+            TargetPath = record.TargetPath;
+            if (record.Mode == MigrationMode.Restore) SwitchToRestoreMode();
+            else if (record.Mode == MigrationMode.Repair) SwitchToRepairMode();
+            else SwitchToMigrateMode();
+            UseContentHash = record.VerificationMode == VerificationMode.ContentHash;
+            await RefreshBackupTaskAsync(record.TransactionId);
+            MigrationCompleted = true;
+            MigrationSuccess = record.Stage == MigrationStage.AwaitingUserVerification;
+            ResultMessage = "已读取持久化事务；技术完成不代表用户验收。\n\n"
+                + $"源：{record.SourcePath}\n目标：{record.TargetPath}\n备份：{record.BackupPath ?? "未创建"}\n"
+                + $"staging：{record.StagingPath ?? "未创建"}\n试改名：{record.ProbePath ?? "未创建"}\n{record.LastError}";
+            CurrentStep = 4;
+        }
+        catch (Exception ex) { AddLog($"读取事务失败，未认领任何目录：{ex.Message}"); }
+        finally { IsMigrating = false; }
+    }
+
+    private async Task RefreshBackupTaskAsync(Guid transactionId)
+    {
+        var record = await new MigrationTransactionStore().LoadAsync(transactionId) ?? throw new IOException("结果事务记录缺失。");
+        var task = new QuickMigrateTask { SourcePath = record.SourcePath, TargetPath = record.TargetPath,
+            Transaction = record, BackupPath = record.BackupPath };
+        MigrationStateDetector.DetectMigrationState(task);
+        BackupTask = task;
+    }
+
+    [RelayCommand]
+    private async Task VerifyDataAsync()
+    {
+        if (IsOperationBusy || BackupTask?.TransactionId is not Guid id) return;
+        IsMigrating = true;
+        _cancellationTokenSource = new CancellationTokenSource();
+        try
+        {
+            await Task.Run(() => new BackupManagementService().MarkUserVerifiedAsync(id, _cancellationTokenSource.Token));
+            await RefreshBackupTaskAsync(id);
+            AddLog("用户已确认应用及数据验证；此确认不授权删除。");
+        }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能确认验证"); }
+        finally
+        {
+            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
+            IsMigrating = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ManageBackupAsync()
+    {
+        if (IsOperationBusy || BackupTask?.TransactionId is not Guid id) return;
+        IsMigrating = true;
+        ProgressMessage = "正在处理备份，等待后台结束。";
+        _cancellationTokenSource = new CancellationTokenSource();
+        try
+        {
+            var result = await BackupConfirmationWindow.ShowDeletionAsync(id, BackupMode, _cancellationTokenSource.Token);
+            await RefreshBackupTaskAsync(id);
+            if (result is not null)
+            {
+                ResultMessage += $"\n\n备份处理：{result.Status}\n{result.Error}\n"
+                    + string.Join("\n", result.Items.Select(i => $"{i.Outcome}：{i.Path} {i.Error}"));
+                AddLog($"备份处理结果：{result.Status}；{result.Error}");
+            }
+        }
+        catch (OperationCanceledException) { AddLog("已取消备份处理；确认及审计记录保留。"); }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "备份未处理"); }
+        finally
+        {
+            _cancellationTokenSource?.Dispose(); _cancellationTokenSource = null;
+            IsMigrating = false;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenBackupDirectory()
+    {
+        try
+        {
+            string path = BackupTask?.BackupPath ?? throw new IOException("本次没有原始备份；请查看源/目标数据位置。");
+            MigrationRuntime.AssertDataPath(path);
+            if (!Directory.Exists(path)) throw new IOException($"目录当前不存在：{path}");
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能打开备份目录"); }
+    }
+
+    public void CancelCurrentOperations()
+    {
+        if (IsMigrating) CancelMigration();
+        if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting)
+            vm.CancelExecutionCommand.Execute(null);
     }
 
     private void AddLog(string message)

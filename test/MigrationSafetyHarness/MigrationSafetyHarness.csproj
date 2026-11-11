@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\MigrationCore\MigrationCore.csproj" />
     <Compile Include="..\vhd\TestDiskPath.cs" Link="TestDiskPath.cs" />
+    <None Update="BackupUi.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -77,43 +77,9 @@ public sealed class CopyVerificationService
         pending.Push(new DirectoryInfo(root));
         while (pending.TryPop(out FileSystemInfo? info))
         {
-            ct.ThrowIfCancellationRequested();
-            DirectoryIdentity id = _identity.ReadEntry(info.FullName);
-            FileAttributes attributes = info.Attributes;
-            if (id.IsReparsePoint || (attributes & ~SupportedAttributes) != 0)
-                throw new IOException($"存在无法安全保存或核对的重解析点/属性：{info.FullName} ({attributes})");
-            bool directory = id.IsDirectory;
-            long length = directory ? 0 : ((FileInfo)info).Length;
-            string relative = info.FullName.Equals(root, StringComparison.OrdinalIgnoreCase) ? "" : Path.GetRelativePath(root, info.FullName);
-            FileSystemSecurity security = directory
-                ? ((DirectoryInfo)info).GetAccessControl(SecuritySections)
-                : ((FileInfo)info).GetAccessControl(SecuritySections);
-            byte[] descriptor = security.GetSecurityDescriptorBinaryForm();
-            string parentPath = Path.GetDirectoryName(info.FullName) ?? throw new IOException("无法定位 ACL 父目录。");
-            if (!directorySecurity.TryGetValue(parentPath, out byte[]? parentSecurity))
-            {
-                _identity.ReadDirectory(parentPath, false);
-                parentSecurity = new DirectoryInfo(parentPath).GetAccessControl(SecuritySections).GetSecurityDescriptorBinaryForm();
-                directorySecurity.Add(parentPath, parentSecurity);
-            }
-            string acl = CanonicalAcl(descriptor, parentSecurity, directory);
-            if (directory) directorySecurity[info.FullName] = descriptor;
-            List<AlternateStreamManifest>? streams = null;
-            foreach (var stream in EnumerateStreams(info.FullName))
-            {
-                ct.ThrowIfCancellationRequested();
-                string? hash = mode == VerificationMode.ContentHash
-                    ? await HashAsync(info.FullName + stream.Name[..^6], stream.Length, ct).ConfigureAwait(false) : null;
-                (streams ??= []).Add(new AlternateStreamManifest(stream.Name, stream.Length, hash));
-            }
-            streams?.Sort((a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
-            string? contentHash = mode == VerificationMode.ContentHash && !directory
-                ? await HashAsync(info.FullName, length, ct).ConfigureAwait(false) : null;
-            var entry = new FileManifestEntry(relative, directory, length, info.LastWriteTimeUtc,
-                attributes, acl, streams?.ToArray() ?? [], contentHash, id);
-            if (!entries.TryAdd(relative, entry)) throw new IOException($"相对路径存在大小写歧义：{relative}");
-            _identity.RequireSame(info.FullName, id);
-            if (directory)
+            FileManifestEntry entry = await CaptureEntryAsync(info, root, mode, directorySecurity, FileShare.Read, ct).ConfigureAwait(false);
+            if (!entries.TryAdd(entry.RelativePath, entry)) throw new IOException($"相对路径存在大小写歧义：{entry.RelativePath}");
+            if (entry.IsDirectory)
             {
                 foreach (FileSystemInfo child in ((DirectoryInfo)info).EnumerateFileSystemInfos("*", Enumeration)) pending.Push(child);
             }
@@ -121,6 +87,55 @@ public sealed class CopyVerificationService
         _identity.RequireSame(root, rootIdentity);
         return new FileManifest(root, rootIdentity, mode, entries);
     }
+
+    internal Task<FileManifestEntry> CaptureDeletionEntryAsync(string path, bool directory, VerificationMode mode, CancellationToken ct) =>
+        CaptureEntryAsync(directory ? new DirectoryInfo(path) : new FileInfo(path), path, mode, null, FileShare.Read | FileShare.Delete, ct);
+
+    private async Task<FileManifestEntry> CaptureEntryAsync(FileSystemInfo info, string root, VerificationMode mode,
+        Dictionary<string, byte[]>? directorySecurity, FileShare share, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        DirectoryIdentity id = _identity.ReadEntry(info.FullName);
+        FileAttributes attributes = info.Attributes;
+        if (id.IsReparsePoint || (attributes & ~SupportedAttributes) != 0)
+            throw new IOException($"存在无法安全保存或核对的重解析点/属性：{info.FullName} ({attributes})");
+        bool directory = id.IsDirectory;
+        long length = directory ? 0 : ((FileInfo)info).Length;
+        string relative = info.FullName.Equals(root, StringComparison.OrdinalIgnoreCase) ? "" : Path.GetRelativePath(root, info.FullName);
+        FileSystemSecurity security = directory ? ((DirectoryInfo)info).GetAccessControl(SecuritySections) : ((FileInfo)info).GetAccessControl(SecuritySections);
+        byte[] descriptor = security.GetSecurityDescriptorBinaryForm();
+        string parentPath = Path.GetDirectoryName(info.FullName) ?? throw new IOException("无法定位 ACL 父目录。");
+        byte[]? parentSecurity = null;
+        if (directorySecurity is null || !directorySecurity.TryGetValue(parentPath, out parentSecurity))
+        {
+            _identity.ReadDirectory(parentPath, false);
+            parentSecurity = new DirectoryInfo(parentPath).GetAccessControl(SecuritySections).GetSecurityDescriptorBinaryForm();
+            directorySecurity?.Add(parentPath, parentSecurity);
+        }
+        string acl = CanonicalAcl(descriptor, parentSecurity, directory);
+        if (directory && directorySecurity is not null) directorySecurity[info.FullName] = descriptor;
+        List<AlternateStreamManifest>? streams = null;
+        foreach (var stream in EnumerateStreams(info.FullName))
+        {
+            ct.ThrowIfCancellationRequested();
+            string? hash = mode == VerificationMode.ContentHash
+                ? await HashAsync(info.FullName + stream.Name[..^6], stream.Length, ct, share).ConfigureAwait(false) : null;
+            (streams ??= []).Add(new AlternateStreamManifest(stream.Name, stream.Length, hash));
+        }
+        streams?.Sort((a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
+        string? contentHash = mode == VerificationMode.ContentHash && !directory
+            ? await HashAsync(info.FullName, length, ct, share).ConfigureAwait(false) : null;
+        var entry = new FileManifestEntry(relative, directory, length, info.LastWriteTimeUtc,
+            attributes, acl, streams?.ToArray() ?? [], contentHash, id);
+        _identity.RequireSame(info.FullName, id);
+        return entry;
+    }
+
+    internal static bool SameEntry(FileManifestEntry expected, FileManifestEntry actual, bool identity, bool writeTime = true) =>
+        expected.IsDirectory == actual.IsDirectory && expected.Length == actual.Length
+        && (!writeTime || expected.LastWriteTimeUtc == actual.LastWriteTimeUtc) && expected.Attributes == actual.Attributes
+        && expected.AclSddl == actual.AclSddl && expected.Hash == actual.Hash
+        && expected.AlternateStreams.SequenceEqual(actual.AlternateStreams) && (!identity || expected.Identity == actual.Identity);
 
     public async Task<VerificationSummary> VerifyAsync(FileManifest sourceBefore, string sourceRoot, string targetRoot,
         VerificationMode mode, CancellationToken ct)
@@ -153,20 +168,16 @@ public sealed class CopyVerificationService
                 continue;
             }
             FileManifestEntry item = pair.Value;
-            if (item.IsDirectory != found.IsDirectory || item.Length != found.Length
-                || item.LastWriteTimeUtc != found.LastWriteTimeUtc || item.Attributes != found.Attributes
-                || item.AclSddl != found.AclSddl || item.Hash != found.Hash
-                || !item.AlternateStreams.SequenceEqual(found.AlternateStreams)
-                || (compareIdentity && item.Identity != found.Identity))
+            if (!SameEntry(item, found, compareIdentity))
                 mismatches.Add($"{scope}：类型/长度/时间/属性/ADS/ACL/内容或身份不符 {pair.Key}");
         }
         foreach (string path in actual.Entries.Keys)
             if (!expected.Entries.ContainsKey(path)) mismatches.Add($"{scope}：出现未知额外项 {path}");
     }
 
-    private static async Task<string> HashAsync(string path, long expectedLength, CancellationToken ct)
+    private static async Task<string> HashAsync(string path, long expectedLength, CancellationToken ct, FileShare share = FileShare.Read)
     {
-        await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+        await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, share,
             1, FileOptions.Asynchronous | FileOptions.SequentialScan);
         if (input.Length != expectedLength) throw new IOException($"读取内容前长度已经变化：{path}");
         byte[] digest = await SHA256.HashDataAsync(input, ct).ConfigureAwait(false);
