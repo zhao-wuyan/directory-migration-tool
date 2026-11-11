@@ -131,6 +131,18 @@ public static class MigrationWorkflowHelper
         result.RecoveryPaths = probe.CanProceed ? [] : [probe.ActualDataPath];
         result.ErrorMessage = probe.Error;
     }
+    public static void ApplyCopyResult(MigrationResult result, CopyExecutionResult copy)
+    {
+        result.TransactionId = copy.Transaction.TransactionId;
+        result.Stage = copy.RecoveryRequired ? MigrationStage.RecoveryRequired : copy.Cancelled ? MigrationStage.Cancelled : copy.Transaction.Stage;
+        result.VerificationSummary = copy.Verification;
+        result.BackupPath = copy.Transaction.BackupPath;
+        result.BackupState = copy.Transaction.BackupState;
+        result.ErrorMessage = copy.Error;
+        result.RollbackOutcome = copy.RecoveryRequired ? RollbackOutcome.RecoveryRequired : RollbackOutcome.NotRequired;
+        result.RecoveryPaths = copy.Success || copy.ActualDataPath.Length == 0 ? [] : [copy.ActualDataPath];
+    }
+
 
     /// <summary>
     /// 创建符号链接（包含备份源目录的操作）

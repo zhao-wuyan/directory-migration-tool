@@ -45,8 +45,7 @@ public class MigrationService
             logProgress?.Report("✅ 文件占用检测通过");
 
             // Phase 1: 路径解析与验证
-            ReportPhase(progress, logProgress, 1, "路径解析与验证");
-            await ValidatePathsAsync(logProgress);
+            ReportPhase(progress, logProgress, 1, "事务路径已通过准入");
 
             // Phase 2: 扫描源目录
             ReportPhase(progress, logProgress, 2, "扫描源目录");
@@ -55,7 +54,9 @@ public class MigrationService
 
             // Phase 3: 复制文件
             ReportPhase(progress, logProgress, 3, "复制文件");
-            await CopyFilesAsync(stats, progress, logProgress, cancellationToken);
+            var copy = await CopyFilesAsync(probe.Transaction ?? throw new IOException("缺少已保存事务。"), stats, progress, logProgress, cancellationToken);
+            MigrationWorkflowHelper.ApplyCopyResult(result, copy);
+            if (!copy.Success) return result;
 
             // Phase 4: 创建符号链接
             ReportPhase(progress, logProgress, 4, "创建符号链接");
@@ -104,89 +105,6 @@ public class MigrationService
         }
     }
 
-    private async Task ValidatePathsAsync(IProgress<string>? logProgress)
-    {
-        await Task.Run(() =>
-        {
-            // 清理源目录可能存在的旧标记文件
-            // 这些标记可能是之前作为目标目录时创建的，被还原操作复制回来了
-            if (Directory.Exists(_config.SourcePath))
-            {
-                MigrationStateDetector.DeleteMigrateMarkers(_config.SourcePath);
-                MigrationStateDetector.DeleteRestoreMarkers(_config.SourcePath);
-            }
-
-            // 验证源路径
-            var (isValidSource, sourceError, sourceWarning) = PathValidator.ValidateSourcePath(_config.SourcePath);
-            if (!isValidSource)
-                throw new InvalidOperationException(sourceError);
-
-            if (sourceWarning != null)
-                logProgress?.Report($"⚠️ {sourceWarning}");
-
-            // 获取源目录名称（用于可能的目标路径调整）
-            string sourceLeafForTarget = Path.GetFileName(_config.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            
-            // 若目标路径是一个已存在的非空文件夹，且不以源目录名结尾，则自动拼接源目录名
-            if (Directory.Exists(_config.TargetPath))
-            {
-                string targetLeafName = Path.GetFileName(_config.TargetPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (string.IsNullOrEmpty(targetLeafName))
-                {
-                    targetLeafName = new DirectoryInfo(_config.TargetPath).Name;
-                }
-                
-                // 检查目标目录是否非空
-                // 检查目录是否包含用户数据（忽略标记文件）
-                bool isNonEmpty = PathValidator.HasUserContent(_config.TargetPath);
-                
-                // 如果目标目录非空，且目标目录名不等于源目录名，则自动拼接
-                if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))
-                {
-                    string newTargetPath = Path.Combine(_config.TargetPath, sourceLeafForTarget);
-                    logProgress?.Report($"⚠️ 目标目录非空且不以源目录名结尾");
-                    logProgress?.Report($"   自动调整目标路径: {_config.TargetPath} -> {newTargetPath}");
-                    _config.TargetPath = newTargetPath;
-                }
-            }
-
-            // 验证目标路径
-            var (isValidTarget, targetError) = PathValidator.ValidateTargetPath(_config.TargetPath);
-            if (!isValidTarget)
-                throw new InvalidOperationException(targetError);
-
-            // 检查最终目标目录是否为空（在路径调整之后）
-            var (isEmpty, emptyError) = PathValidator.IsTargetDirectoryEmpty(_config.TargetPath);
-            if (!isEmpty)
-                throw new InvalidOperationException(emptyError);
-
-            // 验证路径关系
-            var (isValidRelation, relationError) = PathValidator.ValidatePathRelation(_config.SourcePath, _config.TargetPath);
-            if (!isValidRelation)
-                throw new InvalidOperationException(relationError);
-
-            // 权限检查
-            if (!PathValidator.IsAdministrator())
-            {
-                logProgress?.Report("⚠️ 当前非管理员权限，若未启用开发者模式，创建符号链接可能失败");
-            }
-
-            // 创建目标目录
-            string targetParent = Path.GetDirectoryName(_config.TargetPath) ?? throw new InvalidOperationException("无法解析目标父目录");
-            if (!Directory.Exists(targetParent))
-            {
-                Directory.CreateDirectory(targetParent);
-            }
-
-            if (!Directory.Exists(_config.TargetPath))
-            {
-                Directory.CreateDirectory(_config.TargetPath);
-            }
-
-            logProgress?.Report($"源目录: {_config.SourcePath}");
-            logProgress?.Report($"目标目录: {_config.TargetPath}");
-        });
-    }
 
     private async Task<FileStats> ScanSourceDirectoryAsync(
         IProgress<MigrationProgress>? progress,
@@ -213,21 +131,13 @@ public class MigrationService
         return stats;
     }
 
-    private async Task CopyFilesAsync(
-        FileStats stats,
-        IProgress<MigrationProgress>? progress,
-        IProgress<string>? logProgress,
+    private Task<CopyExecutionResult> CopyFilesAsync(MigrationTransactionRecord transaction,
+        FileStats stats, IProgress<MigrationProgress>? progress, IProgress<string>? logProgress,
         CancellationToken cancellationToken)
     {
-        var executor = new CopyOperationExecutor(
-            _config.SourcePath,
-            _config.TargetPath,
-            stats,
-            _config.RobocopyThreads,
-            _config.SampleMilliseconds,
-            "复制");
-
-        await executor.ExecuteAsync(progress, logProgress, cancellationToken);
+        var executor = new CopyOperationExecutor(transaction, stats,
+            _config.RobocopyThreads, _config.SampleMilliseconds, "复制");
+        return executor.ExecuteAsync(progress, logProgress, cancellationToken);
     }
 
     private async Task CreateSymbolicLinkAsync(IProgress<string>? logProgress)

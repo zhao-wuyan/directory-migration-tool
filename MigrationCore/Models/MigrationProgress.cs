@@ -6,6 +6,8 @@ namespace MigrationCore.Models;
 public class MigrationProgress
 {
     public MigrationStage? Stage { get; set; }
+    public CopyPhase? CopyPhase { get; set; }
+    public int? ProcessId { get; set; }
 
     /// <summary>
     /// 完成百分比（0-100）

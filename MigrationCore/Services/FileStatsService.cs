@@ -2,158 +2,76 @@ using MigrationCore.Models;
 
 namespace MigrationCore.Services;
 
-/// <summary>
-/// 文件统计服务
-/// </summary>
 public class FileStatsService
 {
-    /// <summary>
-    /// 扫描目录并获取统计信息
-    /// </summary>
-    public static async Task<FileStats> ScanDirectoryAsync(string directoryPath, long largeFileThresholdBytes, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    private static readonly string[] Sizes = ["B", "KB", "MB", "GB", "TB", "PB"];
+    private static readonly EnumerationOptions Enumeration = new()
+    {
+        AttributesToSkip = 0, IgnoreInaccessible = false, RecurseSubdirectories = false, ReturnSpecialDirectories = false
+    };
+
+    public static Task<FileStats> ScanDirectoryAsync(string directoryPath, long largeFileThresholdBytes,
+        IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         var stats = new FileStats();
-
-        if (!Directory.Exists(directoryPath))
-            return stats;
-
-        await Task.Run(() =>
+        foreach (FileInfo file in EnumerateFiles(directoryPath, cancellationToken))
         {
-            try
-            {
-                var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories);
-                
-                foreach (var file in files)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
-
-                    try
-                    {
-                        var fileInfo = new FileInfo(file);
-                        stats.TotalBytes += fileInfo.Length;
-                        stats.TotalFiles++;
-
-                        if (fileInfo.Length >= largeFileThresholdBytes)
-                        {
-                            stats.LargeFiles++;
-                        }
-
-                        // 每100个文件报告一次进度
-                        if (stats.TotalFiles % 100 == 0)
-                        {
-                            progress?.Report($"已扫描 {stats.TotalFiles} 个文件...");
-                        }
-                    }
-                    catch
-                    {
-                        // 忽略无法访问的文件
-                    }
-                }
-            }
-            catch
-            {
-                // 忽略枚举错误
-            }
-        }, cancellationToken);
-
+            long length = file.Length;
+            stats.TotalBytes = checked(stats.TotalBytes + length);
+            stats.TotalFiles++;
+            if (length >= largeFileThresholdBytes) stats.LargeFiles++;
+            if (stats.TotalFiles % 100 == 0) progress?.Report($"已扫描 {stats.TotalFiles} 个文件...");
+        }
         return stats;
-    }
+    }, cancellationToken);
 
-    /// <summary>
-    /// 获取目录大小（字节）
-    /// </summary>
+    // 聚合数值仅用于进度估计，不表示完整性或已经落盘。
     public static long GetDirectorySize(string directoryPath)
     {
-        if (!Directory.Exists(directoryPath))
-            return 0;
-
-        long totalSize = 0;
-
-        try
-        {
-            var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories);
-            foreach (var file in files)
-            {
-                try
-                {
-                    totalSize += new FileInfo(file).Length;
-                }
-                catch
-                {
-                    // 忽略无法访问的文件
-                }
-            }
-        }
-        catch
-        {
-            // 忽略枚举错误
-        }
-
-        return totalSize;
+        long size = 0;
+        foreach (FileInfo file in EnumerateFiles(directoryPath, CancellationToken.None)) size = checked(size + file.Length);
+        return size;
     }
 
-    /// <summary>
-    /// 获取目录实际占用的磁盘空间（字节）- 使用磁盘上的实际大小
-    /// 这个方法会返回文件实际写入磁盘的字节数，而不是文件分配的大小
-    /// </summary>
+    /// <summary>返回逻辑长度估计，不是物理分配容量；沿用既有进度查询接口。</summary>
     public static long GetDirectorySizeOnDisk(string directoryPath)
     {
-        if (!Directory.Exists(directoryPath))
-            return 0;
+        long size = 0;
+        foreach (FileInfo file in EnumerateFiles(directoryPath, CancellationToken.None)) size = checked(size + file.Length);
+        return size;
+    }
 
-        long totalSize = 0;
-
-        try
+    private static IEnumerable<FileInfo> EnumerateFiles(string path, CancellationToken ct)
+    {
+        path = PathIdentityService.Normalize(path);
+        MigrationRuntime.AssertDataPath(path);
+        var identity = new PathIdentityService();
+        DirectoryIdentity root = identity.ReadDirectory(path, false);
+        if (root.IsReparsePoint) throw new IOException($"不能统计未知重解析目录：{path}");
+        var pending = new Stack<string>();
+        pending.Push(path);
+        while (pending.TryPop(out string? directory))
         {
-            var files = Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories);
-            foreach (var file in files)
+            ct.ThrowIfCancellationRequested();
+            if (identity.ReadDirectory(directory, false).IsReparsePoint) throw new IOException($"发现未知重解析目录：{directory}");
+            foreach (FileSystemInfo entry in new DirectoryInfo(directory).EnumerateFileSystemInfos("*", Enumeration))
             {
-                try
-                {
-                    var fileInfo = new FileInfo(file);
-                    // 使用Length而不是GetCompressedFileSize，因为后者需要P/Invoke
-                    // 我们通过监控增量变化来平滑进度
-                    totalSize += fileInfo.Length;
-                }
-                catch
-                {
-                    // 忽略无法访问的文件
-                }
+                ct.ThrowIfCancellationRequested();
+                if ((entry.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException($"发现未知重解析点：{entry.FullName}");
+                if (entry is DirectoryInfo) pending.Push(entry.FullName);
+                else yield return (FileInfo)entry;
             }
         }
-        catch
-        {
-            // 忽略枚举错误
-        }
-
-        return totalSize;
+        identity.RequireSame(path, root);
     }
 
-    /// <summary>
-    /// 格式化字节数为可读字符串
-    /// </summary>
     public static string FormatBytes(long bytes)
     {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB", "PB" };
-        double len = bytes;
+        double length = bytes;
         int order = 0;
-
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len = len / 1024;
-        }
-
-        return $"{len:N2} {sizes[order]}";
+        while (length >= 1024 && order < Sizes.Length - 1) { order++; length /= 1024; }
+        return $"{length:N2} {Sizes[order]}";
     }
 
-    /// <summary>
-    /// 格式化速度为可读字符串
-    /// </summary>
-    public static string FormatSpeed(double bytesPerSecond)
-    {
-        return FormatBytes((long)bytesPerSecond) + "/s";
-    }
+    public static string FormatSpeed(double bytesPerSecond) => FormatBytes((long)bytesPerSecond) + "/s";
 }
-

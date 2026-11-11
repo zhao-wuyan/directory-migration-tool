@@ -54,6 +54,7 @@ public sealed record MigrationTransactionRecord
     public string TargetPath { get; init; } = "";
     public DirectoryIdentity? TargetParentIdentity { get; init; }
     public string? StagingPath { get; init; }
+    public DirectoryIdentity? StagingParentIdentity { get; init; }
     public DirectoryIdentity? StagingIdentity { get; init; }
     public DirectoryIdentity? ReservedEmptyTargetIdentity { get; init; }
     public string? ProbePath { get; init; }

@@ -65,6 +65,7 @@ internal static partial class Program
         {
             "Identity" => IdentityCaseNames,
             "Probe" => ProbeCaseNames,
+            "Copy" => CopyCaseNames,
             _ => ["roots", "unknown-drive", "wrong-serial", "wrong-guid", "component-boundary",
                 "system-path-parser", "untrusted-reparse", "cross-volume-copy", "source-rename",
                 "actual-link-target", "fixture-only-deletion"]
@@ -79,9 +80,10 @@ internal static partial class Program
             Lab lab = LoadLab(args);
             runId = lab.RunId;
             attemptId = Guid.NewGuid();
-            if (suite != "Boundary") MigrationRuntime.InitializeTestLab(args[1], lab.RunId);
+            MigrationRuntime.InitializeTestLab(args[1], lab.RunId);
             if (suite == "Identity") await RunIdentityCases(lab, attemptId.Value, cases);
             else if (suite == "Probe") await RunProbeCases(lab, attemptId.Value, cases);
+            else if (suite == "Copy") await RunCopyCases(lab, attemptId.Value, cases);
             else await RunCases(lab, attemptId.Value, cases);
         }
         catch (Exception ex)
@@ -105,8 +107,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");
@@ -310,8 +312,7 @@ internal static partial class Program
                 "Unexpected robocopy.exe in the runner package.");
             try
             {
-                // The existing executor resolves robocopy by name. Keep untrusted launch
-                // directories out of the executable search, including the current directory.
+                // 显式核对系统复制工具；进程级工作目录变化在 finally 中恢复。
                 Directory.SetCurrentDirectory(systemDirectory);
                 o["hostFreeBytes"] = lab.BeforeWrite();
                 SameObject(sourceDirectory, source.Existing(original, sample), "Copy source changed");
@@ -319,9 +320,16 @@ internal static partial class Program
                 VerifyFile(source, original, input, sourceFile, payload);
                 Require(Directory.EnumerateFileSystemEntries(original).SequenceEqual(new[] { input }, StringComparer.OrdinalIgnoreCase) &&
                     !Directory.EnumerateFileSystemEntries(destination).Any(), "Unexpected copy fixture contents.");
-                var executor = new CopyOperationExecutor(original, destination,
+                var record = await MigrationWorkflowHelper.PrepareTransactionAsync(
+                    new MigrationConfig { SourcePath = original, TargetPath = destination }, MigrationMode.Migrate, CancellationToken.None);
+                var executor = new CopyOperationExecutor(record,
                     new FileStats { TotalBytes = payload.Length, TotalFiles = 1 }, robocopyThreads: 2, sampleMilliseconds: 250);
-                await executor.ExecuteAsync(null, null, CancellationToken.None);
+                var copied = await executor.ExecuteAsync(null, null, CancellationToken.None);
+                Require(copied.Success && copied.ProcessExited, $"Copy/verification failed: {copied.Error}");
+                targetDirectory = target.Existing(destination, targets);
+                Require(copied.Transaction.TargetIdentity?.FileId == targetDirectory.FileId
+                    && copied.Transaction.TargetIdentity.VolumeSerial == targetDirectory.Serial,
+                    "Promoted destination does not match the transaction identity.");
             }
             finally
             {
