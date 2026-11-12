@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Publish script for MoveWithSymlink WPF Application
 # 支持多种发布模式：
 #   1. 自包含版本 (SelfContained): 包含完整运行时，体积大，无需安装 .NET

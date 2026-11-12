@@ -1,0 +1,23 @@
+[task_config]
+dir = "{{config_root}}"
+shell = "powershell.exe -NoLogo -NoProfile -Command"
+
+[tasks.dev]
+description = "从源码启动 WPF Debug 开发环境"
+run = "dotnet run --project MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj --configuration Debug"
+
+[tasks.package]
+description = "打包自包含 Release 版本（包含 .NET 运行时）"
+run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode selfcontained"
+
+[tasks."package:lite"]
+description = "打包轻量 Release 版本（需要 .NET 8 Desktop Runtime）"
+run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode lite"
+
+[tasks."package:both"]
+description = "同时打包自包含和轻量 Release 版本"
+run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode both"
+
+[tasks."package:debug"]
+description = "打包带控制台的 Debug 版本（不递增版本号）"
+run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode debug"

@@ -234,6 +234,36 @@ moveFloder/
 - Visual Studio 2022 或更高版本
 - .NET 8.0 SDK
 
+### 使用 mise（推荐）
+
+安装 [mise](https://mise.jdx.dev/) 和 .NET 8.0 SDK 后，可从仓库根目录或子目录执行以下任务。任务固定在仓库根目录运行，使用 Windows 自带的 `powershell.exe`，不要求额外安装 PowerShell 7。
+
+| 命令 | 用途 |
+| --- | --- |
+| `mise run dev` | 从当前源码启动 WPF Debug 开发环境，显示调试控制台，不使用已有发布包 |
+| `mise run package` | 打包自包含 Release 版本，包含 .NET 运行时 |
+| `mise run package:lite` | 打包轻量 Release 版本，运行时需要 .NET 8.0 Desktop Runtime |
+| `mise run package:both` | 同时打包自包含和轻量 Release 版本 |
+| `mise run package:debug` | 打包带控制台的 Debug 版本，不递增版本号 |
+
+首次运行若提示配置不受信任，先执行 `mise trust mise.toml`。开发时需要创建符号链接等管理员操作，请在管理员终端执行 `mise run dev`。
+
+打包任务复用 `publish.ps1`：正式模式默认递增 patch 版本并同步项目文件；调试模式不递增。参数可通过 `--` 透传：
+
+```powershell
+# 使用当前版本打包，不递增版本号（仍会同步项目中的版本字段）
+mise run package -- -s
+
+# 查看发布脚本帮助，不执行打包
+mise run package -- -Help
+
+# 查看全部任务或预览将执行的命令
+mise tasks ls
+mise run --dry-run package:both
+```
+
+产物位于 `MoveWithSymlinkWPF/bin/publish/`：自包含版在 `win-x64/`，轻量版在 `win-x64-framework-dependent/`，调试版在 `win-x64-debug/`。
+
 ### 构建步骤
 
 1. 克隆或下载项目
