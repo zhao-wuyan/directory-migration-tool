@@ -19,7 +19,7 @@ public sealed class CopyVerificationService
     };
 
     // 路径无关的规范摘要：重命名后仍可与持久化基线比较，不重新认领当前集合。
-    public static string Fingerprint(FileManifest manifest, bool includeIdentity)
+    public static string Fingerprint(FileManifest manifest, bool includeIdentity, bool copiedRoot = false)
     {
         using var hash = SHA256.Create();
         using var stream = new CryptoStream(Stream.Null, hash, CryptoStreamMode.Write);
@@ -36,7 +36,8 @@ public sealed class CopyVerificationService
                 json.WriteNumberValue(item.Length);
                 json.WriteNumberValue(item.LastWriteTimeUtc.Ticks);
                 json.WriteNumberValue((int)item.Attributes);
-                json.WriteStringValue(item.AclSddl);
+                json.WriteStringValue(copiedRoot && pair.Key.Length == 0
+                    ? RootSecuritySnapshot.Create(item.AclSddl).GetSddlForm(SecuritySections) : item.AclSddl);
                 json.WriteStringValue(item.Hash);
                 foreach (var ads in item.AlternateStreams)
                 {
@@ -128,7 +129,9 @@ public sealed class CopyVerificationService
     internal static bool SameEntry(FileManifestEntry expected, FileManifestEntry actual, bool identity, bool writeTime = true) =>
         expected.IsDirectory == actual.IsDirectory && expected.Length == actual.Length
         && (!writeTime || expected.LastWriteTimeUtc == actual.LastWriteTimeUtc) && expected.Attributes == actual.Attributes
-        && expected.AclSddl == actual.AclSddl && expected.Hash == actual.Hash
+        && (expected.AclSddl == actual.AclSddl || (!identity && expected.RelativePath.Length == 0
+            && RootSecuritySnapshot.Create(expected.AclSddl).GetSddlForm(SecuritySections) == actual.AclSddl))
+        && expected.Hash == actual.Hash
         && expected.AlternateStreams.SequenceEqual(actual.AlternateStreams) && (!identity || expected.Identity == actual.Identity);
 
     public async Task<VerificationSummary> VerifyAsync(FileManifest sourceBefore, string sourceRoot, string targetRoot,

@@ -141,6 +141,8 @@ try {
 "@
     $processEnvironment = @{
         DOTNET_CLI_HOME = Get-LabDirectory (Join-Path $cache 'DotNet')
+        # A fresh DOTNET_CLI_HOME makes the SDK first-run append its tools dir to HKCU PATH (dotnet/sdk#56512).
+        DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
         NUGET_PACKAGES = Get-LabDirectory (Join-Path $cache 'Packages')
         NUGET_HTTP_CACHE_PATH = Get-LabDirectory (Join-Path $cache 'Http')
         TEMP = Get-LabDirectory (Join-Path $cache 'Temp')

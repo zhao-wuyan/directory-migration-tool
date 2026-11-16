@@ -204,7 +204,7 @@ public static class MigrationWorkflowHelper
             record = await new MigrationTransactionStore().SaveAsync(record with
             {
                 SourceManifestDigest = CopyVerificationService.Fingerprint(before, includeIdentity: true),
-                VerifiedManifestDigest = CopyVerificationService.Fingerprint(before, includeIdentity: false)
+                VerifiedManifestDigest = CopyVerificationService.Fingerprint(before, includeIdentity: false, copiedRoot: mode != MigrationMode.Repair)
             }, record.Revision, ct).ConfigureAwait(false);
             Publish(record, progress);
             if (mode == MigrationMode.Restore)
@@ -346,13 +346,13 @@ public static class MigrationWorkflowHelper
         if (source is not null)
         {
             identity.RequireSame(record.SourcePath, record.SourceIdentity);
-            if (record.BackupPath is not null)
+            if (record.BackupPath is string backupPath)
             {
-                if (record.BackupPath != record.SourcePath + ".bak_" + record.TransactionId.ToString("D"))
+                if (backupPath != record.SourcePath + ".bak_" + record.TransactionId.ToString("D"))
                     throw new IOException("备份意图路径不属于本事务。");
-                identity.RequireMissing(record.BackupPath);
-                Directory.Move(record.SourcePath, record.BackupPath);
-                identity.RequireSame(record.BackupPath, record.SourceIdentity);
+                identity.RequireMissing(backupPath);
+                Directory.Move(record.SourcePath, backupPath);
+                identity.RequireSame(backupPath, record.SourceIdentity);
                 record = await new MigrationTransactionStore().SaveAsync(record with
                 {
                     Stage = MigrationStage.SourceRenamed, BackupIdentity = record.SourceIdentity,
@@ -360,7 +360,7 @@ public static class MigrationWorkflowHelper
                     BackupState = BackupState.RetainedUnverified
                 }, record.Revision, CancellationToken.None).ConfigureAwait(false);
                 Publish(record, progress);
-                await RequireUnchangedAsync(before, record.BackupPath, record.TargetPath, ct).ConfigureAwait(false);
+                await RequireUnchangedAsync(before, backupPath, record.TargetPath, ct).ConfigureAwait(false);
             }
             else
             {

@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security.AccessControl;
 using System.Text;
 using MigrationCore.Models;
 
@@ -96,10 +95,8 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
             cancellationToken.ThrowIfCancellationRequested();
             identity.RequireSame(staging, stageIdentity);
             if (Directory.EnumerateFileSystemEntries(staging).Any()) throw new IOException("新建 staging 出现未知内容，拒绝复制。");
-            // /E 不替换既有目的根目录的 ACL；在空 staging 上先保留根安全信息。
-            var rootSecurity = new DirectorySecurity();
-            rootSecurity.SetSecurityDescriptorSddlForm(before.Entries[""].AclSddl, AccessControlSections.All);
-            new DirectoryInfo(staging).SetAccessControl(rootSecurity);
+            // /E 不替换既有目的根目录 ACL；先冻结源根权限，避免继承目标父目录的规则。
+            RootSecuritySnapshot.Apply(staging, before.Entries[""].AclSddl);
             identity.RequireSame(staging, stageIdentity);
             var arguments = new[] { source, staging, "/E", "/COPYALL", "/DCOPY:DAT", "/R:0", "/W:0", "/XJ", "/SL",
                 "/XC", "/XN", "/XO", "/BYTES", "/FP", "/UNICODE", $"/MT:{Math.Clamp(robocopyThreads, 1, 128)}" };

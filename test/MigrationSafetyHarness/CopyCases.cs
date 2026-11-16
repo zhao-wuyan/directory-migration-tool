@@ -14,7 +14,8 @@ internal static partial class Program
         "A04-file-lengths-equal-total", "A05-zero-and-empty-missing", "A06-unsafe-enumeration",
         "A07-basic-versus-hash", "A08-source-changed", "A09-nonempty-target", "A09-target-appears",
         "A09-staging-file-preserved", "A09-staging-identity-changed", "basic-with-data-read-denied" }
-        .Concat(CancelCopyPhases.Select(p => "A13-cancel-" + p)).ToArray();
+        .Concat(CancelCopyPhases.Select(p => "A13-cancel-" + p))
+        .Concat(["inherited-root-acl-roundtrip", "root-acl-tamper-rejected"]).ToArray();
 
     private sealed class CopyObserver(Action<MigrationProgress> report) : IProgress<MigrationProgress>
     { public void Report(MigrationProgress value) => report(value); }
@@ -89,6 +90,68 @@ internal static partial class Program
         Require(result.Success && result.ExitCode is >= 0 and < 8 && result.ProcessExited,
             $"Actual Robocopy/manifest failed: {result.Error}");
         return result;
+    }
+
+    private static CopyFixture NewInheritedRootFixture(Lab lab, Guid attempt, string name)
+    {
+        var f = NewSwitchFixture(lab, attempt, name);
+        string parent = Path.GetDirectoryName(f.Source)!;
+        string targetParent = f.Target;
+        NewDirectory(lab, lab.Target, Path.GetDirectoryName(targetParent)!, targetParent);
+        f = f with { Target = Path.Combine(targetParent, "copied-root") };
+        lab.BeforeWrite();
+        var guests = new SecurityIdentifier(WellKnownSidType.BuiltinGuestsSid, null);
+        var inheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+        var sourceAcl = new DirectoryInfo(parent).GetAccessControl(AccessControlSections.All);
+        sourceAcl.AddAccessRule(new FileSystemAccessRule(guests, FileSystemRights.WriteData,
+            inheritance, PropagationFlags.None, AccessControlType.Deny));
+        sourceAcl.AddAuditRule(new FileSystemAuditRule(WindowsIdentity.GetCurrent().User!, FileSystemRights.WriteData,
+            inheritance, PropagationFlags.None, AuditFlags.Failure));
+        new DirectoryInfo(parent).SetAccessControl(sourceAcl);
+        var rootAcl = new DirectoryInfo(f.Source).GetAccessControl(AccessControlSections.All);
+        rootAcl.AddAccessRule(new FileSystemAccessRule(guests, FileSystemRights.WriteData, AccessControlType.Allow));
+        new DirectoryInfo(f.Source).SetAccessControl(rootAcl);
+        var targetAcl = new DirectoryInfo(targetParent).GetAccessControl(AccessControlSections.All);
+        targetAcl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+            FileSystemRights.WriteData, inheritance, PropagationFlags.None, AccessControlType.Allow));
+        new DirectoryInfo(targetParent).SetAccessControl(targetAcl);
+        string nested = Path.Combine("空目录", "nested.txt");
+        byte[] bytes = Encoding.UTF8.GetBytes("Inherited permissions must survive relocation.");
+        f.Files[nested] = (WriteFile(lab, lab.Source, f.Source, Path.Combine(f.Source, nested), bytes), bytes);
+        Require(!new DirectoryInfo(f.Source).GetAccessControl().AreAccessRulesProtected,
+            "The regression fixture must inherit source-parent permissions.");
+        return f;
+    }
+
+    private static void AssertCopiedRootAcl(string source, string target)
+    {
+        var expected = new RawSecurityDescriptor(new DirectoryInfo(source).GetAccessControl(AccessControlSections.All)
+            .GetSecurityDescriptorSddlForm(AccessControlSections.All));
+        var actualSecurity = new DirectoryInfo(target).GetAccessControl(AccessControlSections.All);
+        var actual = new RawSecurityDescriptor(actualSecurity.GetSecurityDescriptorSddlForm(AccessControlSections.All));
+        Require(actualSecurity.AreAccessRulesProtected && actualSecurity.AreAuditRulesProtected,
+            "The copied root must not inherit destination-parent access or audit rules.");
+        Require(expected.Owner == actual.Owner && expected.Group == actual.Group
+            && Rules(expected.DiscretionaryAcl).SequenceEqual(Rules(actual.DiscretionaryAcl))
+            && Rules(expected.SystemAcl).SequenceEqual(Rules(actual.SystemAcl)),
+            "Root owner, group, access or audit rules changed across different parents.");
+        var guests = new SecurityIdentifier(WellKnownSidType.BuiltinGuestsSid, null);
+        var guestRules = actual.DiscretionaryAcl!.OfType<CommonAce>().Where(a => a.SecurityIdentifier == guests).ToArray();
+        Require(guestRules.Length == 2 && guestRules[0].AceQualifier == AceQualifier.AccessAllowed
+            && guestRules[1].AceQualifier == AceQualifier.AccessDenied,
+            "Freezing inheritance reordered an explicit allow behind an inherited deny.");
+
+        static string[] Rules(RawAcl? acl)
+        {
+            if (acl is null) return [];
+            return acl.Cast<GenericAce>().Select(ace =>
+            {
+                ace.AceFlags &= ~AceFlags.Inherited;
+                var bytes = new byte[ace.BinaryLength];
+                ace.GetBinaryForm(bytes, 0);
+                return Convert.ToHexString(bytes);
+            }).OrderBy(rule => rule, StringComparer.Ordinal).ToArray();
+        }
     }
 
     private static async Task RunCopyCases(Lab lab, Guid attempt, CaseEvidence[] cases)
@@ -340,5 +403,47 @@ internal static partial class Program
                 o["processExitedBeforeReturn"] = result.ProcessExited; o["sourceFilesChecked"] = f.Files.Count;
             });
         }
+        await RunCase(lab, cases.Single(c => c.Name == "inherited-root-acl-roundtrip"), async o =>
+        {
+            var f = NewInheritedRootFixture(lab, attempt, "inherited-acl");
+            var source = await verifier.CaptureAsync(f.Source, VerificationMode.Basic, CancellationToken.None);
+            var migrated = await MigrateSwitch(f);
+            AssertSwitched(f, migrated, o);
+            var migratedRecord = CopyRecord(f);
+            string backup = migratedRecord.BackupPath!;
+            Require(CopyVerificationService.Fingerprint(source, true)
+                == CopyVerificationService.Fingerprint(await verifier.CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None), true),
+                "Copying changed the original source or its retained backup ACL.");
+            AssertCopiedRootAcl(backup, f.Target);
+            Require(!new DirectoryInfo(Path.Combine(f.Target, "空目录")).GetAccessControl().AreAccessRulesProtected,
+                "Root freezing must not disable inheritance on descendants.");
+            var target = await verifier.CaptureAsync(f.Target, VerificationMode.Basic, CancellationToken.None);
+            Require(migratedRecord.VerifiedManifestDigest == CopyVerificationService.Fingerprint(target, false),
+                "The persisted target baseline does not describe the copied security snapshot.");
+            var restored = await new ReversibleMigrationService(SwitchConfig(f), MigrationMode.Restore).ExecuteAsync();
+            Require(restored.Success && restored.Stage == MigrationStage.AwaitingUserVerification,
+                "Inherited-root restore failed: " + restored.ErrorMessage);
+            AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, backup);
+            AssertCopiedRootAcl(backup, f.Source);
+            o["restored"] = true; o["originalBackupRetained"] = backup;
+        });
+        await RunCase(lab, cases.Single(c => c.Name == "root-acl-tamper-rejected"), async o =>
+        {
+            var f = NewInheritedRootFixture(lab, attempt, "tampered-root-acl");
+            var copy = await CopyFixtureData(lab, f);
+            lab.BeforeWrite();
+            var changed = new RawSecurityDescriptor(new DirectoryInfo(f.Target).GetAccessControl(AccessControlSections.All)
+                .GetSecurityDescriptorSddlForm(AccessControlSections.All));
+            changed.DiscretionaryAcl!.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied,
+                (int)FileSystemRights.WriteData, new SecurityIdentifier(WellKnownSidType.WorldSid, null), false, null));
+            var security = new DirectorySecurity();
+            security.SetSecurityDescriptorSddlForm(changed.GetSddlForm(AccessControlSections.All), AccessControlSections.All);
+            new DirectoryInfo(f.Target).SetAccessControl(security);
+            var summary = await verifier.VerifyAsync(copy.SourceManifest!, f.Source, f.Target, VerificationMode.Basic, CancellationToken.None);
+            Require(!summary.IsMatch,
+                "Root snapshot comparison accepted a changed access rule.");
+            AssertCopySource(lab, f);
+            o["verification"] = summary; o["source"] = f.Source; o["target"] = f.Target;
+        });
     }
 }

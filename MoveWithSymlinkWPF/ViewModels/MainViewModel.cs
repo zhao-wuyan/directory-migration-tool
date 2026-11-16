@@ -733,14 +733,7 @@ public partial class MainViewModel : ObservableObject
             }
             else
             {
-                // 失败情况
-                string operationType = MigrationMode == MigrationMode.Restore ? "还原" : 
-                                      MigrationMode == MigrationMode.Repair ? "修复" : "迁移";
-                ResultMessage = $"❌ {operationType}失败\n\n" +
-                               $"错误信息: {result.ErrorMessage}\n\n" +
-                               (result.RollbackOutcome == RollbackOutcome.Restored ? "✓ 已核对并恢复原始目录\n" : "需核对实际数据位置，不能认定已恢复\n") +
-                               "请查看下方日志了解详细信息。";
-                if (result.RecoveryPaths.Length > 0) ResultMessage += "\n\n保留/待核对位置：\n" + string.Join("\n", result.RecoveryPaths);
+                ShowFailureResult(result);
             }
 
             CurrentStep = 4;
@@ -768,6 +761,22 @@ public partial class MainViewModel : ObservableObject
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
         }
+    }
+
+    private void ShowFailureResult(MigrationResult result)
+    {
+        string operationType = MigrationMode == MigrationMode.Restore ? "还原" :
+                              MigrationMode == MigrationMode.Repair ? "修复" : "迁移";
+        string rollbackMessage = result.RollbackOutcome switch
+        {
+            RollbackOutcome.NotRequired => "未切换原路径，无需回滚。\n",
+            RollbackOutcome.Restored => "✓ 已核对并恢复操作前状态。\n",
+            _ => "需核对实际数据位置，不能认定已恢复。\n"
+        };
+        ResultMessage = $"❌ {operationType}失败\n\n" +
+                        $"错误信息: {result.ErrorMessage}\n\n" +
+                        rollbackMessage + "请查看下方日志了解详细信息。";
+        if (result.RecoveryPaths.Length > 0) ResultMessage += "\n\n保留/待核对位置：\n" + string.Join("\n", result.RecoveryPaths);
     }
 
     [RelayCommand]
