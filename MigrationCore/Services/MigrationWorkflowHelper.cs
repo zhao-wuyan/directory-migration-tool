@@ -34,26 +34,36 @@ public static class MigrationWorkflowHelper
             if (!sourceIdentity.IsReparsePoint) throw new IOException("还原源不是已登记的链接。");
             DirectoryIdentity targetIdentity = identity.ReadDirectory(config.TargetPath, false);
             if (targetIdentity.IsReparsePoint) throw new IOException("还原目标不是普通实体目录。");
-            MigrationTransactionRecord record = (await store.ReadAllAsync(ct).ConfigureAwait(false))
-                .SingleOrDefault(r => r.SourcePath.Equals(config.SourcePath, StringComparison.OrdinalIgnoreCase)
+            var allRecords = await store.ReadAllAsync(ct).ConfigureAwait(false);
+            if (allRecords.Any(r => r.SourcePath.Equals(config.SourcePath, StringComparison.OrdinalIgnoreCase)
+                && r.TargetPath.Equals(config.TargetPath, StringComparison.OrdinalIgnoreCase)
+                && (r.IsActive || r.BackupDeletionInProgress)))
+                throw new IOException("存在尚未结束的迁移或备份处理事务，不能开始还原。");
+            MigrationTransactionRecord prior = allRecords
+                .Where(r => r.SourcePath.Equals(config.SourcePath, StringComparison.OrdinalIgnoreCase)
                     && r.TargetPath.Equals(config.TargetPath, StringComparison.OrdinalIgnoreCase)
                     && r.LinkIdentity == sourceIdentity && r.TargetIdentity == targetIdentity
                     && (r.Stage == MigrationStage.AwaitingUserVerification
                         || r.Stage is MigrationStage.Cancelled or MigrationStage.Failed))
+                .OrderByDescending(r => r.UpdatedAtUtc)
+                .FirstOrDefault()
                 ?? throw new IOException("没有身份匹配的可还原事务，不能按目录名认领。");
-            if (record.BackupDeletionInProgress) throw new IOException("备份处理尚未结束，不能开始还原。");
             identity.RequireSame(config.SourcePath, targetIdentity, true);
-            if (record.BackupIdentity is not null && record.BackupState is not (BackupState.Deleted or BackupState.Recycled))
-                identity.RequireSame(record.BackupPath ?? throw new IOException("备份路径缺失。"), record.BackupIdentity);
-            return await store.SaveAsync(record with
+            // 还原创建独立事务，不继承原迁移的备份路径、回收状态或删除记录；还原完成后将原目标改名为本次还原备份。
+            var restore = new MigrationTransactionRecord
             {
-                Mode = MigrationMode.Restore, Stage = MigrationStage.Prepared,
-                SourceParentIdentity = record.SourceParentIdentity ?? identity.ReadDirectory(Path.GetDirectoryName(config.SourcePath)!, false),
-                ProbePath = config.TargetPath + "_lock_test_" + record.TransactionId.ToString("D"),
-                StagingPath = null, StagingIdentity = null, StagingParentIdentity = null,
-                VerificationMode = config.VerificationMode,
-                VerificationSummary = null, UserVerifiedAtUtc = null, DeletionRequest = null
-            }, record.Revision, ct).ConfigureAwait(false);
+                Mode = MigrationMode.Restore,
+                SourcePath = config.SourcePath,
+                TargetPath = config.TargetPath,
+                SourceIdentity = sourceIdentity,
+                LinkIdentity = sourceIdentity,
+                TargetIdentity = targetIdentity,
+                SourceParentIdentity = prior.SourceParentIdentity ?? identity.ReadDirectory(Path.GetDirectoryName(config.SourcePath)!, false),
+                TargetParentIdentity = prior.TargetParentIdentity,
+                VerificationMode = config.VerificationMode
+            };
+            restore = restore with { ProbePath = restore.TargetPath + "_lock_test_" + restore.TransactionId.ToString("D") };
+            return await store.CreateAsync(restore, ct).ConfigureAwait(false);
         }
         if (mode != MigrationMode.Migrate || sourceIdentity.IsReparsePoint)
             throw new IOException("迁移源必须是普通实体目录。");
@@ -405,6 +415,13 @@ public static class MigrationWorkflowHelper
         identity.RequireSame(record.TargetPath, record.TargetIdentity);
         identity.RequireSame(record.StagingPath!, record.StagingIdentity);
         await RequireUnchangedAsync(before, record.TargetPath, record.StagingPath!, ct).ConfigureAwait(false);
+        // 改名前先持久化本次还原的备份意图（将原目标目录改名为 .bak_<txId>），异常不会遗失备份位置。
+        string backupPath = record.TargetPath + ".bak_" + record.TransactionId.ToString("D");
+        MigrationRuntime.AssertDataPath(backupPath);
+        identity.RequireMissing(backupPath);
+        var store = new MigrationTransactionStore();
+        record = await store.SaveAsync(record with { BackupPath = backupPath }, record.Revision, ct).ConfigureAwait(false);
+        Publish(record, progress);
         ct.ThrowIfCancellationRequested();
         Directory.Delete(record.SourcePath, recursive: false);
         record = await SaveVacatedAsync(record, progress).ConfigureAwait(false);
@@ -415,8 +432,21 @@ public static class MigrationWorkflowHelper
         await RequireUnchangedAsync(before, record.TargetPath, record.StagingPath!, ct).ConfigureAwait(false);
         Directory.Move(record.StagingPath!, record.SourcePath);
         identity.RequireSame(record.SourcePath, record.StagingIdentity);
-        return await new MigrationTransactionStore().SaveAsync(record with { LinkIdentity = null }, record.Revision,
+        record = await store.SaveAsync(record with { LinkIdentity = null }, record.Revision,
             CancellationToken.None).ConfigureAwait(false);
+        Publish(record, progress);
+        // 原路径已完整还原为实目录，再将原目标目录改名为本次还原备份，供用户验证后独立双确认清理。
+        RequireParents(record, identity);
+        identity.RequireSame(record.TargetPath, record.TargetIdentity);
+        identity.RequireMissing(backupPath);
+        Directory.Move(record.TargetPath, backupPath);
+        identity.RequireSame(backupPath, record.TargetIdentity);
+        return await store.SaveAsync(record with
+        {
+            BackupIdentity = record.TargetIdentity,
+            BackupManifestDigest = record.SourceManifestDigest,
+            BackupState = BackupState.RetainedUnverified
+        }, record.Revision, CancellationToken.None).ConfigureAwait(false);
     }
 
     public static async Task<RollbackOutcome> RollbackMigrationAsync(MigrationTransactionRecord record, CancellationToken ct = default)
@@ -470,6 +500,9 @@ public static class MigrationWorkflowHelper
     {
         var identity = new PathIdentityService();
         RequireParents(record, identity);
+        if (record.BackupPath is not null && record.BackupIdentity == record.TargetIdentity
+            && identity.ReadIfExists(record.BackupPath) == record.TargetIdentity)
+            return RollbackOutcome.RecoveryRequired;
         identity.RequireSame(record.TargetPath, record.TargetIdentity);
         DirectoryIdentity? source = identity.ReadIfExists(record.SourcePath);
         if (source is not null)

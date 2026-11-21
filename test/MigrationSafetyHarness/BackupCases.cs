@@ -42,16 +42,17 @@ internal static partial class Program
             if (confirmed)
             {
                 await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.First, null);
-                request = await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath)));
+                request = await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, BackupManagementService.ExpectedConfirmationName(record));
             }
             return request;
         }
         void Intact(CopyFixture f)
         {
             var record = CopyRecord(f);
-            identity.RequireSame(record.BackupPath!, f.SourceIdentity);
+            identity.RequireSame(record.BackupPath!, record.BackupIdentity);
             AssertSwitchBytes(f, record.BackupPath!);
-            AssertSwitchBytes(f, f.Target);
+            if (!BackupManagementService.IsRestoreTargetBackup(record))
+                AssertSwitchBytes(f, f.Target);
         }
         await Case("A18-unverified", async o =>
         {

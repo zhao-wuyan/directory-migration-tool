@@ -33,7 +33,10 @@ public static class MigrationStateDetector
                 if (!record.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase)
                     || !record.TargetPath.Equals(task.TargetPath, StringComparison.OrdinalIgnoreCase))
                     throw new IOException("当前配置与已登记事务路径不同，不能认领另一目标。");
-                if (record.TargetIdentity is not null) identity.RequireSame(record.TargetPath, record.TargetIdentity);
+                bool restoreTargetBackup = BackupManagementService.IsRestoreTargetBackup(record)
+                    && record.BackupIdentity == record.TargetIdentity;
+                if (record.TargetIdentity is not null && !restoreTargetBackup)
+                    identity.RequireSame(record.TargetPath, record.TargetIdentity);
                 if (record.BackupIdentity is not null && record.BackupState is not (BackupState.Recycled or BackupState.Deleted))
                     identity.RequireSame(record.BackupPath ?? throw new IOException("备份路径缺失。"), record.BackupIdentity);
                 if (record.Stage == MigrationStage.AwaitingUserVerification)

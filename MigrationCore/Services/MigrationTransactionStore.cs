@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MigrationCore.Models;
@@ -40,7 +41,7 @@ public sealed class MigrationTransactionStore
         foreach (MigrationTransactionRecord other in await ReadAllUnlocked(ct).ConfigureAwait(false))
         {
             if (!other.IsActive) continue;
-            if (PathsOverlap(record, other)) throw new IOException($"与活动事务重叠：{other.TransactionId}");
+            if (PathsOverlap(record, other, _identity)) throw new IOException($"与活动事务重叠：{other.TransactionId}");
         }
         var saved = record with { Revision = 1, UpdatedAtUtc = DateTimeOffset.UtcNow };
         await WriteSnapshot(saved, false, ct).ConfigureAwait(false);
@@ -78,8 +79,8 @@ public sealed class MigrationTransactionStore
             throw new IOException("备份处理尚未结束，不能抢占或改写迁移阶段。");
         if (record.BackupDeletionInProgress && !current.BackupDeletionInProgress)
             foreach (var other in await ReadAllUnlocked(ct).ConfigureAwait(false))
-                if (other.TransactionId != record.TransactionId && ReferencesBackup(record, other))
-                    throw new IOException($"备份仍被其他事务引用：{other.TransactionId}");
+                if (other.TransactionId != record.TransactionId && ReferencesBackup(record, other, _identity))
+                    throw new IOException($"备份仍被其他事务引用：{FormatConflictTarget(other)}");
         var saved = record with { Revision = checked(expectedRevision + 1), UpdatedAtUtc = DateTimeOffset.UtcNow };
         await WriteSnapshot(saved, true, ct).ConfigureAwait(false);
         return saved;
@@ -153,24 +154,71 @@ public sealed class MigrationTransactionStore
         else File.Move(temporary, destination, false);
     }
 
-    private static bool PathsOverlap(MigrationTransactionRecord a, MigrationTransactionRecord b)
+    private static bool PathsOverlap(MigrationTransactionRecord a, MigrationTransactionRecord b, PathIdentityService identity)
     {
         return Overlap(a.SourcePath, b.SourcePath) || Overlap(a.SourcePath, b.TargetPath)
             || Overlap(a.TargetPath, b.SourcePath) || Overlap(a.TargetPath, b.TargetPath)
-            || (a.BackupDeletionInProgress && ReferencesBackup(a, b))
-            || (b.BackupDeletionInProgress && ReferencesBackup(b, a));
+            || (a.BackupDeletionInProgress && ReferencesBackup(a, b, identity))
+            || (b.BackupDeletionInProgress && ReferencesBackup(b, a, identity));
 
         static bool Overlap(string x, string y) => PathIdentityService.IsWithin(x, y) || PathIdentityService.IsWithin(y, x);
     }
 
-    internal static bool ReferencesBackup(MigrationTransactionRecord owner, MigrationTransactionRecord other)
+    internal static bool ReferencesBackup(MigrationTransactionRecord owner, MigrationTransactionRecord other,
+        PathIdentityService? identity = null)
     {
         if (owner.TransactionId == other.TransactionId || owner.BackupPath is null) return false;
         bool Touches(string? path) => path is not null && (PathIdentityService.IsWithin(path, owner.BackupPath)
             || PathIdentityService.IsWithin(owner.BackupPath, path));
-        return Touches(other.SourcePath) || Touches(other.TargetPath) || Touches(other.BackupPath) || Touches(other.StagingPath)
-            || (owner.BackupIdentity is not null && (other.TargetIdentity == owner.BackupIdentity
-                || other.BackupIdentity == owner.BackupIdentity || (other.IsActive && other.SourceIdentity == owner.BackupIdentity)));
+        if (Touches(other.SourcePath) || Touches(other.TargetPath) || Touches(other.BackupPath) || Touches(other.StagingPath))
+            return true;
+        if (owner.BackupIdentity is null) return false;
+
+        if (other.IsActive)
+            return other.SourceIdentity == owner.BackupIdentity
+                || other.TargetIdentity == owner.BackupIdentity
+                || other.BackupIdentity == owner.BackupIdentity;
+
+        // 非活动历史事务可能因同卷移动或二次链式迁移（A→B 后再 B→C）与当前备份共享过历史 FileId；
+        // 仅当该历史事务在磁盘上的实际路径仍解析到当前备份实体（或无法核实磁盘状态）时才视为占用。
+        var checker = identity ?? new PathIdentityService();
+        if (other.TargetIdentity == owner.BackupIdentity
+            && (PathStillMatchesIdentity(checker, other.TargetPath, owner.BackupIdentity, followLink: false)
+                || PathStillMatchesIdentity(checker, other.TargetPath, owner.BackupIdentity, followLink: true)
+                || PathStillMatchesIdentity(checker, other.SourcePath, owner.BackupIdentity, followLink: true)))
+            return true;
+
+        if (other.StagingIdentity == owner.BackupIdentity
+            && PathStillMatchesIdentity(checker, other.SourcePath, owner.BackupIdentity, followLink: false))
+            return true;
+
+        if (other.BackupIdentity == owner.BackupIdentity
+            && other.BackupState is not (BackupState.Deleted or BackupState.Recycled)
+            && PathStillMatchesIdentity(checker, other.BackupPath, owner.BackupIdentity, followLink: false))
+            return true;
+
+        return false;
+    }
+
+    internal static string FormatConflictTarget(MigrationTransactionRecord other) =>
+        $"{other.TransactionId}（原路径：{other.SourcePath}，目标：{other.TargetPath}）";
+
+    private static bool PathStillMatchesIdentity(PathIdentityService identity, string? path, DirectoryIdentity expected, bool followLink)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        try
+        {
+            return identity.ReadEntry(path, followLink) == expected;
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode is 2 or 3)
+        {
+            return false;
+        }
+        catch
+        {
+            // 无法核实磁盘实际指向（例如权限拒绝或未知重解析祖先）时保守按仍被引用处理。
+            return true;
+        }
     }
 
     private static void Validate(MigrationTransactionRecord record)

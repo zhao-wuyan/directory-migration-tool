@@ -11,7 +11,16 @@ public sealed class BackupManagementService
     private readonly MigrationTransactionStore _store = new();
     private readonly PathIdentityService _identity = new();
     private readonly CopyVerificationService _verification = new();
-    private sealed record Snapshot(FileManifest? Backup, FileManifest Target, FileManifest? Source, DirectoryIdentity SourceIdentity);
+    private sealed record Snapshot(FileManifest? Backup, FileManifest? Target, FileManifest? Source, DirectoryIdentity SourceIdentity);
+
+    public static bool IsRestoreTargetBackup(MigrationTransactionRecord record) =>
+        record.Mode == MigrationMode.Restore
+        && record.BackupPath is not null
+        && record.BackupPath == record.TargetPath + ".bak_" + record.TransactionId.ToString("D");
+
+    public static string ExpectedConfirmationName(MigrationTransactionRecord record) =>
+        Path.GetFileName(Path.TrimEndingDirectorySeparator(
+            IsRestoreTargetBackup(record) ? record.TargetPath : record.SourcePath));
 
     public async Task<MigrationTransactionRecord> MarkUserVerifiedAsync(Guid transactionId, CancellationToken ct = default)
     {
@@ -37,7 +46,7 @@ public sealed class BackupManagementService
             RequestId = Guid.NewGuid(), TransactionId = transactionId, TransactionRevision = checked(record.Revision + 1), Mode = mode,
             BackupIdentity = record.BackupIdentity, TargetIdentity = record.TargetIdentity, SourceIdentity = snapshot.SourceIdentity,
             ManifestDigest = CopyVerificationService.Fingerprint(snapshot.Backup!, true),
-            TargetManifestDigest = CopyVerificationService.Fingerprint(snapshot.Target, true),
+            TargetManifestDigest = snapshot.Target is null ? null : CopyVerificationService.Fingerprint(snapshot.Target, true),
             LiveSourceManifestDigest = snapshot.Source is null ? null : CopyVerificationService.Fingerprint(snapshot.Source, true)
         };
         await _store.SaveAsync(record with
@@ -64,7 +73,7 @@ public sealed class BackupManagementService
         {
             if (request.FirstConfirmedAtUtc is null || request.SecondConfirmedAtUtc is not null)
                 throw new IOException("必须先完成独立的第一次确认，且第二次确认不能重复。");
-            if (request.Mode == BackupDeletionMode.Permanent && confirmationText != Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath)))
+            if (request.Mode == BackupDeletionMode.Permanent && confirmationText != ExpectedConfirmationName(record))
                 throw new IOException("永久删除第二次确认必须准确输入原目录名称（不含备份随机后缀）。");
             request = request with { SecondConfirmedAtUtc = DateTimeOffset.UtcNow, SecondConfirmationText = confirmationText };
         }
@@ -81,7 +90,7 @@ public sealed class BackupManagementService
         var record = await FindRequestAsync(requestId, ct).ConfigureAwait(false);
         var request = record.DeletionRequest!;
         if (request.FirstConfirmedAtUtc is null || request.SecondConfirmedAtUtc is null
-            || (request.Mode == BackupDeletionMode.Permanent && request.SecondConfirmationText != Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath))))
+            || (request.Mode == BackupDeletionMode.Permanent && request.SecondConfirmationText != ExpectedConfirmationName(record)))
             throw new IOException("缺少两次有效确认，不能处理备份。");
         Snapshot snapshot = await ValidateOrInvalidateAsync(record, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
@@ -122,7 +131,8 @@ public sealed class BackupManagementService
                 }
                 var locked = await _verification.CaptureAsync(record.BackupPath!, record.VerificationMode, ct).ConfigureAwait(false);
                 RequireDigest(locked, request.ManifestDigest);
-                RequireDigest(await _verification.CaptureAsync(record.TargetPath, record.VerificationMode, ct).ConfigureAwait(false), request.TargetManifestDigest);
+                if (request.TargetManifestDigest is not null)
+                    RequireDigest(await _verification.CaptureAsync(record.TargetPath, record.VerificationMode, ct).ConfigureAwait(false), request.TargetManifestDigest);
                 _identity.RequireSame(record.SourcePath, request.SourceIdentity);
                 if (record.Mode == MigrationMode.Restore)
                     RequireDigest(await _verification.CaptureAsync(record.SourcePath, record.VerificationMode, ct).ConfigureAwait(false), request.LiveSourceManifestDigest);
@@ -240,7 +250,8 @@ public sealed class BackupManagementService
                 || request.SourceIdentity != snapshot.SourceIdentity)
                 throw new IOException("请求冻结的实体身份已经变化。");
             RequireDigest(snapshot.Backup!, request.ManifestDigest);
-            RequireDigest(snapshot.Target, request.TargetManifestDigest);
+            if (snapshot.Target is not null) RequireDigest(snapshot.Target, request.TargetManifestDigest);
+            else if (request.TargetManifestDigest is not null) throw new IOException("目标实体状态已经变化。");
             if (snapshot.Source is not null) RequireDigest(snapshot.Source, request.LiveSourceManifestDigest);
             else if (request.LiveSourceManifestDigest is not null) throw new IOException("源实体类型已经变化。");
             return snapshot;
@@ -262,12 +273,17 @@ public sealed class BackupManagementService
     {
         if (record.Stage != MigrationStage.AwaitingUserVerification || record.BackupDeletionInProgress || record.VerificationSummary?.IsMatch != true)
             throw new IOException("事务未技术完成或仍在处理中，不能授权备份操作。");
+        bool restoreTargetBackup = IsRestoreTargetBackup(record);
         MigrationRuntime.AssertDataPath(record.SourcePath, allowLink: record.Mode != MigrationMode.Restore);
         MigrationRuntime.AssertDataPath(record.TargetPath);
         _identity.RequireSame(Path.GetDirectoryName(record.SourcePath)!, record.SourceParentIdentity);
         _identity.RequireSame(Path.GetDirectoryName(record.TargetPath)!, record.TargetParentIdentity);
-        _identity.RequireSame(record.TargetPath, record.TargetIdentity);
-        FileManifest target = await _verification.CaptureAsync(record.TargetPath, record.VerificationMode, ct).ConfigureAwait(false);
+        FileManifest? target = null;
+        if (!restoreTargetBackup)
+        {
+            _identity.RequireSame(record.TargetPath, record.TargetIdentity);
+            target = await _verification.CaptureAsync(record.TargetPath, record.VerificationMode, ct).ConfigureAwait(false);
+        }
         FileManifest? source = null;
         DirectoryIdentity live;
         if (record.Mode == MigrationMode.Restore)
@@ -294,12 +310,14 @@ public sealed class BackupManagementService
             if (record.BackupPath is null || backup is null || record.BackupIdentity is null
                 || record.BackupState is BackupState.PartiallyDeleted or BackupState.Missing or BackupState.IdentityChanged)
                 throw new IOException("没有可授权处理的完整原始备份。");
-            if (record.BackupPath != record.SourcePath + ".bak_" + record.TransactionId.ToString("D"))
+            string expectedBackupPath = (record.Mode == MigrationMode.Restore ? record.TargetPath : record.SourcePath)
+                + ".bak_" + record.TransactionId.ToString("D");
+            if (record.BackupPath != expectedBackupPath)
                 throw new IOException("备份位置与本事务意图不符，不能按目录名认领。");
             RequireDigest(backup, record.BackupManifestDigest);
             foreach (var other in await _store.ReadAllAsync(ct).ConfigureAwait(false))
-                if (MigrationTransactionStore.ReferencesBackup(record, other))
-                    throw new IOException($"备份仍被其他事务使用：{other.TransactionId}");
+                if (MigrationTransactionStore.ReferencesBackup(record, other, _identity))
+                    throw new IOException($"备份仍被其他事务使用：{MigrationTransactionStore.FormatConflictTarget(other)}");
         }
         return new Snapshot(backup, target, source, live);
     }

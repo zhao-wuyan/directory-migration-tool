@@ -9,12 +9,12 @@
         <TextBlock Text="{Binding ModeText}" TextWrapping="Wrap" Foreground="#B91C1C" FontWeight="SemiBold" Margin="0,0,0,8"/>
         <TextBlock Text="{Binding VerificationText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <TextBlock Text="只处理此原始备份；不删除当前源或目标数据。取消会保留实体与已记录的确认。" TextWrapping="Wrap" Margin="0,0,0,12"/>
-        <TextBlock Text="原始备份（本次处理对象）" FontWeight="SemiBold"/>
+        <TextBlock Text="{Binding BackupPathLabel}" FontWeight="SemiBold"/>
         <TextBox Text="{Binding BackupPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="38" BorderThickness="0" Margin="0,4,0,12"
                  AutomationProperties.AutomationId="FrozenBackupPath"/>
-        <TextBlock Text="源地址" FontWeight="SemiBold"/>
+        <TextBlock Text="{Binding SourcePathLabel}" FontWeight="SemiBold"/>
         <TextBlock Text="{Binding SourcePath}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-        <TextBlock Text="目标数据（保留）" FontWeight="SemiBold"/>
+        <TextBlock Text="{Binding TargetPathLabel}" FontWeight="SemiBold"/>
         <TextBlock Text="{Binding TargetPath}" TextWrapping="Wrap" Margin="0,4,0,12"/>
         <StackPanel>
             <StackPanel.Style>

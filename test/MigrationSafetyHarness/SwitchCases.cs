@@ -84,16 +84,19 @@ internal static partial class Program
                 Require(restored.Success && restored.Stage == MigrationStage.AwaitingUserVerification,
                     "Restore failed: " + restored.ErrorMessage);
                 var after = CopyRecord(f);
+                Require(after.TransactionId != before.TransactionId && after.BackupPath == f.Target + ".bak_" + after.TransactionId.ToString("D"),
+                    "Restore did not create an independent transaction and target backup.");
                 identity.RequireSame(f.Source, after.StagingIdentity);
-                identity.RequireSame(f.Target, before.TargetIdentity);
+                identity.RequireSame(after.BackupPath!, before.TargetIdentity);
                 identity.RequireSame(before.BackupPath!, before.BackupIdentity);
+                Require(!Directory.Exists(f.Target), "Restore left old target unrenamed.");
                 Require(!identity.ReadDirectory(f.Source, false).IsReparsePoint, "Restored source is still a link.");
-                AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, before.BackupPath!);
+                AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, after.BackupPath!); AssertSwitchBytes(f, before.BackupPath!);
                 var task = MigrationStateDetector.DetectMigrationState(new QuickMigrateTask
                 { SourcePath = f.Source, TargetPath = f.Target, Transaction = after });
                 Require(task.MigrationState == MigrationState.Pending && task.Transaction?.Stage == MigrationStage.AwaitingUserVerification,
                     "Restore result did not survive a state refresh.");
-                o["restoredIdentity"] = after.StagingIdentity; o["oldTargetRetained"] = true;
+                o["restoredIdentity"] = after.StagingIdentity; o["restoreBackup"] = after.BackupPath;
             });
         }
         await Case("A20-empty-repair", async o =>
@@ -262,6 +265,7 @@ internal static partial class Program
         {
             var f = NewSwitchFixture(lab, attempt, "restore-cancel");
             AssertSwitched(f, await MigrateSwitch(f), o);
+            string migratedBackup = CopyRecord(f).BackupPath!;
             using var ct = new CancellationTokenSource();
             bool cancelled = false;
             var observer = new CopyObserver(p => { if (p.Stage == MigrationStage.SourceRenamed && !cancelled) { cancelled = true; ct.Cancel(); } });
@@ -271,13 +275,14 @@ internal static partial class Program
             var record = CopyRecord(f);
             identity.RequireSame(f.Source, record.LinkIdentity); identity.RequireSame(f.Source, record.TargetIdentity, true);
             identity.RequireSame(record.StagingPath!, record.StagingIdentity);
-            AssertSwitchBytes(f, record.StagingPath!); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, record.BackupPath!);
+            AssertSwitchBytes(f, record.StagingPath!); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, migratedBackup);
             o["stagingRetained"] = record.StagingPath;
         });
         await Case("A14-restore-conflict-preserves", async o =>
         {
             var f = NewSwitchFixture(lab, attempt, "restore-conflict");
             AssertSwitched(f, await MigrateSwitch(f), o);
+            string migratedBackup = CopyRecord(f).BackupPath!;
             var decoys = new[] { f.Source + ".restore_temp_foreign", f.Source + ".bak_foreign" };
             byte[] bytes = Encoding.UTF8.GetBytes("Other transaction payload");
             foreach (string dir in decoys)
@@ -298,7 +303,7 @@ internal static partial class Program
             var record = CopyRecord(f);
             foreach (string dir in decoys.Append(f.Source))
                 Require(File.ReadAllBytes(Path.Combine(dir, dir == f.Source ? "conflict.txt" : "foreign.txt")).AsSpan().SequenceEqual(bytes), "Foreign data was deleted.");
-            AssertSwitchBytes(f, record.StagingPath!); AssertSwitchBytes(f, record.BackupPath!); AssertSwitchBytes(f, f.Target);
+            AssertSwitchBytes(f, record.StagingPath!); AssertSwitchBytes(f, migratedBackup); AssertSwitchBytes(f, f.Target);
             o["decoys"] = decoys; o["staging"] = record.StagingPath; o["recoveryPaths"] = result.RecoveryPaths;
         });
         foreach (bool afterRename in new[] { false, true })
@@ -369,6 +374,7 @@ internal static partial class Program
         {
             var f = NewSwitchFixture(lab, attempt, "legacy-json");
             AssertSwitched(f, await MigrateSwitch(f, manual: false), o);
+            string migratedBackup = CopyRecord(f).BackupPath!;
             string path = MigrationRuntime.TestConfigPath!;
             byte[] original = File.ReadAllBytes(path);
             try
@@ -381,8 +387,8 @@ internal static partial class Program
                 var config = SwitchConfig(f); config.RobocopyThreads = loaded.Defaults.RobocopyThreads;
                 var result = await new ReversibleMigrationService(config, MigrationMode.Restore).ExecuteAsync();
                 Require(result.Success, "Legacy JSON restore failed: " + result.ErrorMessage);
-                AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, CopyRecord(f).BackupPath!);
-                o["oldTargetRetained"] = f.Target;
+                AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, result.BackupPath!); AssertSwitchBytes(f, migratedBackup);
+                o["restoreBackupRetained"] = result.BackupPath;
             }
             finally { lab.BeforeWrite(); File.WriteAllBytes(path, original); }
         });

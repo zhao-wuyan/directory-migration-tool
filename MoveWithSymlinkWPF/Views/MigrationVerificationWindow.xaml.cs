@@ -51,7 +51,7 @@ public partial class MigrationVerificationWindow : Window
             // 服务重新核验事务、身份与内容；界面勾选不能授予删除权限。
             var result = await BackupConfirmationWindow.ShowDeletionAsync(_viewModel.Record!.TransactionId,
                 mode, CancellationToken.None, owner: this);
-            if (result is null) _viewModel.DeletionResultText = "已取消处理备份，未执行删除；已记录的确认及备份保持原状。";
+            if (result is null) _viewModel.ShowDeletionCancelled();
             else _viewModel.ShowDeletionResult(result);
         }
         catch (Exception ex) { _viewModel.ErrorText = "处理备份失败：" + ex.Message; }

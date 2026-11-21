@@ -94,9 +94,14 @@ function Answer-Defer([bool]$Accept) {
     $button = $prompt.FindFirst($descendants, [Windows.Automation.PropertyCondition]::new(
         [Windows.Automation.AutomationElement]::AutomationIdProperty, $(if ($Accept) { '6' } else { '7' })))
     Require ($null -ne $button) 'The explicit deferral response is missing.'
-    Require ($button.Current.NativeWindowHandle -ne 0) 'Native confirmation button has no window handle.'
-    # 原生 MessageBox 按钮在当前 UIA 提供程序中不公开 InvokePattern；BM_CLICK 触发其真实按钮动作。
-    $null = [WindowCapture]::SendMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)
+    $invokePattern = $null
+    if ($button.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$invokePattern)) {
+        ([Windows.Automation.InvokePattern]$invokePattern).Invoke()
+    } else {
+        Require ($button.Current.NativeWindowHandle -ne 0) 'Native confirmation button has no window handle.'
+        # 原生 MessageBox 按钮在当前 UIA 提供程序中不公开 InvokePattern；BM_CLICK 触发其真实按钮动作。
+        $null = [WindowCapture]::SendMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)
+    }
     Wait-Until { $null -eq (Find-Control Name '尚未验证：保留备份继续？') } 'deferral response'
 }
 function Open-Verification([string]$Entry = 'MainVerifyData') {

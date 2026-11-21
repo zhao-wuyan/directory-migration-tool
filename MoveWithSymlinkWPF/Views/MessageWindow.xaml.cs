@@ -1,4 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace MoveWithSymlinkWPF.Views;
 
@@ -52,19 +55,37 @@ public enum MessageResult
 public partial class MessageWindow : Window
 {
     public MessageResult Result { get; private set; } = MessageResult.None;
+    private Button? _defaultButton;
 
-    private MessageWindow(string title, string message, MessageType type, MessageButtons buttons)
+    private MessageWindow(
+        string title,
+        string message,
+        MessageType type,
+        MessageButtons buttons,
+        MessageResult defaultResult,
+        string? yesText,
+        string? noText)
     {
         InitializeComponent();
 
         Title = title;
         MessageTextBlock.Text = message;
+        if (!string.IsNullOrWhiteSpace(yesText)) YesButton.Content = yesText;
+        if (!string.IsNullOrWhiteSpace(noText)) NoButton.Content = noText;
 
         // 设置图标和颜色
         ConfigureMessageType(type);
 
-        // 配置按钮
-        ConfigureButtons(buttons);
+        // 配置按钮与默认高亮
+        ConfigureButtons(buttons, defaultResult);
+
+        Loaded += (_, _) =>
+        {
+            if (_defaultButton is null) return;
+            FocusManager.SetFocusedElement(this, _defaultButton);
+            _defaultButton.Focus();
+            Keyboard.Focus(_defaultButton);
+        };
 
         DataContext = this;
     }
@@ -77,17 +98,21 @@ public partial class MessageWindow : Window
         string title = "提示",
         MessageType type = MessageType.Information,
         MessageButtons buttons = MessageButtons.OK,
-        Window? owner = null)
+        Window? owner = null,
+        MessageResult defaultResult = MessageResult.None,
+        string? yesText = null,
+        string? noText = null)
     {
-        var window = new MessageWindow(title, message, type, buttons);
+        var window = new MessageWindow(title, message, type, buttons, defaultResult, yesText, noText);
 
-        if (owner != null)
+        var resolvedOwner = owner ?? Application.Current?.MainWindow;
+        if (resolvedOwner is not null && resolvedOwner != window && resolvedOwner.IsLoaded)
         {
-            window.Owner = owner;
+            window.Owner = resolvedOwner;
         }
-        else if (Application.Current.MainWindow != null)
+        else
         {
-            window.Owner = Application.Current.MainWindow;
+            window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
         }
 
         window.ShowDialog();
@@ -100,58 +125,81 @@ public partial class MessageWindow : Window
         {
             case MessageType.Information:
                 IconTextBlock.Text = "ℹ";
-                IconBackground.Background = System.Windows.Media.Brushes.DodgerBlue;
+                IconEllipse.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0078D4"));
                 break;
             case MessageType.Warning:
-                IconTextBlock.Text = "⚠";
-                IconBackground.Background = System.Windows.Media.Brushes.Orange;
+                IconTextBlock.Text = "!";
+                IconEllipse.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D97706"));
                 break;
             case MessageType.Error:
                 IconTextBlock.Text = "✖";
-                IconBackground.Background = System.Windows.Media.Brushes.Crimson;
+                IconEllipse.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
                 break;
             case MessageType.Question:
                 IconTextBlock.Text = "?";
-                IconBackground.Background = System.Windows.Media.Brushes.MediumSeaGreen;
+                IconEllipse.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0284C7"));
                 break;
             case MessageType.Success:
                 IconTextBlock.Text = "✓";
-                IconBackground.Background = System.Windows.Media.Brushes.Green;
+                IconEllipse.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#16A34A"));
                 break;
         }
     }
 
-    private void ConfigureButtons(MessageButtons buttons)
+    private void ConfigureButtons(MessageButtons buttons, MessageResult defaultResult)
     {
-        // 隐藏所有按钮
-        OKButton.Visibility = Visibility.Collapsed;
-        CancelButton.Visibility = Visibility.Collapsed;
-        YesButton.Visibility = Visibility.Collapsed;
-        NoButton.Visibility = Visibility.Collapsed;
+        var primaryStyle = (Style)FindResource("PrimaryButtonStyle");
+        var secondaryStyle = (Style)FindResource("SecondaryButtonStyle");
+
+        // 隐藏并重置所有按钮
+        foreach (var button in new[] { OKButton, CancelButton, YesButton, NoButton })
+        {
+            button.Visibility = Visibility.Collapsed;
+            button.IsDefault = false;
+            button.IsCancel = false;
+            button.Style = secondaryStyle;
+        }
 
         switch (buttons)
         {
             case MessageButtons.OK:
                 OKButton.Visibility = Visibility.Visible;
-                OKButton.Focus();
+                SetDefaultButton(OKButton, primaryStyle);
+                OKButton.IsCancel = true;
                 break;
             case MessageButtons.OKCancel:
                 OKButton.Visibility = Visibility.Visible;
                 CancelButton.Visibility = Visibility.Visible;
-                OKButton.Focus();
+                CancelButton.IsCancel = true;
+                SetDefaultButton(defaultResult == MessageResult.Cancel ? CancelButton : OKButton, primaryStyle);
                 break;
             case MessageButtons.YesNo:
                 YesButton.Visibility = Visibility.Visible;
                 NoButton.Visibility = Visibility.Visible;
-                YesButton.Focus();
+                NoButton.IsCancel = true;
+                SetDefaultButton(defaultResult == MessageResult.No ? NoButton : YesButton, primaryStyle);
                 break;
             case MessageButtons.YesNoCancel:
                 YesButton.Visibility = Visibility.Visible;
                 NoButton.Visibility = Visibility.Visible;
                 CancelButton.Visibility = Visibility.Visible;
-                YesButton.Focus();
+                CancelButton.IsCancel = true;
+                var target = defaultResult switch
+                {
+                    MessageResult.No => NoButton,
+                    MessageResult.Cancel => CancelButton,
+                    _ => YesButton
+                };
+                SetDefaultButton(target, primaryStyle);
                 break;
         }
+    }
+
+    private void SetDefaultButton(Button button, Style primaryStyle)
+    {
+        button.Style = primaryStyle;
+        button.IsDefault = true;
+        _defaultButton = button;
     }
 
     private void OKButton_Click(object sender, RoutedEventArgs e)

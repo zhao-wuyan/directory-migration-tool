@@ -45,7 +45,10 @@ internal static partial class Program
     }
 
     private static MigrationTransactionRecord CopyRecord(CopyFixture f) => new MigrationTransactionStore()
-        .ReadAllAsync().GetAwaiter().GetResult().Single(r => r.SourcePath == f.Source && r.TargetPath == f.Target);
+        .ReadAllAsync().GetAwaiter().GetResult()
+        .Where(r => r.SourcePath == f.Source && r.TargetPath == f.Target)
+        .OrderByDescending(r => r.UpdatedAtUtc)
+        .First();
 
     private static async Task<MigrationResult> MutateCopy(Lab lab, CopyFixture f, CopyPhase phase,
         Action<MigrationTransactionRecord> mutation, Dictionary<string, object?> observations)
@@ -423,9 +426,11 @@ internal static partial class Program
             var restored = await new ReversibleMigrationService(SwitchConfig(f), MigrationMode.Restore).ExecuteAsync();
             Require(restored.Success && restored.Stage == MigrationStage.AwaitingUserVerification,
                 "Inherited-root restore failed: " + restored.ErrorMessage);
-            AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, backup);
+            Require(restored.BackupPath == f.Target + ".bak_" + restored.TransactionId!.Value.ToString("D") && !Directory.Exists(f.Target),
+                "Restore did not promote old target to restore backup.");
+            AssertSwitchBytes(f, f.Source); AssertSwitchBytes(f, restored.BackupPath!); AssertSwitchBytes(f, backup);
             AssertCopiedRootAcl(backup, f.Source);
-            o["restored"] = true; o["originalBackupRetained"] = backup;
+            o["restored"] = true; o["originalBackupRetained"] = backup; o["restoreBackupRetained"] = restored.BackupPath;
         });
         await RunCase(lab, cases.Single(c => c.Name == "root-acl-tamper-rejected"), async o =>
         {

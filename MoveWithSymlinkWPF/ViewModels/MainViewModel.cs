@@ -711,12 +711,12 @@ public partial class MainViewModel : ObservableObject
                     // 还原成功 - 显示还原结果
                     ResultMessage = $"✓ 还原成功！\n\n" +
                                    $"源路径(已还原): {result.SourcePath}\n" +
-                                   $"原目标路径: {result.TargetPath}\n" +
+                                   $"还原前目标备份: {result.BackupPath ?? result.TargetPath}\n" +
                                    $"总文件: {result.Stats?.TotalFiles}\n" +
                                    $"总大小: {FileStatsService.FormatBytes(result.Stats?.TotalBytes ?? 0)}";
 
-                    AddLog("还原前的目标数据与已登记备份均保留，等待用户验证。");
-                    ResultMessage += "\n\n已保留原目标数据；技术完成不等于用户验收。";
+                    AddLog("还原前目标目录已转为本次还原备份保留，等待用户验证。");
+                    ResultMessage += "\n\n原目标目录已改名为还原备份保留；验证可正常使用后再按需通过双确认处理备份。";
                 }
                 else
                 {
