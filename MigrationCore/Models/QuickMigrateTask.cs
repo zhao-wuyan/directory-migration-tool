@@ -55,6 +55,10 @@ public partial class QuickMigrateTask : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanVerifyData))]
     [NotifyPropertyChangedFor(nameof(CanManageBackup))]
+    [NotifyPropertyChangedFor(nameof(IsTransactionAbnormal))]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedWarningBanner))]
+    [NotifyPropertyChangedFor(nameof(VerificationBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasVerificationBadge))]
     private MigrationState _migrationState = MigrationState.Pending;
 
     /// <summary>
@@ -103,10 +107,13 @@ public partial class QuickMigrateTask : ObservableObject
     /// 迁移完成时间
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayMigratedAt))]
+    [NotifyPropertyChangedFor(nameof(HasDisplayMigratedAt))]
     private DateTime? _migratedAt;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TransactionId))]
+    [NotifyPropertyChangedFor(nameof(HasTransaction))]
     [NotifyPropertyChangedFor(nameof(BackupState))]
     [NotifyPropertyChangedFor(nameof(VerificationSummary))]
     [NotifyPropertyChangedFor(nameof(BackupStatusText))]
@@ -115,9 +122,28 @@ public partial class QuickMigrateTask : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanVerifyData))]
     [NotifyPropertyChangedFor(nameof(CanManageBackup))]
     [NotifyPropertyChangedFor(nameof(DeletionDetails))]
+    [NotifyPropertyChangedFor(nameof(HasDeletionDetails))]
+    [NotifyPropertyChangedFor(nameof(IsAwaitingUserVerification))]
+    [NotifyPropertyChangedFor(nameof(IsUserVerified))]
+    [NotifyPropertyChangedFor(nameof(IsTransactionAbnormal))]
+    [NotifyPropertyChangedFor(nameof(HasRetainedBackup))]
+    [NotifyPropertyChangedFor(nameof(IsBackupCleaned))]
+    [NotifyPropertyChangedFor(nameof(ShowPendingVerificationEntry))]
+    [NotifyPropertyChangedFor(nameof(ShowPendingHistoryNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedWarningBanner))]
+    [NotifyPropertyChangedFor(nameof(VerificationBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasVerificationBadge))]
+    [NotifyPropertyChangedFor(nameof(BackupShortBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasBackupShortBadge))]
+    [NotifyPropertyChangedFor(nameof(VerifyActionButtonText))]
+    [NotifyPropertyChangedFor(nameof(DisplayMigratedAt))]
+    [NotifyPropertyChangedFor(nameof(HasDisplayMigratedAt))]
+    [NotifyPropertyChangedFor(nameof(BackupPathLabel))]
     private MigrationTransactionRecord? _transaction;
 
     public Guid? TransactionId => Transaction?.TransactionId;
+    public bool HasTransaction => Transaction is not null;
+    public bool HasBackupPath => !string.IsNullOrWhiteSpace(BackupPath);
     public BackupState? BackupState => Transaction?.BackupPath is null ? null : Transaction.BackupState;
     public VerificationSummary? VerificationSummary => Transaction?.VerificationSummary;
     public string VerificationText => VerificationSummary?.Description ?? "尚未完成核对";
@@ -146,12 +172,58 @@ public partial class QuickMigrateTask : ObservableObject
             or Models.BackupState.Missing or Models.BackupState.IdentityChanged) && MigrationState != Models.MigrationState.Inconsistent;
     public string DeletionDetails => Transaction?.LastDeletionResult is not { } result ? ""
         : $"{result.Status}：{result.Error}\n" + string.Join("\n", result.Items.Select(i => $"{i.Outcome}：{i.Path} {i.Error}"));
+    public bool HasDeletionDetails => !string.IsNullOrWhiteSpace(DeletionDetails);
+    public bool IsAwaitingUserVerification => Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false, UserVerifiedAtUtc: null };
+    public bool IsUserVerified => Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false, UserVerifiedAtUtc: not null };
+    public bool IsTransactionAbnormal => Transaction is not null && (Transaction.BackupDeletionInProgress || Transaction.Stage != MigrationStage.AwaitingUserVerification || MigrationState == Models.MigrationState.Inconsistent);
+    public bool HasRetainedBackup => BackupState is Models.BackupState.RetainedUnverified or Models.BackupState.UserVerified
+        or Models.BackupState.DeleteRequested or Models.BackupState.DeleteFailed;
+    public bool IsBackupCleaned => BackupState is Models.BackupState.Recycled or Models.BackupState.Deleted;
+    public bool ShowPendingVerificationEntry => Transaction is { Mode: MigrationMode.Restore, Stage: MigrationStage.AwaitingUserVerification }
+        && (Transaction.UserVerifiedAtUtc is null || HasRetainedBackup || Transaction.BackupDeletionInProgress);
+    public bool ShowPendingHistoryNotice => !ShowPendingVerificationEntry && Transaction is { Stage: MigrationStage.Cancelled or MigrationStage.Failed };
+    public bool ShowMigratedWarningBanner => !HasTransaction && (MigrationState == Models.MigrationState.Inconsistent || HasBackupPath);
+    public string VerificationBadgeText => Transaction is null
+        ? (MigrationState == Models.MigrationState.Inconsistent ? "无事务记录" : "")
+        : Transaction.BackupDeletionInProgress ? "备份处理中"
+        : Transaction.Stage != MigrationStage.AwaitingUserVerification ? $"待恢复：{Transaction.Stage}"
+        : Transaction.UserVerifiedAtUtc is null
+            ? (Transaction.Mode == MigrationMode.Restore ? "还原待验证" : "待用户验证")
+            : (Transaction.Mode == MigrationMode.Restore ? "还原已验证" : "已验证");
+    public bool HasVerificationBadge => !string.IsNullOrEmpty(VerificationBadgeText);
+    public string BackupShortBadgeText => BackupState switch
+    {
+        Models.BackupState.RetainedUnverified => Transaction?.Mode == MigrationMode.Restore ? "还原备份保留" : "原始备份保留",
+        Models.BackupState.UserVerified => Transaction?.Mode == MigrationMode.Restore ? "还原备份保留" : "原始备份保留",
+        Models.BackupState.DeleteRequested => "备份待双确认",
+        Models.BackupState.Recycled => "已移入回收站",
+        Models.BackupState.Deleted => "已永久删除",
+        Models.BackupState.PartiallyDeleted => "部分删除",
+        Models.BackupState.Missing => "备份缺失",
+        Models.BackupState.IdentityChanged => "备份身份变化",
+        Models.BackupState.DeleteFailed => "备份处理未完成",
+        _ => HasBackupPath ? "候选备份（仅查看）" : ""
+    };
+    public bool HasBackupShortBadge => !string.IsNullOrEmpty(BackupShortBadgeText);
+    public string VerifyActionButtonText => Transaction is null ? ""
+        : Transaction.UserVerifiedAtUtc is null
+            ? (Transaction.Mode == MigrationMode.Restore ? "验证还原并管理备份…" : "验证并管理备份…")
+            : HasRetainedBackup
+                ? (Transaction.Mode == MigrationMode.Restore ? "管理还原备份…" : "管理备份…")
+                : "查看验证记录";
+    public DateTime? DisplayMigratedAt => MigratedAt ?? (Transaction is { Mode: not MigrationMode.Restore } ? Transaction.UpdatedAtUtc.LocalDateTime : null);
+    public bool HasDisplayMigratedAt => DisplayMigratedAt.HasValue;
+    public string BackupPathLabel => Transaction?.Mode == MigrationMode.Restore ? "还原备份:" : "原始备份:";
 
     /// <summary>
     /// 备份路径（如果存在）
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBackupPath))]
     [NotifyPropertyChangedFor(nameof(BackupStatusText))]
+    [NotifyPropertyChangedFor(nameof(BackupShortBadgeText))]
+    [NotifyPropertyChangedFor(nameof(HasBackupShortBadge))]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedWarningBanner))]
     private string? _backupPath;
 
     /// <summary>

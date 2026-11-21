@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 极简现代 Fluent 蓝底板（与 docs/prototype-preview/ 视觉风格高度一致） -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0E8AE6"/>
+      <stop offset="52%" stop-color="#006CC8"/>
+      <stop offset="100%" stop-color="#004182"/>
+    </linearGradient>
+
+    <radialGradient id="bgGlow" cx="28%" cy="18%" r="65%">
+      <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#004182" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#001A38" stop-opacity="0.24"/>
+    </linearGradient>
+
+    <!-- 磁盘扫描与释放空间弧（大块面极简圆环：天青 -> 薄荷绿） -->
+    <linearGradient id="ringArcGrad" x1="0%" y1="80%" x2="100%" y2="15%">
+      <stop offset="0%" stop-color="#7DD3FC"/>
+      <stop offset="55%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+
+    <!-- 中央立体目录背板 -->
+    <linearGradient id="folderBack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+
+    <!-- 中央立体目录前盖 -->
+    <linearGradient id="folderFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE473"/>
+      <stop offset="52%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#F09400"/>
+    </linearGradient>
+
+    <linearGradient id="folderTopGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#FFFBEB" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- 嵌入文件夹的符号链接深海蓝渐变（使用 userSpaceOnUse 确保水平中轴完整渲染） -->
+    <linearGradient id="linkCutoutGrad" gradientUnits="userSpaceOnUse" x1="-56" y1="-22" x2="56" y2="22">
+      <stop offset="0%" stop-color="#0066BE"/>
+      <stop offset="100%" stop-color="#003F7D"/>
+    </linearGradient>
+
+    <filter id="cardShadow" x="-20%" y="-20%" width="145%" height="145%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#001A38" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+
+  <!-- 1. 极简圆角方形底板 -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGrad)"/>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGlow)"/>
+  <rect x="27" y="27" width="458" height="458" rx="109" fill="none" stroke="url(#rimGrad)" stroke-width="5"/>
+
+  <!-- 2. 极简加粗磁盘扫描与空间治理圆环（30px 粗环，16px 下依然极度锐利） -->
+  <g>
+    <!-- 底层存储盘环轨道 -->
+    <circle cx="256" cy="256" r="184" fill="none" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="30"/>
+
+    <!-- 亮色扫描/释放弧段 -->
+    <path d="M 81 313 A 184 184 0 0 1 408 152"
+          fill="none"
+          stroke="url(#ringArcGrad)"
+          stroke-width="30"
+          stroke-linecap="round"/>
+
+    <!-- 弧端极简切线方向箭头（融合扫描推进与目录迁移方向） -->
+    <path d="M 418 112 L 412 158 L 366 150"
+          fill="none"
+          stroke="#5EEAD4"
+          stroke-width="24"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+  </g>
+
+  <!-- 3. 居中单体立体文件夹（大块面、零堆叠、小尺寸极高辨识度） -->
+  <g filter="url(#cardShadow)">
+    <!-- 文件夹背板与折耳 -->
+    <path d="M 164 166
+             H 232
+             C 242 166 250 171 257 180
+             L 270 196
+             H 348
+             C 364 196 374 206 374 222
+             V 336
+             C 374 352 364 362 348 362
+             H 164
+             C 148 362 138 352 138 336
+             V 192
+             C 138 176 148 166 164 166 Z"
+          fill="url(#folderBack)"/>
+
+    <!-- 文件夹前盖 -->
+    <path d="M 138 228
+             C 138 216 148 208 160 208
+             H 352
+             C 364 208 374 216 374 228
+             V 336
+             C 374 352 362 362 348 362
+             H 164
+             C 150 362 138 352 138 336 Z"
+          fill="url(#folderFront)"/>
+
+    <!-- 顶部极细高光带 -->
+    <path d="M 160 210 H 352 C 362 210 371 217 372 227 V 239 H 140 V 227 C 141 217 150 210 160 210 Z"
+          fill="url(#folderTopGlow)"/>
+
+    <!-- 4. 文件夹中央：极简高对比度符号链接（Symlink）双环印记 -->
+    <g transform="translate(256, 286) rotate(-38)" fill="none" stroke="url(#linkCutoutGrad)" stroke-width="18" stroke-linecap="round">
+      <path d="M -12 -21 H -28 C -44 -21 -56 -10 -56 0 C -56 10 -44 21 -28 21 H -12"/>
+      <path d="M 12 -21 H 28 C 44 -21 56 -10 56 0 C 56 10 44 21 28 21 H 12"/>
+      <line x1="-22" y1="0" x2="22" y2="0"/>
+    </g>
+  </g>
+</svg>

@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon />
+    <ApplicationIcon>Resources\app-icon.ico</ApplicationIcon>
     <AssemblyName>目录迁移工具</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     
@@ -58,6 +58,11 @@
       <Link>version.json</Link>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+  </ItemGroup>
+
+  <!-- 嵌入应用图标资源，支持窗口与单文件发布加载 -->
+  <ItemGroup>
+    <Resource Include="Resources\app-icon.ico" />
   </ItemGroup>
 
   <!-- 嵌入 quick-migrate.json 作为资源 -->

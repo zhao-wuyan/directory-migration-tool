@@ -57,10 +57,36 @@ public partial class QuickMigrateViewModel : ObservableObject
                 _isUpdatingFromCode = false;
                 
                 // 更新按钮状态
-                HasSelectedTasks = value && PendingTaskGroups.SelectMany(g => g.Tasks).Any();
+                SelectedTaskCount = value ? PendingTaskGroups.SelectMany(g => g.Tasks).Count() : 0;
+                HasSelectedTasks = SelectedTaskCount > 0;
             }
         }
     }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectionSummaryText))]
+    [NotifyPropertyChangedFor(nameof(AllTasksMigrated))]
+    private int _pendingTaskCount = 0;
+
+    [ObservableProperty]
+    private int _migratedTaskCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectionSummaryText))]
+    private int _selectedTaskCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UnverifiedPendingBadgeText))]
+    private int _unverifiedPendingCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UnverifiedMigratedBadgeText))]
+    private int _unverifiedMigratedCount = 0;
+
+    public string UnverifiedPendingBadgeText => UnverifiedPendingCount > 0 ? $"{UnverifiedPendingCount} 待验证" : string.Empty;
+    public string UnverifiedMigratedBadgeText => UnverifiedMigratedCount > 0 ? $"{UnverifiedMigratedCount} 待验证" : string.Empty;
+    public string SelectionSummaryText => SelectedTaskCount > 0 ? $"已选 {SelectedTaskCount} / {PendingTaskCount} 项" : $"共 {PendingTaskCount} 项待迁移";
+    public bool AllTasksMigrated => HasValidTasks && !HasPendingTasks;
 
     [ObservableProperty]
     private string _statusMessage = "正在加载配置...";
@@ -295,8 +321,14 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         HasErrors = currentFailedCount > 0;
 
+        PendingTaskCount = pendingTasks.Count;
+        MigratedTaskCount = migratedTasks.Count;
+        UnverifiedPendingCount = pendingTasks.Count(t => t.IsAwaitingUserVerification);
+        UnverifiedMigratedCount = migratedTasks.Count(t => t.IsAwaitingUserVerification);
+
         HasValidTasks = PendingTaskGroups.Any() || MigratedTaskGroups.Any();
         HasPendingTasks = PendingTaskGroups.Any();
+        OnPropertyChanged(nameof(AllTasksMigrated));
 
         if (!HasValidTasks)
         {
@@ -304,7 +336,10 @@ public partial class QuickMigrateViewModel : ObservableObject
         }
         else
         {
-            StatusMessage = $"找到 {pendingTasks.Count} 个未迁移任务，{migratedTasks.Count} 个已迁移任务";
+            int totalUnverified = UnverifiedPendingCount + UnverifiedMigratedCount;
+            StatusMessage = totalUnverified > 0
+                ? $"共 {pendingTasks.Count} 个未迁移，{migratedTasks.Count} 个已迁移（{totalUnverified} 项待验证）"
+                : $"共 {pendingTasks.Count} 个未迁移，{migratedTasks.Count} 个已迁移";
         }
 
         // 初始化选择状态
@@ -350,6 +385,7 @@ public partial class QuickMigrateViewModel : ObservableObject
         var totalCount = allTasks.Count;
         var selectedCount = allTasks.Count(t => t.IsSelected);
 
+        SelectedTaskCount = selectedCount;
         HasSelectedTasks = selectedCount > 0;
 
         // 更新全选状态以反映子项的选择状态

@@ -1,0 +1,218 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 应用品牌矢量图标（方案 1 精简提纯版，与 Resources/app-icon.svg 保持一致） -->
+    <DrawingImage x:Key="AppIconDrawingImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <!-- 固定 512x512 透明画布边界 -->
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,512,512"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 1. 应用圆角方形底板 -->
+                <GeometryDrawing>
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#1492EB" Offset="0"/>
+                            <GradientStop Color="#006CC8" Offset="0.5"/>
+                            <GradientStop Color="#00386E" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="24,24,464,464" RadiusX="108" RadiusY="108"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 顶部柔和径向光晕 -->
+                <GeometryDrawing>
+                    <GeometryDrawing.Brush>
+                        <RadialGradientBrush Center="0.26,0.18" GradientOrigin="0.26,0.18" RadiusX="0.68" RadiusY="0.68">
+                            <GradientStop Color="#576AD7FF" Offset="0"/>
+                            <GradientStop Color="#1438BDF8" Offset="0.55"/>
+                            <GradientStop Color="#0000386E" Offset="1"/>
+                        </RadialGradientBrush>
+                    </GeometryDrawing.Brush>
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="24,24,464,464" RadiusX="108" RadiusY="108"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 底板内描边微高光 -->
+                <GeometryDrawing>
+                    <GeometryDrawing.Pen>
+                        <Pen Thickness="5">
+                            <Pen.Brush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#61FFFFFF" Offset="0"/>
+                                    <GradientStop Color="#14FFFFFF" Offset="0.5"/>
+                                    <GradientStop Color="#47001A38" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Pen.Brush>
+                        </Pen>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="27,27,458,458" RadiusX="105" RadiusY="105"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 2. 外扩加粗的磁盘扫描与空间释放环 -->
+                <GeometryDrawing Geometry="M 256,256 L 256,64 A 192,192 0 0 1 426,168 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,1" EndPoint="1,0">
+                            <GradientStop Color="#0034D399" Offset="0"/>
+                            <GradientStop Color="#1C38BDF8" Offset="0.65"/>
+                            <GradientStop Color="#3D6EE7B7" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+
+                <!-- 底层存储容量圆环轨道 -->
+                <GeometryDrawing>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#33FFFFFF" Thickness="22"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="256,256" RadiusX="192" RadiusY="192"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 亮色扫描释放弧 -->
+                <GeometryDrawing Geometry="M 86,346 A 192,192 0 0 1 427,169">
+                    <GeometryDrawing.Pen>
+                        <Pen Thickness="22" StartLineCap="Round" EndLineCap="Round">
+                            <Pen.Brush>
+                                <LinearGradientBrush StartPoint="0.12,0.82" EndPoint="0.88,0.18">
+                                    <GradientStop Color="#EB93E5FF" Offset="0"/>
+                                    <GradientStop Color="#38BDF8" Offset="0.5"/>
+                                    <GradientStop Color="#34D399" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Pen.Brush>
+                        </Pen>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+
+                <!-- 沿切线对齐的加粗箭头 -->
+                <GeometryDrawing Geometry="M 437,132 L 429,173 L 388,162">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#5EEAD4" Thickness="20" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+
+                <!-- 3. 放大并加粗的源目录虚影 -->
+                <GeometryDrawing Geometry="M 130,134 H 188 C 196,134 203,138 209,146 L 221,160 H 286 C 299,160 308,169 308,182 V 264 C 308,277 299,286 286,286 H 130 C 117,286 108,277 108,264 V 156 C 108,143 117,134 130,134 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#52FFFFFF" Offset="0"/>
+                            <GradientStop Color="#24BAE6FD" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#ECFAFF" Thickness="13" StartLineCap="Round" EndLineCap="Round" DashCap="Round" LineJoin="Round">
+                            <Pen.DashStyle>
+                                <DashStyle Dashes="2.15,1.31" Offset="0"/>
+                            </Pen.DashStyle>
+                        </Pen>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+
+                <!-- 4. 放大后的目标实体目录 -->
+                <GeometryDrawing Brush="#3D001A38" Geometry="M 224,231 H 286 C 295,231 302,235 308,243 L 320,257 H 396 C 409,257 418,266 418,279 V 371 C 418,384 409,393 396,393 H 224 C 211,393 202,384 202,371 V 253 C 202,240 211,231 224,231 Z"/>
+
+                <GeometryDrawing Geometry="M 224,222 H 286 C 295,222 302,226 308,234 L 320,248 H 396 C 409,248 418,257 418,270 V 362 C 418,375 409,384 396,384 H 224 C 211,384 202,375 202,362 V 244 C 202,231 211,222 224,222 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#F59E0B" Offset="0"/>
+                            <GradientStop Color="#C96A04" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+
+                <!-- 露出的一页洁净文档细节 -->
+                <GeometryDrawing Brush="#F0FFFDF5">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="220,254,180,38" RadiusX="9" RadiusY="9"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 前盖 -->
+                <GeometryDrawing Geometry="M 202,278 C 202,267 211,260 222,260 H 398 C 409,260 418,267 418,278 V 362 C 418,375 408,384 396,384 H 224 C 212,384 202,375 202,362 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FFE26A" Offset="0"/>
+                            <GradientStop Color="#FBBF24" Offset="0.5"/>
+                            <GradientStop Color="#EA8C00" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+
+                <!-- 前盖顶部高光 -->
+                <GeometryDrawing Geometry="M 222,262 H 398 C 407,262 415,268 416,278 V 289 H 204 V 278 C 205,268 213,262 222,262 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                            <GradientStop Color="#B8FFFBEB" Offset="0"/>
+                            <GradientStop Color="#00FFFBEB" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+
+                <!-- 5. 左下角：符号链接徽章 -->
+                <GeometryDrawing Brush="#3D001A38">
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="192,349" RadiusX="56" RadiusY="56"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing>
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#38BDF8" Offset="0"/>
+                            <GradientStop Color="#0284C7" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#FFFFFF" Thickness="8"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <EllipseGeometry Center="192,342" RadiusX="52" RadiusY="52"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+
+                <!-- 双环互扣符号链接图形 -->
+                <DrawingGroup>
+                    <DrawingGroup.Transform>
+                        <TransformGroup>
+                            <RotateTransform Angle="-45"/>
+                            <TranslateTransform X="192" Y="342"/>
+                        </TransformGroup>
+                    </DrawingGroup.Transform>
+                    <GeometryDrawing Geometry="M -8,-13 H -17 C -27,-13 -34,-6 -34,0 C -34,6 -27,13 -17,13 H -8">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="11.5" StartLineCap="Round" EndLineCap="Round"/>
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M 8,-13 H 17 C 27,-13 34,-6 34,0 C 34,6 27,13 17,13 H 8">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="11.5" StartLineCap="Round" EndLineCap="Round"/>
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                    <GeometryDrawing Geometry="M -14,0 L 14,0">
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FFFFFF" Thickness="11.5" StartLineCap="Round" EndLineCap="Round"/>
+                        </GeometryDrawing.Pen>
+                    </GeometryDrawing>
+                </DrawingGroup>
+
+                <!-- 6. 右上角：单颗干脆利落的四角星芒 -->
+                <GeometryDrawing Geometry="M 426,54 Q 426,83 455,83 Q 426,83 426,112 Q 426,83 397,83 Q 426,83 426,54 Z">
+                    <GeometryDrawing.Brush>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FFFFFF" Offset="0"/>
+                            <GradientStop Color="#A7F3D0" Offset="1"/>
+                        </LinearGradientBrush>
+                    </GeometryDrawing.Brush>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+</ResourceDictionary>

@@ -10,6 +10,7 @@
         xmlns:models="clr-namespace:MigrationCore.Models;assembly=MigrationCore"
         mc:Ignorable="d"
         Title="目录迁移工具 - Directory Migration Tool"
+        Icon="pack://application:,,,/Resources/app-icon.ico"
         AutomationProperties.AutomationId="MigrationMainWindow"
         Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
@@ -87,9 +88,16 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="目录迁移工具" Style="{StaticResource HeaderStyle}"/>
-                    <TextBlock Text="使用符号链接透明迁移大型目录" FontSize="14" Foreground="Gray"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="{StaticResource AppIconDrawingImage}"
+                           Width="48" Height="48"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="目录迁移工具" Style="{StaticResource HeaderStyle}" Margin="0,0,0,4"/>
+                        <TextBlock Text="使用符号链接透明迁移大型目录" FontSize="14" Foreground="Gray"/>
+                    </StackPanel>
                 </StackPanel>
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,20,0" IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
@@ -303,9 +311,15 @@
             </Border>
             
             <!-- Manual Mode Content -->
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"
-                          Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel>
+            <Grid Grid.Column="1"
+                  Visibility="{Binding IsManualMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
                     
                     <!-- Step 1: Path Selection -->
                     <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
@@ -941,18 +955,18 @@
                     </Border>
                     
                     <!-- Step 4: Result -->
-                    <Border Background="White" Padding="20" Margin="0,0,0,12" CornerRadius="10"
+                    <Border Background="White" Padding="18,14" Margin="0,0,0,8" CornerRadius="10"
                             Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
                         <Border.Effect>
                             <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4" Direction="270"/>
                         </Border.Effect>
                         <StackPanel>
                             <!-- 标题和模式标签 -->
-                            <Grid Margin="0,10,0,10">
+                            <Grid Margin="0,0,0,10">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                    <TextBlock Text="✓" FontSize="32" Foreground="Green" Margin="0,0,10,0"
+                                    <TextBlock Text="✓" FontSize="28" Foreground="Green" Margin="0,0,10,0"
                                               Visibility="{Binding MigrationSuccess, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                    <TextBlock Text="✗" FontSize="32" Foreground="Red" Margin="0,0,10,0"
+                                    <TextBlock Text="✗" FontSize="28" Foreground="Red" Margin="0,0,10,0"
                                               Visibility="{Binding MigrationSuccess, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                                     <TextBlock FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center">
                                         <TextBlock.Style>
@@ -994,15 +1008,15 @@
                                 </Border>
                             </Grid>
                             
-                            <Border Background="#F8F8F8" Padding="15" CornerRadius="3" Margin="0,0,0,10">
-                                <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="14"/>
+                            <Border Background="#F8FAFC" BorderBrush="#E5E7EB" BorderThickness="1" Padding="12,10" CornerRadius="6" Margin="0,0,0,10">
+                                <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" FontSize="13.5" LineHeight="20"/>
                             </Border>
-                            <Border BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" CornerRadius="3">
+                            <Border BorderBrush="#E5E7EB" BorderThickness="1" Padding="12,10" CornerRadius="6">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding BackupTask.TransactionStatusText}" TextWrapping="Wrap" AutomationProperties.AutomationId="MainTransactionStatus"/>
-                                    <TextBlock Text="{Binding BackupTask.VerificationText}" TextWrapping="Wrap" Margin="0,5,0,0" AutomationProperties.AutomationId="MainVerification"/>
-                                    <TextBlock Text="{Binding BackupTask.BackupStatusText}" Margin="0,5,0,0"/>
-                                    <TextBox Text="{Binding BackupTask.BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="38" Margin="0,5,0,0" AutomationProperties.AutomationId="MainBackupPath"/>
+                                    <TextBlock Text="{Binding BackupTask.TransactionStatusText}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#111827" AutomationProperties.AutomationId="MainTransactionStatus"/>
+                                    <TextBlock Text="{Binding BackupTask.VerificationText}" TextWrapping="Wrap" Foreground="#4B5563" Margin="0,4,0,0" AutomationProperties.AutomationId="MainVerification"/>
+                                    <TextBlock Text="{Binding BackupTask.BackupStatusText}" Foreground="#4B5563" Margin="0,4,0,0"/>
+                                    <TextBox Text="{Binding BackupTask.BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="32" Margin="0,6,0,0" AutomationProperties.AutomationId="MainBackupPath"/>
                                     <WrapPanel Margin="0,8,0,0" IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
                                         <Button Content="验证迁移并管理备份…" Command="{Binding VerifyDataCommand}" AutomationProperties.AutomationId="MainVerifyData"/>
                                     </WrapPanel>
@@ -1012,18 +1026,68 @@
                                     <Button Content="取消当前操作（等待安全结束）" Command="{Binding CancelMigrationCommand}" Visibility="{Binding IsMigrating, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                 </StackPanel>
                             </Border>
-                            
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="完成" Command="{Binding BackToStep1Command}" AutomationProperties.AutomationId="CompleteMigrationResult"
-                                        Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
-                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}" AutomationProperties.AutomationId="CloseMigrationApplication"
-                                        Margin="12,0,0,0"/>
-                            </StackPanel>
                         </StackPanel>
                     </Border>
                     
-                </StackPanel>
-            </ScrollViewer>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Step 4 固定底部操作栏：无需滚动即可点击 -->
+                <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+                        Padding="16,10" Margin="0,6,0,0"
+                        Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibilityConverter}, ConverterParameter=4}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="建议先点击上方「验证迁移并管理备份…」确认结果后再完成或关闭。"
+                                   FontSize="12" Foreground="#6B7280" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="完成" Command="{Binding BackToStep1Command}"
+                                    AutomationProperties.AutomationId="CompleteMigrationResult"
+                                    Background="#0078D4" Foreground="White" FontWeight="SemiBold"
+                                    MinWidth="92" Height="34" Padding="18,0"/>
+                            <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"
+                                    AutomationProperties.AutomationId="CloseMigrationApplication"
+                                    Margin="10,0,0,0" MinWidth="92" Height="34" Padding="16,0"
+                                    Background="White" Foreground="#374151" BorderBrush="#D1D5DB" BorderThickness="1">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="border"
+                                                            Background="{TemplateBinding Background}"
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                            CornerRadius="6"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                                            <Setter TargetName="border" Property="BorderBrush" Value="#9CA3AF"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
             
             <!-- Quick Migrate Mode Content - 添加淡入淡出动画 -->
             <ContentControl Grid.Column="0" Grid.ColumnSpan="2"

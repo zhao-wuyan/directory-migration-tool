@@ -5,6 +5,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- 应用矢量图标资源 -->
+                <ResourceDictionary Source="Resources/AppIcon.xaml"/>
                 <!-- 使用说明文字资源 -->
                 <ResourceDictionary Source="Resources/UserGuideTexts.xaml"/>
             </ResourceDictionary.MergedDictionaries>

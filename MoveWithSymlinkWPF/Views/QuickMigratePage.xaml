@@ -10,12 +10,15 @@
              xmlns:behaviors="clr-namespace:MoveWithSymlinkWPF.Behaviors"
              xmlns:models="clr-namespace:MigrationCore.Models;assembly=MigrationCore"
              mc:Ignorable="d"
-             d:DesignHeight="600"
-        d:DesignWidth="900"
-        TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType"
-        UseLayoutRounding="True"
-        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
+             d:DesignHeight="640"
+             d:DesignWidth="960"
+             Background="#F6F8FA"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True"
+             ToolTipService.InitialShowDelay="250"
+             ToolTipService.ShowDuration="15000"
+             FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
@@ -29,7 +32,6 @@
         <converters:ErrorTypeToBorderConverter x:Key="ErrorTypeToBorderConverter"/>
         <converters:ErrorStateToVisibilityConverter x:Key="ErrorStateToVisibilityConverter"/>
         <converters:ErrorMessageToShortDescriptionConverter x:Key="ErrorMessageToShortDescriptionConverter"/>
-        <converters:TaskStatusToStyleConverter x:Key="TaskStatusToStyleConverter"/>
         <converters:ErrorTypeToDescriptionConverter x:Key="ErrorTypeToDescriptionConverter"/>
         <converters:ErrorTypeToSolutionConverter x:Key="ErrorTypeToSolutionConverter"/>
         <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
@@ -38,44 +40,14 @@
         <DropShadowEffect x:Key="PopupShadowEffect"
                           Color="#000000"
                           BlurRadius="16"
-                          Opacity="0.15"
+                          Opacity="0.14"
                           Direction="270"
                           ShadowDepth="4"/>
 
-        <!-- Popup Button Style -->
-        <Style x:Key="PopupButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#6B7280"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#4B5563"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Modern ScrollBar Style -->
-        <Style x:Key="ScrollBarThumb"
-                TargetType="{x:Type Thumb}">
-            <Setter Property="Background"
-                    Value="#C0C0C0"/>
-            <Setter Property="BorderThickness"
-                    Value="0"/>
+        <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="Background" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
@@ -86,33 +58,24 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="IsMouseOver"
-                        Value="True">
-                    <Setter Property="Background"
-                            Value="#909090"/>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#94A3B8"/>
                 </Trigger>
-                <Trigger Property="IsDragging"
-                        Value="True">
-                    <Setter Property="Background"
-                            Value="#606060"/>
+                <Trigger Property="IsDragging" Value="True">
+                    <Setter Property="Background" Value="#64748B"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernScrollBar"
-                TargetType="{x:Type ScrollBar}">
-            <Setter Property="Background"
-                    Value="Transparent"/>
-            <Setter Property="Width"
-                    Value="10"/>
-            <Setter Property="MinWidth"
-                    Value="10"/>
+        <Style x:Key="ModernScrollBar" TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="MinWidth" Value="10"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                         <Grid>
-                            <Track x:Name="PART_Track"
-                                    IsDirectionReversed="True">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
                                 <Track.Thumb>
                                     <Thumb Style="{StaticResource ScrollBarThumb}"/>
                                 </Track.Thumb>
@@ -122,22 +85,16 @@
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
-                <Trigger Property="Orientation"
-                        Value="Horizontal">
-                    <Setter Property="Height"
-                            Value="10"/>
-                    <Setter Property="MinHeight"
-                            Value="10"/>
-                    <Setter Property="Width"
-                            Value="Auto"/>
-                    <Setter Property="MinWidth"
-                            Value="0"/>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="10"/>
+                    <Setter Property="MinHeight" Value="10"/>
+                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="MinWidth" Value="0"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="{x:Type ScrollBar}">
                                 <Grid>
-                                    <Track x:Name="PART_Track"
-                                            IsDirectionReversed="False">
+                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
                                         <Track.Thumb>
                                             <Thumb Style="{StaticResource ScrollBarThumb}"/>
                                         </Track.Thumb>
@@ -150,8 +107,7 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ModernScrollViewer"
-                TargetType="{x:Type ScrollViewer}">
+        <Style x:Key="ModernScrollViewer" TargetType="{x:Type ScrollViewer}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollViewer}">
@@ -165,12 +121,11 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <ScrollContentPresenter Grid.Column="0"
-                                    Grid.Row="0"/>
+                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
 
                             <ScrollBar x:Name="PART_VerticalScrollBar"
                                        Grid.Column="1"
-                                    Grid.Row="0"
+                                       Grid.Row="0"
                                        Style="{StaticResource ModernScrollBar}"
                                        Value="{TemplateBinding VerticalOffset}"
                                        Maximum="{TemplateBinding ScrollableHeight}"
@@ -179,7 +134,7 @@
 
                             <ScrollBar x:Name="PART_HorizontalScrollBar"
                                        Grid.Column="0"
-                                    Grid.Row="1"
+                                       Grid.Row="1"
                                        Orientation="Horizontal"
                                        Style="{StaticResource ModernScrollBar}"
                                        Value="{TemplateBinding HorizontalOffset}"
@@ -192,162 +147,452 @@
             </Setter>
         </Style>
 
-        <!-- 一键迁移页面的紧凑按钮样式 - 继承全局现代化样式 -->
-        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="5,0"/>
-            <Setter Property="MinWidth" Value="80"/>
+        <!-- Clean Primary Button (Fluent style, no heavy glow) -->
+        <Style x:Key="PagePrimaryButtonStyle" TargetType="Button">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="84"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#004578"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- 任务卡片中的超小按钮样式 -->
-        <Style x:Key="TaskButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="MinWidth" Value="60"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Margin" Value="5,0,0,0"/>
+        <!-- Clean Secondary Button -->
+        <Style x:Key="PageSecondaryButtonStyle" TargetType="Button">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="MinWidth" Value="72"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#9CA3AF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F9FAFB"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Compact Card Primary Action Button -->
+        <Style x:Key="CardPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PagePrimaryButtonStyle}">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="64"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <!-- Normal Task Card Style -->
-        <Style x:Key="TaskCardStyle"
-                TargetType="Border">
-            <Setter Property="Background"
-                    Value="White"/>
-            <Setter Property="BorderBrush"
-                    Value="#E0E0E0"/>
-            <Setter Property="BorderThickness"
-                    Value="1"/>
-            <Setter Property="CornerRadius"
-                    Value="3"/>
-            <Setter Property="Padding"
-                    Value="10,8"/>
-            <Setter Property="Margin"
-                    Value="0,4"/>
+        <!-- Compact Card Secondary Action Button -->
+        <Style x:Key="CardSecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PageSecondaryButtonStyle}">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="58"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <!-- Failed Task Card Style -->
-        <Style x:Key="FailedTaskCardStyle"
-                TargetType="Border">
-            <Setter Property="Background"
-                    Value="#FFF5F5"/>
-            <Setter Property="BorderBrush"
-                    Value="#DC2626"/>
-            <Setter Property="BorderThickness"
-                    Value="2"/>
-            <Setter Property="CornerRadius"
-                    Value="3"/>
-            <Setter Property="Padding"
-                    Value="10,8"/>
-            <Setter Property="Margin"
-                    Value="0,4"/>
-            <Setter Property="Effect">
+        <!-- Dynamic Verify Button: Primary when unverified, tinted outline when backup retained, secondary when cleaned -->
+        <Style x:Key="VerifyActionButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="MinWidth" Value="88"/>
+            <Setter Property="Padding" Value="11,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
                 <Setter.Value>
-                    <DropShadowEffect Color="#DC2626"
-                            BlurRadius="6"
-                            Opacity="0.2"
-                            Direction="315"/>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Default secondary hover/press -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#9CA3AF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+
+                            <!-- Backup retained: subtle blue accent -->
+                            <DataTrigger Binding="{Binding HasRetainedBackup}" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#EFF6FF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#93C5FD"/>
+                                <Setter Property="Foreground" Value="#1D4ED8"/>
+                                <Setter Property="FontWeight" Value="Medium"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding HasRetainedBackup}" Value="True"/>
+                                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#DBEAFE"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#60A5FA"/>
+                            </MultiDataTrigger>
+
+                            <!-- Awaiting verification: solid primary blue -->
+                            <DataTrigger Binding="{Binding IsAwaitingUserVerification}" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0078D4"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsAwaitingUserVerification}" Value="True"/>
+                                    <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#005A9E"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsAwaitingUserVerification}" Value="True"/>
+                                    <Condition Binding="{Binding IsPressed, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="border" Property="Background" Value="#004578"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#004578"/>
+                            </MultiDataTrigger>
+
+                            <!-- Disabled state always wins -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#E5E7EB"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Completed Task Card Style -->
-        <Style x:Key="CompletedTaskCardStyle"
-                TargetType="Border">
-            <Setter Property="Background"
-                    Value="#F0FDF4"/>
-            <Setter Property="BorderBrush"
-                    Value="#22C55E"/>
-            <Setter Property="BorderThickness"
-                    Value="2"/>
-            <Setter Property="CornerRadius"
-                    Value="3"/>
-            <Setter Property="Padding"
-                    Value="10,8"/>
-            <Setter Property="Margin"
-                    Value="0,4"/>
-            <Setter Property="Effect">
+        <!-- Compact Input TextBox (30px height, matches toolbar buttons) -->
+        <Style x:Key="CompactInputBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="9,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="#0078D4"/>
+            <Setter Property="SelectionBrush" Value="#B4D5FE"/>
+            <Setter Property="Template">
                 <Setter.Value>
-                    <DropShadowEffect Color="#22C55E"
-                            BlurRadius="6"
-                            Opacity="0.15"
-                            Direction="315"/>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#9CA3AF"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- In Progress Task Card Style -->
-        <Style x:Key="InProgressTaskCardStyle"
-                TargetType="Border">
-            <Setter Property="Background"
-                    Value="#EFF6FF"/>
-            <Setter Property="BorderBrush"
-                    Value="#3B82F6"/>
-            <Setter Property="BorderThickness"
-                    Value="2"/>
-            <Setter Property="CornerRadius"
-                    Value="3"/>
-            <Setter Property="Padding"
-                    Value="10,8"/>
-            <Setter Property="Margin"
-                    Value="0,4"/>
+        <!-- Compact Read-Only Path Box for Backup Path -->
+        <Style x:Key="CompactBackupPathBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontFamily" Value="Consolas, Microsoft YaHei UI"/>
+            <Setter Property="Foreground" Value="#4B5563"/>
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#CBD5E1"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Modern Underline TabControl -->
+        <Style x:Key="ModernTabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0"
+                                    Background="White"
+                                    BorderBrush="#E5E7EB"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="16,0,16,0">
+                                <TabPanel IsItemsHost="True"/>
+                            </Border>
+                            <ContentPresenter Grid.Row="1"
+                                              x:Name="PART_SelectedContentHost"
+                                              ContentSource="SelectedContent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModernTabItemStyle" TargetType="TabItem">
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Grid Background="Transparent">
+                            <Border x:Name="HoverBg"
+                                    Background="Transparent"
+                                    CornerRadius="6,6,0,0"
+                                    Padding="14,10,14,10">
+                                <ContentPresenter ContentSource="Header"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="ActiveIndicator"
+                                    Height="2.5"
+                                    VerticalAlignment="Bottom"
+                                    CornerRadius="2,2,0,0"
+                                    Background="Transparent"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HoverBg" Property="Background" Value="#F9FAFB"/>
+                                <Setter Property="Foreground" Value="#111827"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#0078D4"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="ActiveIndicator" Property="Background" Value="#0078D4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Pending Task Card Style (replaces broken string converter with proper DataTriggers) -->
+        <Style x:Key="PendingTaskCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding ShowPendingVerificationEntry}" Value="True">
+                    <Setter Property="BorderBrush" Value="#FCD34D"/>
+                    <Setter Property="Background" Value="#FFFDF7"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Completed">
+                    <Setter Property="Background" Value="#F0FDF4"/>
+                    <Setter Property="BorderBrush" Value="#22C55E"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Failed">
+                    <Setter Property="Background" Value="#FEF2F2"/>
+                    <Setter Property="BorderBrush" Value="#EF4444"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Migrated Task Card Style -->
+        <Style x:Key="MigratedTaskCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding IsAwaitingUserVerification}" Value="True">
+                    <Setter Property="BorderBrush" Value="#FCD34D"/>
+                    <Setter Property="Background" Value="#FFFDF7"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsTransactionAbnormal}" Value="True">
+                    <Setter Property="BorderBrush" Value="#FCA5A5"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                    <Setter Property="BorderThickness" Value="1.5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Semantic Verification Status Pill -->
+        <Style x:Key="VerificationBadgeBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FEF3C7"/>
+            <Setter Property="BorderBrush" Value="#FCD34D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,1.5"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsUserVerified}" Value="True">
+                    <Setter Property="Background" Value="#DCFCE7"/>
+                    <Setter Property="BorderBrush" Value="#86EFAC"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsTransactionAbnormal}" Value="True">
+                    <Setter Property="Background" Value="#FEE2E2"/>
+                    <Setter Property="BorderBrush" Value="#FCA5A5"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="VerificationBadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#92400E"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsUserVerified}" Value="True">
+                    <Setter Property="Foreground" Value="#166534"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsTransactionAbnormal}" Value="True">
+                    <Setter Property="Foreground" Value="#991B1B"/>
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Error Tag Style -->
-        <Style x:Key="ErrorTagStyle"
-                TargetType="Border">
-            <Setter Property="CornerRadius"
-                    Value="4"/>
-            <Setter Property="Padding"
-                    Value="6,2"/>
-            <Setter Property="Margin"
-                    Value="0,0,5,0"/>
-            <Setter Property="VerticalAlignment"
-                    Value="Center"/>
+        <Style x:Key="ErrorTagStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="7,2"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
-
-        <!-- Error Details Panel Style -->
-        <Style x:Key="ErrorDetailsPanelStyle"
-                TargetType="Border">
-            <Setter Property="Background"
-                    Value="#FEF2F2"/>
-            <Setter Property="BorderBrush"
-                    Value="#FCA5A5"/>
-            <Setter Property="BorderThickness"
-                    Value="1"/>
-            <Setter Property="CornerRadius"
-                    Value="4"/>
-            <Setter Property="Padding"
-                    Value="8"/>
-            <Setter Property="Margin"
-                    Value="0,5,0,0"/>
-        </Style>
-
-        <Style x:Key="GroupBoxStyle"
-                TargetType="GroupBox">
-            <Setter Property="BorderBrush"
-                    Value="#CCCCCC"/>
-            <Setter Property="BorderThickness"
-                    Value="1"/>
-            <Setter Property="Margin"
-                    Value="0,0,0,10"/>
-            <Setter Property="Padding"
-                    Value="8"/>
-        </Style>
-        <DataTemplate x:Key="BackupStatusTemplate">
-            <StackPanel Margin="0,8,0,0">
-                <TextBlock Text="{Binding TransactionStatusText}" TextWrapping="Wrap" FontSize="12"/>
-                <TextBlock Text="{Binding VerificationText}" TextWrapping="Wrap" FontSize="11" Margin="0,3,0,0"/>
-                <TextBlock Text="{Binding BackupStatusText}" FontSize="11" Margin="0,3,0,0"/>
-                <TextBox Text="{Binding BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="26" FontSize="11" Margin="0,3,0,0" AutomationProperties.AutomationId="TaskBackupPath"/>
-                <WrapPanel Margin="0,5,0,0" IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}">
-                    <Button Content="验证迁移并管理备份…" Command="{Binding DataContext.VerifyTaskDataCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource TaskButtonStyle}" AutomationProperties.AutomationId="TaskVerifyData"/>
-                </WrapPanel>
-                <Expander Header="逐项处理结果" FontSize="11">
-                    <ScrollViewer MaxHeight="150"><TextBlock Text="{Binding DeletionDetails}" TextWrapping="Wrap"/></ScrollViewer>
-                </Expander>
-            </StackPanel>
-        </DataTemplate>
     </UserControl.Resources>
 
     <Grid>
@@ -357,11 +602,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- Header Toolbar -->
         <Border Grid.Row="0"
-                Background="#F8F8F8"
-                Padding="10,8"
-                BorderBrush="#E0E0E0"
+                Background="White"
+                Padding="16,12,16,10"
+                BorderBrush="#E5E7EB"
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
@@ -369,294 +614,524 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                    <TextBlock Text="⏩ 一键迁移"
-                            FontSize="16"
-                            FontWeight="Bold"
-                            Margin="0,0,12,0"/>
-                    <TextBlock Text="{Binding StatusMessage}"
-                            FontSize="13"
-                            Foreground="Gray"
-                            VerticalAlignment="Center"/>
-                </StackPanel>
+                <!-- Row 0: Title, Status Summary, and Primary Actions -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Target Strategy -->
-                <Grid Grid.Row="1"
-                        Margin="0,8,0,0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <WrapPanel Grid.Row="0" Margin="0,0,0,6">
-                        <CheckBox Content="完整内容哈希（可选；默认快速核对）" IsChecked="{Binding UseContentHash}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    </WrapPanel>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⏩ 一键迁移"
+                                   FontSize="17"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"
+                                   VerticalAlignment="Center"/>
+                        <Border Background="#F3F4F6"
+                                CornerRadius="10"
+                                Padding="9,2.5"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       FontSize="12"
+                                       Foreground="#4B5563"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
 
-                    <!-- Original Controls -->
-                    <Grid Grid.Row="1">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="导出示例配置"
+                                Command="{Binding ExportExampleConfigCommand}"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                                Visibility="{Binding HasConfig, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                Style="{StaticResource PageSecondaryButtonStyle}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="刷新扫描"
+                                Command="{Binding RefreshScanCommand}"
+                                IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                                Style="{StaticResource PageSecondaryButtonStyle}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="开始一键迁移"
+                                Command="{Binding StartQuickMigrationCommand}"
+                                IsEnabled="{Binding HasSelectedTasks}"
+                                Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Style="{StaticResource PagePrimaryButtonStyle}"/>
+                        <Button Content="取消"
+                                Command="{Binding CancelExecutionCommand}"
+                                Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"
+                                Style="{StaticResource PageSecondaryButtonStyle}"
+                                Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row 1: Unified Target Directory & Optional Content Hash -->
+                <Border Grid.Row="1"
+                        Background="#F8FAFC"
+                        BorderBrush="#E5E7EB"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,7"
+                        Margin="0,10,0,0">
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0"
-                                Orientation="Horizontal">
-                            <CheckBox Content="全选"
-                                      IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
-                                      VerticalAlignment="Center"
-                                      Margin="0,0,15,0"/>
-
-                            <CheckBox Content="统一目标目录"
+                        <Grid Grid.Column="0" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" MaxWidth="360"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0"
+                                      Content="统一目标目录"
                                       IsChecked="{Binding UseUnifiedTarget}"
+                                      FontSize="12.5"
+                                      Foreground="#374151"
                                       VerticalAlignment="Center"
                                       Margin="0,0,10,0"/>
 
-                            <TextBox Text="{Binding UnifiedTargetRoot, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="300"
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding UnifiedTargetRoot, UpdateSourceTrigger=PropertyChanged}"
+                                     MinWidth="160"
                                      IsEnabled="{Binding UseUnifiedTarget}"
-                                     VerticalAlignment="Center"
-                                     Margin="0,0,5,0"/>
+                                     Style="{StaticResource CompactInputBoxStyle}"
+                                     VerticalAlignment="Center"/>
 
-                            <Button Content="浏览..."
+                            <Button Grid.Column="2"
+                                    Content="浏览…"
                                     Command="{Binding BrowseUnifiedTargetCommand}"
                                     IsEnabled="{Binding UseUnifiedTarget}"
+                                    Style="{StaticResource PageSecondaryButtonStyle}"
+                                    Height="30"
+                                    MinWidth="64"
+                                    Margin="6,0,0,0"
                                     VerticalAlignment="Center"/>
-                        </StackPanel>
+                        </Grid>
 
-                        <StackPanel Grid.Column="2"
-                                Orientation="Horizontal"
-                                HorizontalAlignment="Right">
-                            <Button Content="导出示例配置"
-                                    Command="{Binding ExportExampleConfigCommand}"
-                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                                    Visibility="{Binding HasConfig, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                            <Button Content="刷新扫描"
-                                    Command="{Binding RefreshScanCommand}"
-                                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"/>
-                            <Button Content="开始一键迁移"
-                                    Command="{Binding StartQuickMigrationCommand}"
-                                    IsEnabled="{Binding HasSelectedTasks}"
-                                    Background="#0078D4"
-                                    Foreground="White"
-                                    FontWeight="SemiBold"
-                                    Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                            <Button Content="取消"
-                                    Command="{Binding CancelExecutionCommand}"
-                                    Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                        </StackPanel>
+                        <CheckBox Grid.Column="1"
+                                  Content="完整内容哈希（可选）"
+                                  IsChecked="{Binding UseContentHash}"
+                                  FontSize="12.5"
+                                  Foreground="#4B5563"
+                                  VerticalAlignment="Center"
+                                  Margin="16,0,0,0"
+                                  ToolTip="默认执行快速核对（相对路径清单、文件大小与必要元数据）；勾选后会额外计算完整内容 SHA-256 哈希，耗时较长。"/>
                     </Grid>
-                </Grid>
+                </Border>
             </Grid>
         </Border>
 
-        <!-- Content Area -->
+        <!-- Main Tab Content Area -->
         <TabControl Grid.Row="1"
-                SelectedIndex="{Binding SelectedTabIndex}"
-                Margin="10">
+                    SelectedIndex="{Binding SelectedTabIndex}"
+                    Style="{StaticResource ModernTabControlStyle}">
             <!-- 未迁移任务 -->
-            <TabItem Header="未迁移">
+            <TabItem Style="{StaticResource ModernTabItemStyle}"
+                     AutomationProperties.Name="未迁移">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="未迁移" VerticalAlignment="Center"/>
+                        <Border Background="#F3F4F6"
+                                CornerRadius="9"
+                                Padding="6,1"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PendingTaskCount}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#4B5563"/>
+                        </Border>
+                        <Border Background="#FEF3C7"
+                                BorderBrush="#FCD34D"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="6,1"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding UnverifiedPendingCount, Converter={StaticResource IntToVisibilityConverter}}">
+                            <TextBlock Text="{Binding UnverifiedPendingBadgeText}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#92400E"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
-                        Style="{StaticResource ModernScrollViewer}">
-                    <StackPanel Margin="10">
-                        <!-- Empty State -->
-                        <Border Background="#F0F0F0"
-                                Padding="40"
-                                CornerRadius="5"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Style="{StaticResource ModernScrollViewer}">
+                    <StackPanel Margin="16,12,16,16">
+                        <!-- Batch Selection Sub-bar (only when pending tasks exist) -->
+                        <Grid Margin="2,0,2,10"
+                              Visibility="{Binding HasPendingTasks, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <CheckBox Content="全选"
+                                          IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
+                                          FontSize="12.5"
+                                          FontWeight="Medium"
+                                          Foreground="#374151"
+                                          VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding SelectionSummaryText}"
+                                           FontSize="12"
+                                           Foreground="#6B7280"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1"
+                                       Text="勾选多项后点击右上角「开始一键迁移」批量执行，或点击单项右侧「迁移」"
+                                       FontSize="11.5"
+                                       Foreground="#9CA3AF"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+
+                        <!-- Empty State: No Valid Config/Tasks -->
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                Padding="40,36"
+                                CornerRadius="8"
                                 Visibility="{Binding HasValidTasks, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="📂"
-                                        FontSize="48"
-                                        HorizontalAlignment="Center"
-                                        Margin="0,0,0,10"/>
-                                <TextBlock Text="无可一键迁移目录"
-                                           FontSize="16"
-                                           FontWeight="SemiBold"
+                                           FontSize="40"
                                            HorizontalAlignment="Center"
-                                           Margin="0,0,0,5"/>
-                                <TextBlock Text="请检查配置文件或刷新扫描"
-                                           FontSize="14"
-                                           Foreground="Gray"
+                                           Margin="0,0,0,10"/>
+                                <TextBlock Text="无可一键迁移目录"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1F2937"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="请检查配置文件或点击右上角「刷新扫描」"
+                                           FontSize="13"
+                                           Foreground="#6B7280"
                                            HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Task Groups -->
+                        <!-- Empty State: All Tasks Already Migrated -->
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                Padding="40,36"
+                                CornerRadius="8"
+                                Visibility="{Binding AllTasksMigrated, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="✅"
+                                           FontSize="36"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,10"/>
+                                <TextBlock Text="所有检测到的目录均已完成迁移"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1F2937"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="可切换到「已迁移」标签页查看状态、确认验证或管理原始备份"
+                                           FontSize="13"
+                                           Foreground="#6B7280"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Pending Task Groups -->
                         <ItemsControl ItemsSource="{Binding PendingTaskGroups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <GroupBox Header="{Binding GroupName}"
-                                            Style="{StaticResource GroupBoxStyle}">
+                                    <StackPanel Margin="0,0,0,10">
+                                        <!-- Clean Section Header -->
+                                        <StackPanel Orientation="Horizontal" Margin="2,2,0,8">
+                                            <TextBlock Text="{Binding GroupName}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#374151"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Tasks.Count, StringFormat='· {0} 项'}"
+                                                       FontSize="12"
+                                                       Foreground="#9CA3AF"
+                                                       Margin="6,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
                                         <ItemsControl ItemsSource="{Binding Tasks}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Grid x:Name="TaskItemRoot">
-                                                        <Border Style="{Binding Status, Converter={StaticResource TaskStatusToStyleConverter}}">
+                                                        <Border Style="{StaticResource PendingTaskCardStyle}">
                                                             <Grid>
                                                                 <Grid.RowDefinitions>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
-                                                                    <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
-                                                                <ContentControl Grid.Row="4" Content="{Binding}" ContentTemplate="{StaticResource BackupStatusTemplate}"/>
 
-                                                            <!-- Row 1: Display Name and Actions -->
-                                                            <Grid Grid.Row="0">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                </Grid.ColumnDefinitions>
+                                                                <!-- Row 0: Checkbox, Title, Optional Badges, and Actions -->
+                                                                <Grid Grid.Row="0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
 
-                                                                <CheckBox Grid.Column="0"
-                                                                          IsChecked="{Binding IsSelected}"
-                                                                          VerticalAlignment="Center"
-                                                                          Margin="0,0,10,0"/>
+                                                                    <CheckBox Grid.Column="0"
+                                                                              IsChecked="{Binding IsSelected}"
+                                                                              VerticalAlignment="Center"
+                                                                              Margin="0,0,10,0"/>
 
-                                                                <TextBlock Grid.Column="1"
-                                                                           Text="{Binding DisplayName}"
-                                                                           FontWeight="SemiBold"
-                                                                           FontSize="14"
-                                                                           VerticalAlignment="Center"/>
+                                                                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                                   FontWeight="SemiBold"
+                                                                                   FontSize="14"
+                                                                                   Foreground="#111827"
+                                                                                   VerticalAlignment="Center"/>
 
-                                                                <!-- Error Status Indicator -->
-                                                                <StackPanel Grid.Column="2"
-                                                                            Orientation="Horizontal"
-                                                                            VerticalAlignment="Center"
-                                                                            Visibility="{Binding Status, Converter={StaticResource ErrorStateToVisibilityConverter}}">
-                                                                    <Border x:Name="ErrorTagBorder"
-                                                                            Style="{StaticResource ErrorTagStyle}"
-                                                                            Background="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToColorConverter}}"
-                                                                            Cursor="Hand"
-                                                                            MouseLeftButtonDown="ErrorTag_MouseLeftButtonDown"
-                                                                            MouseEnter="ErrorTag_MouseEnter"
-                                                                            MouseLeave="ErrorTag_MouseLeave">
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToIconConverter}}"
-                                                                                       FontSize="12"
-                                                                                    Margin="0,0,4,0"
-                                                                                    VerticalAlignment="Center"/>
-                                                                            <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorMessageToShortDescriptionConverter}}"
+                                                                        <!-- 刚还原待验证 / 还原备份保留 徽章（仅还原未收尾时显示） -->
+                                                                        <Border Style="{StaticResource VerificationBadgeBorderStyle}"
+                                                                                ToolTip="{Binding TransactionStatusText}"
+                                                                                Visibility="{Binding ShowPendingVerificationEntry, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <TextBlock Text="{Binding VerificationBadgeText}"
+                                                                                       Style="{StaticResource VerificationBadgeTextStyle}"/>
+                                                                        </Border>
+
+                                                                        <Border Background="#F3F4F6"
+                                                                                BorderBrush="#E5E7EB"
+                                                                                BorderThickness="1"
+                                                                                CornerRadius="4"
+                                                                                Padding="6,1.5"
+                                                                                Margin="6,0,0,0"
+                                                                                VerticalAlignment="Center"
+                                                                                ToolTip="{Binding BackupStatusText}">
+                                                                            <Border.Style>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    <Style.Triggers>
+                                                                                        <MultiDataTrigger>
+                                                                                            <MultiDataTrigger.Conditions>
+                                                                                                <Condition Binding="{Binding ShowPendingVerificationEntry}" Value="True"/>
+                                                                                                <Condition Binding="{Binding HasBackupShortBadge}" Value="True"/>
+                                                                                            </MultiDataTrigger.Conditions>
+                                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                                        </MultiDataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Border.Style>
+                                                                            <TextBlock Text="{Binding BackupShortBadgeText}"
                                                                                        FontSize="11"
-                                                                                    Foreground="White"
-                                                                                    FontWeight="SemiBold"
-                                                                                    VerticalAlignment="Center"/>
+                                                                                       Foreground="#4B5563"/>
+                                                                        </Border>
+
+                                                                        <!-- 上次取消/失败保留副本的轻量提示（无验证按钮） -->
+                                                                        <Border Background="#F3F4F6"
+                                                                                BorderBrush="#E5E7EB"
+                                                                                BorderThickness="1"
+                                                                                CornerRadius="4"
+                                                                                Padding="6,1.5"
+                                                                                Margin="8,0,0,0"
+                                                                                VerticalAlignment="Center"
+                                                                                ToolTip="{Binding StatusMessage}"
+                                                                                Visibility="{Binding ShowPendingHistoryNotice, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <TextBlock Text="上次未完成 · 副本保留"
+                                                                                       FontSize="11"
+                                                                                       Foreground="#6B7280"/>
+                                                                        </Border>
+
+                                                                        <!-- Error Status Indicator -->
+                                                                        <StackPanel Orientation="Horizontal"
+                                                                                    VerticalAlignment="Center"
+                                                                                    Visibility="{Binding Status, Converter={StaticResource ErrorStateToVisibilityConverter}}">
+                                                                            <Border x:Name="ErrorTagBorder"
+                                                                                    Style="{StaticResource ErrorTagStyle}"
+                                                                                    Background="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToColorConverter}}"
+                                                                                    Cursor="Hand"
+                                                                                    MouseLeftButtonDown="ErrorTag_MouseLeftButtonDown"
+                                                                                    MouseEnter="ErrorTag_MouseEnter"
+                                                                                    MouseLeave="ErrorTag_MouseLeave">
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorTypeToIconConverter}}"
+                                                                                               FontSize="11"
+                                                                                               Margin="0,0,4,0"
+                                                                                               VerticalAlignment="Center"/>
+                                                                                    <TextBlock Text="{Binding ErrorMessage, Converter={StaticResource ErrorMessageToShortDescriptionConverter}}"
+                                                                                               FontSize="11"
+                                                                                               Foreground="White"
+                                                                                               FontWeight="SemiBold"
+                                                                                               VerticalAlignment="Center"/>
+                                                                                </StackPanel>
+                                                                            </Border>
                                                                         </StackPanel>
-                                                                    </Border>
+                                                                    </WrapPanel>
+
+                                                                    <StackPanel Grid.Column="2"
+                                                                                Orientation="Horizontal"
+                                                                                VerticalAlignment="Center"
+                                                                                Margin="12,0,0,0"
+                                                                                IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}">
+                                                                        <!-- 仅刚还原且待验证/有未清理还原备份时显示验证入口 -->
+                                                                        <Button Content="{Binding VerifyActionButtonText}"
+                                                                                Command="{Binding DataContext.VerifyTaskDataCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Visibility="{Binding ShowPendingVerificationEntry, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                                Style="{StaticResource VerifyActionButtonStyle}"
+                                                                                Margin="0,0,6,0"
+                                                                                AutomationProperties.AutomationId="TaskVerifyData"/>
+
+                                                                        <!-- 非统一模式下显示浏览按钮 -->
+                                                                        <Button Content="浏览…"
+                                                                                Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Visibility="{Binding DataContext.UseUnifiedTarget, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                                                                Style="{StaticResource CardSecondaryButtonStyle}"
+                                                                                Margin="0,0,6,0"/>
+
+                                                                        <!-- 迁移按钮 -->
+                                                                        <Button Content="迁移"
+                                                                                Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                CommandParameter="{Binding}"
+                                                                                Style="{StaticResource CardPrimaryButtonStyle}"/>
+                                                                    </StackPanel>
+                                                                </Grid>
+
+                                                                <!-- Row 1: Paths -->
+                                                                <Grid Grid.Row="1" Margin="26,8,0,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="42"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Grid.RowDefinitions>
+                                                                        <RowDefinition Height="Auto"/>
+                                                                        <RowDefinition Height="Auto"/>
+                                                                    </Grid.RowDefinitions>
+
+                                                                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                                                               Text="源:"
+                                                                               FontSize="11.5"
+                                                                               Foreground="#6B7280"
+                                                                               VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Row="0" Grid.Column="1"
+                                                                               Text="{Binding SourcePath}"
+                                                                               FontSize="11.5"
+                                                                               FontFamily="Consolas, Microsoft YaHei UI"
+                                                                               Foreground="#374151"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               TextWrapping="NoWrap"
+                                                                               ToolTip="{Binding SourcePath}"/>
+
+                                                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                                                               Text="目标:"
+                                                                               FontSize="11.5"
+                                                                               Foreground="#6B7280"
+                                                                               Margin="0,4,0,0"
+                                                                               VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                                                               Text="{Binding TargetPath}"
+                                                                               FontSize="11.5"
+                                                                               FontFamily="Consolas, Microsoft YaHei UI"
+                                                                               Foreground="#374151"
+                                                                               TextTrimming="CharacterEllipsis"
+                                                                               TextWrapping="NoWrap"
+                                                                               Margin="0,4,0,0"
+                                                                               ToolTip="{Binding TargetPath}"/>
+                                                                </Grid>
+
+                                                                <!-- Row 2: Progress Bar and Phase Info (when executing) -->
+                                                                <StackPanel Grid.Row="2"
+                                                                            Margin="26,8,0,0"
+                                                                            Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <TextBlock FontSize="11"
+                                                                               Foreground="#0078D4"
+                                                                               FontWeight="Medium"
+                                                                               Margin="0,0,0,3">
+                                                                        <Run Text="["/>
+                                                                        <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
+                                                                        <Run Text="/6] "/>
+                                                                        <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
+                                                                    </TextBlock>
+                                                                    <ProgressBar Value="{Binding ProgressPercent}"
+                                                                                 Maximum="100"
+                                                                                 Height="6"
+                                                                                 Margin="0,2"/>
+                                                                    <TextBlock Text="{Binding StatusMessage}"
+                                                                               FontSize="11"
+                                                                               Foreground="#6B7280"
+                                                                               Margin="0,3,0,0"/>
                                                                 </StackPanel>
 
-                                                                <StackPanel Grid.Column="3"
-                                                                        Orientation="Horizontal">
-                                                                    <!-- 非统一模式下显示浏览按钮 -->
-                                                                    <Button Content="浏览..."
-                                                                            Command="{Binding DataContext.BrowseTaskTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                            CommandParameter="{Binding}"
-                                                                            Visibility="{Binding DataContext.UseUnifiedTarget, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                                                            Style="{StaticResource TaskButtonStyle}"/>
-
-                                                                    <!-- 迁移按钮 -->
-                                                                    <Button Content="迁移"
-                                                                            Command="{Binding DataContext.MigrateSingleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                            CommandParameter="{Binding}"
-                                                                            IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
-                                                                            Style="{StaticResource TaskButtonStyle}"/>
-                                                                </StackPanel>
+                                                                <!-- Row 3: Restore Verification / Backup Footer (ONLY for restored items awaiting verification or with retained restore backup) -->
+                                                                <Border Grid.Row="3"
+                                                                        Background="#FFFBEB"
+                                                                        BorderBrush="#FDE68A"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="6"
+                                                                        Padding="10,7"
+                                                                        Margin="26,9,0,0"
+                                                                        Visibility="{Binding ShowPendingVerificationEntry, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <StackPanel>
+                                                                        <TextBlock Text="{Binding TransactionStatusText}"
+                                                                                   FontSize="11.5"
+                                                                                   Foreground="#92400E"
+                                                                                   TextWrapping="Wrap"/>
+                                                                        <Grid Margin="0,5,0,0"
+                                                                              Visibility="{Binding HasBackupPath, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="62"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0"
+                                                                                       Text="{Binding BackupPathLabel}"
+                                                                                       FontSize="11.5"
+                                                                                       Foreground="#92400E"
+                                                                                       VerticalAlignment="Center"/>
+                                                                            <TextBox Grid.Column="1"
+                                                                                     Text="{Binding BackupPath, Mode=OneWay}"
+                                                                                     Style="{StaticResource CompactBackupPathBoxStyle}"
+                                                                                     ToolTip="{Binding BackupPath}"
+                                                                                     AutomationProperties.AutomationId="TaskBackupPath"/>
+                                                                        </Grid>
+                                                                        <Expander Header="查看备份处理明细"
+                                                                                  FontSize="11"
+                                                                                  Foreground="#4B5563"
+                                                                                  Margin="0,5,0,0"
+                                                                                  Visibility="{Binding HasDeletionDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <ScrollViewer MaxHeight="120" Margin="0,4,0,0">
+                                                                                <TextBlock Text="{Binding DeletionDetails}"
+                                                                                           FontSize="11"
+                                                                                           Foreground="#374151"
+                                                                                           TextWrapping="Wrap"/>
+                                                                            </ScrollViewer>
+                                                                        </Expander>
+                                                                    </StackPanel>
+                                                                </Border>
                                                             </Grid>
+                                                        </Border>
 
-                                                            <!-- Row 2: Paths -->
-                                                            <Grid Grid.Row="1"
-                                                                    Margin="0,5,0,0">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="50"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <Grid.RowDefinitions>
-                                                                    <RowDefinition Height="Auto"/>
-                                                                    <RowDefinition Height="Auto"/>
-                                                                </Grid.RowDefinitions>
-
-                                                                <TextBlock Grid.Row="0"
-                                                                        Grid.Column="0"
-                                                                        Text="源:"
-                                                                        FontSize="11"
-                                                                        Foreground="Gray"
-                                                                        VerticalAlignment="Top"
-                                                                        Margin="0,2,0,0"/>
-                                                                <TextBlock Grid.Row="0"
-                                                                        Grid.Column="1"
-                                                                           Text="{Binding SourcePath}"
-                                                                           FontSize="11"
-                                                                           FontFamily="Consolas"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           TextWrapping="NoWrap"
-                                                                           ToolTip="{Binding SourcePath}"/>
-
-                                                                <TextBlock Grid.Row="1"
-                                                                        Grid.Column="0"
-                                                                        Text="目标:"
-                                                                        FontSize="11"
-                                                                        Foreground="Gray"
-                                                                        Margin="0,4,0,0"
-                                                                        VerticalAlignment="Top"/>
-                                                                <TextBlock Grid.Row="1"
-                                                                        Grid.Column="1"
-                                                                           Text="{Binding TargetPath}"
-                                                                           FontSize="11"
-                                                                           FontFamily="Consolas"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           TextWrapping="NoWrap"
-                                                                           Margin="0,4,0,0"
-                                                                           ToolTip="{Binding TargetPath}"/>
-                                                            </Grid>
-
-                                                            <!-- Row 3: Progress Bar and Phase Info (when executing) -->
-                                                            <StackPanel Grid.Row="2"
-                                                                    Margin="0,5,0,0"
-                                                                        Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <TextBlock FontSize="10"
-                                                                        Foreground="#0078D4"
-                                                                        Margin="0,0,0,2">
-                                                                    <Run Text="["/>
-                                                                    <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
-                                                                    <Run Text="/6] "/>
-                                                                    <Run Text="{Binding PhaseDescription, Mode=OneWay}"/>
-                                                                </TextBlock>
-                                                                <ProgressBar Value="{Binding ProgressPercent}"
-                                                                             Maximum="100"
-                                                                             Height="6"
-                                                                             Margin="0,2"/>
-                                                                <TextBlock Text="{Binding StatusMessage}"
-                                                                           FontSize="10"
-                                                                           Foreground="Gray"
-                                                                           Margin="0,2,0,0"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
-
-                                                    <!-- Popup Error Details -->
-                                                    <Popup x:Name="ErrorPopup"
-                                                           PlacementTarget="{Binding ElementName=ErrorTagBorder}"
-                                                           Placement="Bottom"
-                                                           HorizontalOffset="0"
-                                                           VerticalOffset="5"
-                                                           AllowsTransparency="True"
-                                                           PopupAnimation="Fade"
-                                                           StaysOpen="True"
-                                                           MouseEnter="ErrorPopup_MouseEnter"
-                                                           MouseLeave="ErrorPopup_MouseLeave">
-                                                        <Border Background="White"
+                                                        <!-- Popup Error Details -->
+                                                        <Popup x:Name="ErrorPopup"
+                                                               PlacementTarget="{Binding ElementName=ErrorTagBorder}"
+                                                               Placement="Bottom"
+                                                               HorizontalOffset="0"
+                                                               VerticalOffset="5"
+                                                               AllowsTransparency="True"
+                                                               PopupAnimation="Fade"
+                                                               StaysOpen="True"
+                                                               MouseEnter="ErrorPopup_MouseEnter"
+                                                               MouseLeave="ErrorPopup_MouseLeave">
+                                                            <Border Background="White"
                                                                     BorderBrush="{Binding ErrorType, Converter={StaticResource ErrorTypeToColorConverter}}"
-                                                                    BorderThickness="2"
+                                                                    BorderThickness="1.5"
                                                                     CornerRadius="8"
                                                                     Padding="12"
                                                                     MaxWidth="400"
                                                                     Effect="{StaticResource PopupShadowEffect}">
                                                                 <StackPanel>
-                                                                    <!-- Error Type Header -->
                                                                     <Grid Margin="0,0,0,8">
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="Auto"/>
@@ -683,12 +1158,11 @@
                                                                         <TextBlock Grid.Column="1"
                                                                                    Text="{Binding DisplayName}"
                                                                                    FontSize="11"
-                                                                                   Foreground="Gray"
+                                                                                   Foreground="#6B7280"
                                                                                    VerticalAlignment="Center"
                                                                                    TextTrimming="CharacterEllipsis"/>
                                                                     </Grid>
 
-                                                                    <!-- Detailed Error Message -->
                                                                     <TextBlock Text="详细错误信息"
                                                                                FontWeight="SemiBold"
                                                                                FontSize="11"
@@ -698,7 +1172,6 @@
                                                                             BorderBrush="#E5E7EB"
                                                                             BorderThickness="1"
                                                                             CornerRadius="4"
-                                                                            Padding="0"
                                                                             Margin="0,0,0,10">
                                                                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                                                                       HorizontalScrollBarVisibility="Disabled"
@@ -707,13 +1180,12 @@
                                                                             <TextBlock Text="{Binding ErrorMessage}"
                                                                                        TextWrapping="Wrap"
                                                                                        FontFamily="Consolas"
-                                                                                       FontSize="10"
+                                                                                       FontSize="10.5"
                                                                                        Foreground="#374151"
                                                                                        Padding="8"/>
                                                                         </ScrollViewer>
                                                                     </Border>
 
-                                                                    <!-- Solution Suggestions -->
                                                                     <TextBlock Text="💡 建议解决方案"
                                                                                FontWeight="SemiBold"
                                                                                FontSize="11"
@@ -723,21 +1195,20 @@
                                                                             BorderBrush="#A7F3D0"
                                                                             BorderThickness="1"
                                                                             CornerRadius="4"
-                                                                            Padding="8"
-                                                                            Margin="0,0,0,10">
+                                                                            Padding="8">
                                                                         <TextBlock Text="{Binding ErrorType, Converter={StaticResource ErrorTypeToSolutionConverter}}"
                                                                                    TextWrapping="Wrap"
-                                                                                   FontSize="10"
+                                                                                   FontSize="10.5"
                                                                                    Foreground="#065F46"/>
                                                                     </Border>
                                                                 </StackPanel>
                                                             </Border>
-                                                    </Popup>
+                                                        </Popup>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                    </GroupBox>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -746,42 +1217,98 @@
             </TabItem>
 
             <!-- 已迁移任务 -->
-            <TabItem Header="已迁移">
+            <TabItem Style="{StaticResource ModernTabItemStyle}"
+                     AutomationProperties.Name="已迁移">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="已迁移" VerticalAlignment="Center"/>
+                        <Border Background="#F3F4F6"
+                                CornerRadius="9"
+                                Padding="6,1"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MigratedTaskCount}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#4B5563"/>
+                        </Border>
+                        <Border Background="#FEF3C7"
+                                BorderBrush="#FCD34D"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Padding="6,1"
+                                Margin="6,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding UnverifiedMigratedCount, Converter={StaticResource IntToVisibilityConverter}}">
+                            <TextBlock Text="{Binding UnverifiedMigratedBadgeText}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#92400E"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
-                        Style="{StaticResource ModernScrollViewer}">
-                    <StackPanel Margin="10">
+                              HorizontalScrollBarVisibility="Disabled"
+                              Style="{StaticResource ModernScrollViewer}">
+                    <StackPanel Margin="16,12,16,16">
                         <!-- Empty State -->
-                        <TextBlock Text="暂无已迁移任务"
-                                   FontSize="16"
-                                   Foreground="Gray"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Margin="0,40,0,0">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                        <Border Background="White"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="1"
+                                Padding="40,36"
+                                CornerRadius="8">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding MigratedTaskGroups.Count}"
-                                                Value="0">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding MigratedTaskGroups.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                            </Border.Style>
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="📦"
+                                           FontSize="36"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,10"/>
+                                <TextBlock Text="暂无已迁移任务"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1F2937"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="完成迁移后的目录会显示在这里，可进行使用验证、管理原始备份或一键还原"
+                                           FontSize="13"
+                                           Foreground="#6B7280"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
 
-                        <!-- Task Groups -->
+                        <!-- Migrated Task Groups -->
                         <ItemsControl ItemsSource="{Binding MigratedTaskGroups}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <GroupBox Header="{Binding GroupName}"
-                                            Style="{StaticResource GroupBoxStyle}">
+                                    <StackPanel Margin="0,0,0,10">
+                                        <!-- Clean Section Header -->
+                                        <StackPanel Orientation="Horizontal" Margin="2,2,0,8">
+                                            <TextBlock Text="{Binding GroupName}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#374151"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Tasks.Count, StringFormat='· {0} 项'}"
+                                                       FontSize="12"
+                                                       Foreground="#9CA3AF"
+                                                       Margin="6,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
                                         <ItemsControl ItemsSource="{Binding Tasks}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Style="{StaticResource TaskCardStyle}">
+                                                    <Border Style="{StaticResource MigratedTaskCardStyle}">
                                                         <Grid>
                                                             <Grid.RowDefinitions>
                                                                 <RowDefinition Height="Auto"/>
@@ -789,95 +1316,154 @@
                                                                 <RowDefinition Height="Auto"/>
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
-                                                            <ContentControl Grid.Row="3" Content="{Binding}" ContentTemplate="{StaticResource BackupStatusTemplate}"/>
 
-                                                            <!-- Row 1: Display Name and Actions -->
+                                                            <!-- Row 0: Display Name, Status Pills, and Action Buttons -->
                                                             <Grid Grid.Row="0">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
 
-                                                                <TextBlock Grid.Column="0"
-                                                                           Text="{Binding DisplayName}"
-                                                                           FontWeight="SemiBold"
-                                                                           FontSize="14"/>
+                                                                <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding DisplayName}"
+                                                                               FontWeight="SemiBold"
+                                                                               FontSize="14"
+                                                                               Foreground="#111827"
+                                                                               VerticalAlignment="Center"/>
 
+                                                                    <!-- Verification Status Badge -->
+                                                                    <Border Style="{StaticResource VerificationBadgeBorderStyle}"
+                                                                            Cursor="Help"
+                                                                            Visibility="{Binding HasVerificationBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                        <Border.ToolTip>
+                                                                            <StackPanel MaxWidth="360">
+                                                                                <TextBlock Text="{Binding TransactionStatusText}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                                                <TextBlock Text="{Binding VerificationText}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                                            </StackPanel>
+                                                                        </Border.ToolTip>
+                                                                        <TextBlock Text="{Binding VerificationBadgeText}"
+                                                                                   Style="{StaticResource VerificationBadgeTextStyle}"/>
+                                                                    </Border>
+
+                                                                    <!-- Backup Short Status Badge -->
+                                                                    <Border Background="#F3F4F6"
+                                                                            BorderBrush="#E5E7EB"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="4"
+                                                                            Padding="6,1.5"
+                                                                            Margin="6,0,0,0"
+                                                                            VerticalAlignment="Center"
+                                                                            Cursor="Help"
+                                                                            ToolTip="{Binding BackupStatusText}"
+                                                                            Visibility="{Binding HasBackupShortBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                        <TextBlock Text="{Binding BackupShortBadgeText}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="#4B5563"/>
+                                                                    </Border>
+                                                                </WrapPanel>
+
+                                                                <!-- Right Action Bar: Verify/Manage Backup + Restore -->
                                                                 <StackPanel Grid.Column="1"
-                                                                        Orientation="Horizontal">
+                                                                            Orientation="Horizontal"
+                                                                            VerticalAlignment="Center"
+                                                                            Margin="12,0,0,0"
+                                                                            IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}">
+                                                                    <Button Content="{Binding VerifyActionButtonText}"
+                                                                            Command="{Binding DataContext.VerifyTaskDataCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}"
+                                                                            Visibility="{Binding HasTransaction, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                            Style="{StaticResource VerifyActionButtonStyle}"
+                                                                            Margin="0,0,6,0"
+                                                                            AutomationProperties.AutomationId="TaskVerifyData"/>
                                                                     <Button Content="还原"
                                                                             Command="{Binding DataContext.RestoreTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}"
-                                                                            Style="{StaticResource TaskButtonStyle}"/>
+                                                                            Style="{StaticResource CardSecondaryButtonStyle}"/>
                                                                 </StackPanel>
                                                             </Grid>
 
-                                                            <!-- Row 2: Paths -->
-                                                            <Grid Grid.Row="1"
-                                                                    Margin="0,5,0,0">
+                                                            <!-- Row 1: Paths & Compact Backup Path -->
+                                                            <Grid Grid.Row="1" Margin="0,8,0,0">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="50"/>
+                                                                    <ColumnDefinition Width="58"/>
                                                                     <ColumnDefinition Width="*"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <Grid.RowDefinitions>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
                                                                     <RowDefinition Height="Auto"/>
+                                                                    <RowDefinition Height="Auto"/>
                                                                 </Grid.RowDefinitions>
 
-                                                                <TextBlock Grid.Row="0"
-                                                                        Grid.Column="0"
-                                                                        Text="链接:"
-                                                                        FontSize="11"
-                                                                        Foreground="Gray"
-                                                                        VerticalAlignment="Top"
-                                                                        Margin="0,2,0,0"/>
-                                                                <TextBlock Grid.Row="0"
-                                                                        Grid.Column="1"
+                                                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                                                           Text="链接:"
+                                                                           FontSize="11.5"
+                                                                           Foreground="#6B7280"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="0" Grid.Column="1"
                                                                            Text="{Binding SourcePath}"
-                                                                           FontSize="11"
-                                                                           FontFamily="Consolas"
+                                                                           FontSize="11.5"
+                                                                           FontFamily="Consolas, Microsoft YaHei UI"
+                                                                           Foreground="#374151"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            TextWrapping="NoWrap"
                                                                            ToolTip="{Binding SourcePath}"/>
 
-                                                                <TextBlock Grid.Row="1"
-                                                                        Grid.Column="0"
-                                                                        Text="目标:"
-                                                                        FontSize="11"
-                                                                        Foreground="Gray"
-                                                                        Margin="0,4,0,0"
-                                                                        VerticalAlignment="Top"/>
-                                                                <TextBlock Grid.Row="1"
-                                                                        Grid.Column="1"
+                                                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                                                           Text="目标:"
+                                                                           FontSize="11.5"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,4,0,0"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="1"
                                                                            Text="{Binding SymlinkTarget}"
-                                                                           FontSize="11"
-                                                                           FontFamily="Consolas"
+                                                                           FontSize="11.5"
+                                                                           FontFamily="Consolas, Microsoft YaHei UI"
+                                                                           Foreground="#374151"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            TextWrapping="NoWrap"
                                                                            Margin="0,4,0,0"
                                                                            ToolTip="{Binding SymlinkTarget}"/>
 
-                                                                <TextBlock Grid.Row="2"
-                                                                        Grid.Column="0"
-                                                                        Text="迁移:"
-                                                                        FontSize="11"
-                                                                        Foreground="Gray"
-                                                                        Margin="0,4,0,0"/>
-                                                                <TextBlock Grid.Row="2"
-                                                                        Grid.Column="1"
-                                                                           Text="{Binding MigratedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
-                                                                           FontSize="11"
-                                                                           Margin="0,4,0,0"/>
+                                                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                                                           Text="时间:"
+                                                                           FontSize="11.5"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,4,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Visibility="{Binding HasDisplayMigratedAt, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                                                           Text="{Binding DisplayMigratedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                                           FontSize="11.5"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,4,0,0"
+                                                                           Visibility="{Binding HasDisplayMigratedAt, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                                                <!-- Compact Backup Path Row (only shown when a backup path exists; preserves TaskBackupPath AutomationId) -->
+                                                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                                                           Text="{Binding BackupPathLabel}"
+                                                                           FontSize="11.5"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,6,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Visibility="{Binding HasBackupPath, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                <TextBox Grid.Row="3" Grid.Column="1"
+                                                                         Text="{Binding BackupPath, Mode=OneWay}"
+                                                                         Style="{StaticResource CompactBackupPathBoxStyle}"
+                                                                         Margin="0,6,0,0"
+                                                                         ToolTip="{Binding BackupPath}"
+                                                                         Visibility="{Binding HasBackupPath, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                         AutomationProperties.AutomationId="TaskBackupPath"/>
                                                             </Grid>
 
-                                                            <!-- Row 3: Progress Bar and Phase Info (when executing) -->
+                                                            <!-- Row 2: Progress Bar (when restoring) -->
                                                             <StackPanel Grid.Row="2"
-                                                                    Margin="0,5,0,0"
+                                                                        Margin="0,8,0,0"
                                                                         Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                                <TextBlock FontSize="10"
-                                                                        Foreground="#0078D4"
-                                                                        Margin="0,0,0,2">
+                                                                <TextBlock FontSize="11"
+                                                                           Foreground="#0078D4"
+                                                                           FontWeight="Medium"
+                                                                           Margin="0,0,0,3">
                                                                     <Run Text="["/>
                                                                     <Run Text="{Binding CurrentPhase, Mode=OneWay}"/>
                                                                     <Run Text="/6] "/>
@@ -888,16 +1474,53 @@
                                                                              Height="6"
                                                                              Margin="0,2"/>
                                                                 <TextBlock Text="{Binding StatusMessage}"
-                                                                           FontSize="10"
-                                                                           Foreground="Gray"
-                                                                           Margin="0,2,0,0"/>
+                                                                           FontSize="11"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,3,0,0"/>
+                                                            </StackPanel>
+
+                                                            <!-- Row 3: Warning Banner (for no-transaction / inconsistent items) & Deletion Details (only when non-empty) -->
+                                                            <StackPanel Grid.Row="3">
+                                                                <Border Background="#FFFBEB"
+                                                                        BorderBrush="#FDE68A"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="5"
+                                                                        Padding="9,6"
+                                                                        Margin="0,8,0,0"
+                                                                        Visibility="{Binding ShowMigratedWarningBanner, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <TextBlock Text="{Binding StatusMessage}"
+                                                                               FontSize="11.5"
+                                                                               Foreground="#92400E"
+                                                                               TextWrapping="Wrap"/>
+                                                                </Border>
+
+                                                                <Expander Header="查看备份处理明细"
+                                                                          FontSize="11.5"
+                                                                          Foreground="#4B5563"
+                                                                          Margin="0,8,0,0"
+                                                                          Visibility="{Binding HasDeletionDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <Border Background="#F9FAFB"
+                                                                            BorderBrush="#E5E7EB"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="5"
+                                                                            Padding="8,6"
+                                                                            Margin="0,4,0,0">
+                                                                        <ScrollViewer MaxHeight="130">
+                                                                            <TextBlock Text="{Binding DeletionDetails}"
+                                                                                       FontSize="11"
+                                                                                       FontFamily="Consolas, Microsoft YaHei UI"
+                                                                                       Foreground="#374151"
+                                                                                       TextWrapping="Wrap"/>
+                                                                        </ScrollViewer>
+                                                                    </Border>
+                                                                </Expander>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                    </GroupBox>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -909,9 +1532,10 @@
         <!-- Log Area (Collapsible) -->
         <Expander Grid.Row="2"
                   IsExpanded="False"
-                  Background="#F8F8F8"
-                  BorderBrush="#E0E0E0"
-                  BorderThickness="0,1,0,0">
+                  Background="White"
+                  BorderBrush="#E5E7EB"
+                  BorderThickness="0,1,0,0"
+                  Padding="8,2">
             <Expander.Header>
                 <Grid Margin="0,4">
                     <Grid.ColumnDefinitions>
@@ -920,106 +1544,76 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center">
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center">
                         <TextBlock Text="📋 执行日志"
-                                FontWeight="SemiBold"
-                                FontSize="13"
-                                Margin="0,0,12,0"
-                                VerticalAlignment="Center"/>
+                                   FontWeight="SemiBold"
+                                   FontSize="12.5"
+                                   Foreground="#374151"
+                                   Margin="0,0,10,0"
+                                   VerticalAlignment="Center"/>
 
                         <!-- Success Status -->
                         <Border Background="#10B981"
-                                CornerRadius="12"
-                                Padding="8,3,8,3"
+                                CornerRadius="10"
+                                Padding="8,2"
                                 Margin="0,0,6,0"
                                 Visibility="{Binding CompletedCount, Converter={StaticResource IntToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="✓"
-                                        Foreground="White"
-                                        FontWeight="SemiBold"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,4,0"
+                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding CompletedCount}"
-                                        Foreground="White"
-                                        FontWeight="Bold"
-                                        FontSize="11"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontWeight="Bold"
+                                           FontSize="11"
+                                           Margin="0,0,3,0"
+                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="已完成"
-                                        Foreground="White"
-                                        FontSize="10"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontSize="10.5"
+                                           VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Failed Status -->
                         <Border Background="#EF4444"
-                                CornerRadius="12"
-                                Padding="8,3,8,3"
+                                CornerRadius="10"
+                                Padding="8,2"
                                 Visibility="{Binding FailedCount, Converter={StaticResource IntToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="✗"
-                                        Foreground="White"
-                                        FontWeight="SemiBold"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,4,0"
+                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding FailedCount}"
-                                        Foreground="White"
-                                        FontWeight="Bold"
-                                        FontSize="11"
-                                        Margin="0,0,4,0"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontWeight="Bold"
+                                           FontSize="11"
+                                           Margin="0,0,3,0"
+                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="失败"
-                                        Foreground="White"
-                                        FontSize="10"
-                                        VerticalAlignment="Center"/>
+                                           Foreground="White"
+                                           FontSize="10.5"
+                                           VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
-
-                    <!-- Error Summary Button -->
-                    <!-- <Button Grid.Column="1"
-                            Content="📋 复制全部日志"
-                            Command="{Binding CopyLogsAsyncCommand}"
-                            Background="#6B7280"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Padding="10,6"
-                            FontSize="11"
-                            Cursor="Hand"
-                            Visibility="{Binding LogMessages.Count, Converter={StaticResource IntToVisibilityConverter}}">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}"
-                                                    CornerRadius="4"
-                                                    Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center"
-                                                                  VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#4B5563"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button> -->
                 </Grid>
             </Expander.Header>
 
             <Border Height="150"
-                    Padding="10,5">
+                    Background="#F9FAFB"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="0,1,0,0"
+                    Padding="12,6">
                 <ScrollViewer x:Name="QuickMigrateLogScrollViewer"
-                        VerticalScrollBarVisibility="Auto"
-                        Style="{StaticResource ModernScrollViewer}">
+                              VerticalScrollBarVisibility="Auto"
+                              Style="{StaticResource ModernScrollViewer}">
                     <i:Interaction.Behaviors>
                         <behaviors:AutoScrollBehavior/>
                     </i:Interaction.Behaviors>
@@ -1029,6 +1623,7 @@
                                 <TextBlock Text="{Binding}"
                                            FontFamily="Consolas"
                                            FontSize="11"
+                                           Foreground="#374151"
                                            TextWrapping="Wrap"
                                            Margin="0,1"/>
                             </DataTemplate>
@@ -1039,4 +1634,3 @@
         </Expander>
     </Grid>
 </UserControl>
-

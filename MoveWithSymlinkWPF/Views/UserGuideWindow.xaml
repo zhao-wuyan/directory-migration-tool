@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="使用说明 - 目录迁移工具"
+        Icon="pack://application:,,,/Resources/app-icon.ico"
         Height="650" Width="900"
         WindowStartupLocation="CenterScreen"
         Background="White"
@@ -219,9 +220,16 @@
             <Border.Effect>
                 <DropShadowEffect Color="#0078D4" Opacity="0.3" BlurRadius="12" ShadowDepth="3" Direction="270"/>
             </Border.Effect>
-            <StackPanel>
-                <TextBlock Text="目录迁移工具 - 使用说明" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Text="使用符号链接技术实现无感迁移大型目录" FontSize="13" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Image Source="{StaticResource AppIconDrawingImage}"
+                       Width="42" Height="42"
+                       Margin="0,0,12,0"
+                       VerticalAlignment="Center"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="目录迁移工具 - 使用说明" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="使用符号链接技术实现无感迁移大型目录" FontSize="13" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+                </StackPanel>
             </StackPanel>
         </Border>
 

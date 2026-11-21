@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="选择文件夹"
+        Icon="pack://application:,,,/Resources/app-icon.ico"
         Height="600"
         Width="800"
         WindowStartupLocation="CenterOwner"
