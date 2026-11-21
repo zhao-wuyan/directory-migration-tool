@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using Microsoft.Win32;
 using System.Text;
 using System.Text.Json;
 using MigrationCore.Models;
@@ -9,16 +11,23 @@ internal static partial class Program
     private static readonly string[] BackupCaseNames = ["A18-unverified", "A18-no-confirmations", "A18-first-only",
         "A18-order-and-name", "A18-cancel-First", "A18-cancel-Second", "A17-stale-revision",
         "A17-replaced-backup", "A17-target-changed", "A18-backup-changed", "A18-new-reparse",
-        "A18-other-transaction", "A18-unknown-candidate", "A19-recycle-unsupported", "A19-partial-delete",
-        "A19-permanent-delete", "A20-restored-source-changed", "A21-real-wpf"];
+        "A18-other-transaction", "A18-unknown-candidate", "A19-recycle-success", "A19-recycle-too-large", "A19-partial-delete",
+        "A19-permanent-delete", "A20-restored-source-changed", "A21-real-wpf", "A21-recycle-wpf",
+        "A21-exit-ExitComplete", "A21-exit-ExitButton", "A21-exit-ExitX"];
+    private static readonly string[] RecycleCaseNames = ["A19-recycle-success", "A19-recycle-too-large", "A21-recycle-wpf"];
+    private static readonly string[] VerificationCaseNames = ["A18-order-and-name", "A19-permanent-delete",
+        "A21-real-wpf", "A21-recycle-wpf", "A21-exit-ExitComplete", "A21-exit-ExitButton", "A21-exit-ExitX"];
 
     private static async Task RunBackupCases(Lab lab, Guid attempt, CaseEvidence[] cases)
     {
         var service = new BackupManagementService();
         var store = new MigrationTransactionStore();
         var identity = new PathIdentityService();
-        async Task Case(string name, Func<Dictionary<string, object?>, Task> action) =>
-            await RunCase(lab, cases.Single(c => c.Name == name), action);
+        async Task Case(string name, Func<Dictionary<string, object?>, Task> action)
+        {
+            var selected = cases.SingleOrDefault(c => c.Name == name);
+            if (selected is not null) await RunCase(lab, selected, action);
+        }
         async Task<CopyFixture> Fixture(string name, Dictionary<string, object?> o)
         {
             var f = NewSwitchFixture(lab, attempt, "backup-" + name);
@@ -33,7 +42,7 @@ internal static partial class Program
             if (confirmed)
             {
                 await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.First, null);
-                request = await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, Path.GetFileName(record.BackupPath));
+                request = await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath)));
             }
             return request;
         }
@@ -68,11 +77,17 @@ internal static partial class Program
         await Case("A18-order-and-name", async o =>
         {
             var f = await Fixture("order-name", o); var request = await Request(f);
-            o["order"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, Path.GetFileName(CopyRecord(f).BackupPath)));
+            o["order"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, Path.GetFileName(Path.TrimEndingDirectorySeparator(CopyRecord(f).SourcePath))));
             await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.First, null);
             o["repeatFirst"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.First, null));
             o["wrongName"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, "not-the-backup"));
-            Require(CopyRecord(f).DeletionRequest?.SecondConfirmedAtUtc is null, "Wrong name acquired second confirmation.");
+            o["emptyName"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, string.Empty));
+            var record = CopyRecord(f);
+            string sourceName = Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath));
+            string backupName = Path.GetFileName(record.BackupPath)!;
+            Require(backupName == sourceName + ".bak_" + record.TransactionId.ToString("D"), "测试备份未使用事务 UUID 随机后缀。");
+            o["backupName"] = await RejectAsync<IOException>(() => service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.Second, backupName));
+            Require(CopyRecord(f).DeletionRequest?.SecondConfirmedAtUtc is null, "错误、空白或 UUID 备份名称获得了第二次确认。");
             Intact(f);
         });
         foreach (var step in new[] { ConfirmationStep.First, ConfirmationStep.Second })
@@ -81,7 +96,7 @@ internal static partial class Program
                 var f = await Fixture("cancel-" + step, o); var request = await Request(f);
                 if (step == ConfirmationStep.Second) await service.ConfirmDeletionAsync(request.RequestId, ConfirmationStep.First, null);
                 using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
-                o["cancellation"] = await RejectAsync<OperationCanceledException>(() => service.ConfirmDeletionAsync(request.RequestId, step, Path.GetFileName(CopyRecord(f).BackupPath), cancelled.Token));
+                o["cancellation"] = await RejectAsync<OperationCanceledException>(() => service.ConfirmDeletionAsync(request.RequestId, step, Path.GetFileName(Path.TrimEndingDirectorySeparator(CopyRecord(f).SourcePath)), cancelled.Token));
                 o["deleteRejected"] = await RejectAsync<IOException>(() => service.DeleteAsync(request.RequestId));
                 Intact(f);
             });
@@ -154,19 +169,78 @@ internal static partial class Program
             o["rejection"] = await RejectAsync<IOException>(() => service.MarkUserVerifiedAsync(Guid.NewGuid()));
             VerifyFile(lab.Source, candidate, Path.Combine(candidate, "unknown.txt"), file, bytes); AssertSwitchBytes(f, f.Source);
         });
-        await Case("A19-recycle-unsupported", async o =>
+        await Case("A19-recycle-success", async o =>
         {
             var f = await Fixture("recycle", o); var request = await Request(f, true, BackupDeletionMode.Recycle);
+            string backup = CopyRecord(f).BackupPath!;
+            var expectedItems = (await new CopyVerificationService().CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None))
+                .Entries.Keys.Select(p => Path.Combine(backup, p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var result = await service.DeleteAsync(request.RequestId);
-            Require(result.Status == BackupDeletionStatus.Unsupported && result.Items.All(i => i.Outcome == BackupItemOutcome.Unsupported),
-                "Unproven recycling did not fail closed.");
-            Require(CopyRecord(f).LastDeletionResult?.Status == BackupDeletionStatus.Unsupported && CopyRecord(f).DeletionRequest?.Consumed == true,
-                "Unsupported result or consumed authorization was not persisted.");
-            o["result"] = result; Intact(f);
-            var expectedItems = (await new CopyVerificationService().CaptureAsync(CopyRecord(f).BackupPath!, VerificationMode.Basic, CancellationToken.None))
-                .Entries.Keys.Select(p => Path.Combine(CopyRecord(f).BackupPath!, p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Require(result.Status == BackupDeletionStatus.Recycled && result.Items.All(i => i.Outcome == BackupItemOutcome.Recycled),
+                "Shell 未确认完整回收：" + result.Error);
+            Require(expectedItems.SetEquals(result.Items.Select(i => i.Path)), "回收结果遗漏或虚构了逐项记录。");
+            var record = CopyRecord(f);
+            Require(record.BackupState == BackupState.Recycled && record.LastDeletionResult?.Status == BackupDeletionStatus.Recycled
+                && record.DeletionRequest?.Consumed == true && !record.BackupDeletionInProgress,
+                "回收状态、结果或已消费授权没有持久化。");
+            Require(!Directory.Exists(backup), "回收后原备份仍存在。");
+            string recycled = await FindRecycledBackup(backup);
+            Require(Path.GetPathRoot(recycled)!.Equals(Path.GetPathRoot(backup), StringComparison.OrdinalIgnoreCase)
+                && recycled.StartsWith(Path.Combine(Path.GetPathRoot(backup)!, "$Recycle.Bin") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
+                "Shell 返回的备份不在原卷回收站内。");
+            identity.RequireSame(recycled, f.SourceIdentity);
+            AssertSwitchBytes(f, recycled); AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, f.Source);
+            var task = MigrationStateDetector.DetectMigrationState(new QuickMigrateTask { SourcePath = f.Source, TargetPath = f.Target });
+            Require(task.BackupState == BackupState.Recycled && !task.CanManageBackup, "刷新后丢失回收状态或重新允许处理备份。");
+            o["recycledPath"] = recycled; o["result"] = result;
             o["repeatRejected"] = await RejectAsync<IOException>(() => service.DeleteAsync(request.RequestId));
-            Require(expectedItems.SetEquals(result.Items.Select(i => i.Path)), "Recycle result omitted or invented an item.");
+        });
+        await Case("A19-recycle-too-large", async o =>
+        {
+            // 稀疏文件不在当前清单支持范围；普通假数据必须在迁移前生成，沿用真实冻结基线。
+            var f = NewSwitchFixture(lab, attempt, "recycle-too-large");
+            long length = RecycleOversizedLength(lab, o);
+            string large = Path.Combine(f.Source, "超过回收容量.bin");
+            lab.Source.Missing(large, f.Source);
+            byte[] block = new byte[1024 * 1024];
+            for (int i = 0; i < block.Length; i++) block[i] = (byte)(i % 251);
+            using (var stream = new FileStream(large, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                for (long written = 0; written < length; written += block.Length)
+                {
+                    lab.BeforeWrite();
+                    stream.Write(block, 0, (int)Math.Min(block.Length, length - written));
+                }
+            var largeIdentity = lab.Source.Existing(large, f.Source);
+            string hash;
+            using (var stream = File.OpenRead(large)) hash = Convert.ToHexString(SHA256.HashData(stream));
+            AssertSwitched(f, await MigrateSwitch(f), o);
+            var request = await Request(f, true, BackupDeletionMode.Recycle);
+            string backup = CopyRecord(f).BackupPath!;
+            var verifier = new CopyVerificationService();
+            var before = await verifier.CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None);
+            var expectedItems = before.Entries.Keys.Select(p => Path.Combine(backup, p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var result = await service.DeleteAsync(request.RequestId);
+            Require(result.Status == BackupDeletionStatus.Failed && result.Items.All(i => i.Outcome is BackupItemOutcome.Failed or BackupItemOutcome.Retained),
+                "超过回收容量的备份没有完整保留，或出现永久删除/部分回收：" + result.Error);
+            Require(expectedItems.SetEquals(result.Items.Select(i => i.Path)), "失败回收结果遗漏或虚构了逐项记录。");
+            var record = CopyRecord(f);
+            Require(record.BackupState == BackupState.DeleteFailed && record.LastDeletionResult?.Status == BackupDeletionStatus.Failed
+                && record.DeletionRequest?.Consumed == true && !record.BackupDeletionInProgress,
+                "失败结果或已消费授权没有持久化。");
+            Intact(f); AssertSwitchBytes(f, f.Source);
+            var after = await verifier.CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None);
+            Require(CopyVerificationService.Fingerprint(before, true) == CopyVerificationService.Fingerprint(after, true),
+                "回收失败后备份完整清单身份发生变化。");
+            SameObject(largeIdentity, lab.Source.Existing(Path.Combine(backup, Path.GetFileName(large)), backup),
+                "回收失败后大文件身份变化。", comparePath: false);
+            foreach (string root in new[] { backup, f.Target, f.Source })
+            {
+                using var stream = File.OpenRead(Path.Combine(root, Path.GetFileName(large)));
+                Require(stream.Length == length && Convert.ToHexString(SHA256.HashData(stream)) == hash,
+                    "回收失败后大文件长度或完整内容改变：" + root);
+            }
+            o["result"] = result; o["largeFileSha256"] = hash;
+            o["repeatRejected"] = await RejectAsync<IOException>(() => service.DeleteAsync(request.RequestId));
         });
         await Case("A19-partial-delete", async o =>
         {
@@ -197,6 +271,10 @@ internal static partial class Program
             f.Files[Path.Combine("父目录", "子目录", "nested.txt")] = (WriteFile(lab, lab.Source, child, Path.Combine(child, "nested.txt"), nested), nested);
             AssertSwitched(f, await MigrateSwitch(f), o);
             var request = await Request(f, true); string backup = CopyRecord(f).BackupPath!;
+            var confirmed = CopyRecord(f);
+            string sourceName = Path.GetFileName(Path.TrimEndingDirectorySeparator(confirmed.SourcePath));
+            Require(Path.GetFileName(backup) == sourceName + ".bak_" + confirmed.TransactionId.ToString("D")
+                && confirmed.DeletionRequest?.SecondConfirmationText == sourceName, "UUID 备份必须使用不含随机后缀的原目录名称完成确认。");
             var expectedItems = (await new CopyVerificationService().CaptureAsync(backup, VerificationMode.Basic, CancellationToken.None))
                 .Entries.Keys.Select(p => Path.Combine(backup, p)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var result = await service.DeleteAsync(request.RequestId);
@@ -229,9 +307,82 @@ internal static partial class Program
             Require(CopyRecord(f).BackupState == BackupState.Deleted && !Directory.Exists(CopyRecord(f).BackupPath), "UI did not persist the authorized outcome.");
             AssertSwitchBytes(f, f.Target); AssertSwitchBytes(f, f.Source);
         });
+        await Case("A21-recycle-wpf", async o =>
+        {
+            var initial = NewSwitchFixture(lab, attempt, "recycle-ui");
+            NewDirectory(lab, lab.Target, Path.GetDirectoryName(initial.Target)!, initial.Target);
+            var f = initial with { Target = Path.Combine(initial.Target, Path.GetFileName(initial.Source)) };
+            AssertSwitched(f, await MigrateSwitch(f), o);
+            await VerifyBackupUi(lab, f, attempt, o, recycleOnly: true);
+            Intact(f); AssertSwitchBytes(f, f.Source);
+            Require(CopyRecord(f).LastDeletionResult is null && !CopyRecord(f).BackupDeletionInProgress,
+                "取消实际回收确认后仍产生了后台删除结果。");
+        });
+        foreach (string exitMode in new[] { "ExitComplete", "ExitButton", "ExitX" })
+        {
+            await Case("A21-exit-" + exitMode, async o =>
+            {
+                var initial = NewSwitchFixture(lab, attempt, "ui-" + exitMode);
+                NewDirectory(lab, lab.Target, Path.GetDirectoryName(initial.Target)!, initial.Target);
+                var f = initial with { Target = Path.Combine(initial.Target, Path.GetFileName(initial.Source)) };
+                AssertSwitched(f, await MigrateSwitch(f), o);
+                await VerifyBackupUi(lab, f, attempt, o, exitMode: exitMode);
+                var record = CopyRecord(f);
+                Require(record.UserVerifiedAtUtc is null && record.DeletionRequest is null,
+                    "忽略验证被错误记录为已验证或授予备份处理权限。");
+                Intact(f); AssertSwitchBytes(f, f.Source);
+            });
+        }
     }
 
-    private static async Task VerifyBackupUi(Lab lab, CopyFixture f, Guid attempt, Dictionary<string, object?> o)
+    private static long RecycleOversizedLength(Lab lab, Dictionary<string, object?> observations)
+    {
+        lab.BeforeWrite();
+        var source = new DriveInfo(lab.Source.Root);
+        var target = new DriveInfo(lab.Target.Root);
+        // 仅读取该登记卷的用户配置；没有覆盖值时，取默认 10% 的保守上界。
+        string volumeName = lab.Source.GuidRoot.TrimEnd('\\').Split('\\').Last();
+        using var settings = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\BitBucket\" + volumeName, writable: false);
+        object? configured = settings?.GetValue("MaxCapacity");
+        long capacity = configured is int mib && mib >= 0 ? checked((long)mib * 1024 * 1024) : source.TotalSize / 10;
+        Require(configured is null || configured is int and >= 0, "无法安全解释此测试卷的只读回收容量配置。");
+        long length = Math.Max(128L * 1024 * 1024, checked(capacity + 1024 * 1024));
+        Require(length <= 256L * 1024 * 1024, "测试卷回收容量过大，无法在 256MiB 假数据安全上限内构造拒绝场景；未改回收设置。");
+        const long margin = 64L * 1024 * 1024;
+        Require(source.AvailableFreeSpace >= length + margin && target.AvailableFreeSpace >= length + margin,
+            "登记 VHD 的剩余空间不足以保留 64MiB 裕量；未填满卷，也未清理旧内容。");
+        Require(lab.BeforeWrite() >= MinimumHostBytes + 2 * length + margin,
+            "宿主空间不足以容纳两个 VHD 的假数据增长和 1GiB 安全余量。");
+        observations["volumeTotalBytes"] = source.TotalSize; observations["recycleCapacityBytes"] = capacity;
+        observations["capacitySource"] = configured is null ? "Windows 默认 10% 保守上界" : "只读 MaxCapacity";
+        observations["largeFileBytes"] = length;
+        return length;
+    }
+
+    // 只读枚举 Shell 回收站；仅匹配本次唯一事务的原始父路径和目录名，不清理任何项目。
+    private static async Task<string> FindRecycledBackup(string backup)
+    {
+        string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+        string script = "$ErrorActionPreference='Stop'; $shell=New-Object -ComObject Shell.Application; "
+            + "$bin=$shell.NameSpace(10); if($null -eq $bin){throw '无法枚举 Shell 回收站'}; "
+            + "$found=@($bin.Items() | Where-Object { $_.Name -eq " + Quote(Path.GetFileName(backup))
+            + " -and $_.ExtendedProperty('System.Recycle.DeletedFrom') -eq " + Quote(Path.GetDirectoryName(backup)!)
+            + " }); if($found.Count -ne 1){throw ('唯一备份回收站匹配数：'+$found.Count)}; $found[0].Path";
+        var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"))
+        { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8 };
+        foreach (string argument in new[] { "-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand",
+            Convert.ToBase64String(Encoding.Unicode.GetBytes("[Console]::OutputEncoding=[Text.Encoding]::UTF8; " + script)) })
+            start.ArgumentList.Add(argument);
+        using var process = Process.Start(start) ?? throw new IOException("无法启动只读 Shell 枚举。");
+        Task<string> output = process.StandardOutput.ReadToEndAsync(), error = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        string path = (await output).Trim();
+        Require(process.ExitCode == 0 && !string.IsNullOrWhiteSpace(path), "Shell 回收站枚举失败：" + await error);
+        return path;
+    }
+
+    private static async Task VerifyBackupUi(Lab lab, CopyFixture f, Guid attempt, Dictionary<string, object?> o, bool recycleOnly = false, string? exitMode = null)
     {
         string app = Environment.GetEnvironmentVariable("MIGRATION_TEST_LAB_APP") ?? throw new IOException("App package not supplied.");
         Require(Path.GetDirectoryName(app) == Path.Combine(lab.WorkRoot, "App"), "UI is outside the registered package.");
@@ -249,7 +400,7 @@ internal static partial class Program
                 defaults = new { targetStrategy = "unified", unifiedTargetRoot = Path.GetDirectoryName(f.Target), robocopyThreads = 2 },
                 profiles = Array.Empty<object>(), standaloneSources = new[] { new { displayName = "Backup UI", absolutePath = f.Source, enabled = true } }
             }));
-            foreach (string mode in new[] { "Exercise", "Restart" })
+            foreach (string mode in exitMode is not null ? new[] { exitMode } : recycleOnly ? new[] { "Recycle" } : new[] { "Exercise", "Restart" })
             {
                 var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
                 start.ArgumentList.Add("--test-lab"); start.ArgumentList.Add(Path.Combine(lab.WorkRoot, "lab.json"));
@@ -271,7 +422,6 @@ internal static partial class Program
                     string result = await stdout, error = await stderr;
                     o[mode + "Ui"] = result; o[mode + "Screenshot"] = screenshot;
                     Require(automation.ExitCode == 0, "Real UI verification failed: " + result + error);
-                    Require(process.CloseMainWindow(), "UI did not accept safe close.");
                     await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
                     Require(process.ExitCode == 0, "Dedicated UI exited with failure.");
                 }

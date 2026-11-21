@@ -64,8 +64,8 @@ public sealed class BackupManagementService
         {
             if (request.FirstConfirmedAtUtc is null || request.SecondConfirmedAtUtc is not null)
                 throw new IOException("必须先完成独立的第一次确认，且第二次确认不能重复。");
-            if (request.Mode == BackupDeletionMode.Permanent && confirmationText != Path.GetFileName(record.BackupPath))
-                throw new IOException("永久删除第二次确认必须准确输入实际备份目录名称。");
+            if (request.Mode == BackupDeletionMode.Permanent && confirmationText != Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath)))
+                throw new IOException("永久删除第二次确认必须准确输入原目录名称（不含备份随机后缀）。");
             request = request with { SecondConfirmedAtUtc = DateTimeOffset.UtcNow, SecondConfirmationText = confirmationText };
         }
         request = request with { TransactionRevision = checked(record.Revision + 1) };
@@ -81,7 +81,7 @@ public sealed class BackupManagementService
         var record = await FindRequestAsync(requestId, ct).ConfigureAwait(false);
         var request = record.DeletionRequest!;
         if (request.FirstConfirmedAtUtc is null || request.SecondConfirmedAtUtc is null
-            || (request.Mode == BackupDeletionMode.Permanent && request.SecondConfirmationText != Path.GetFileName(record.BackupPath)))
+            || (request.Mode == BackupDeletionMode.Permanent && request.SecondConfirmationText != Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath))))
             throw new IOException("缺少两次有效确认，不能处理备份。");
         Snapshot snapshot = await ValidateOrInvalidateAsync(record, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
@@ -108,8 +108,8 @@ public sealed class BackupManagementService
             ct.ThrowIfCancellationRequested();
             if (request.Mode == BackupDeletionMode.Recycle)
             {
-                var unsupported = RecycleBinHelper.MoveDirectoryToRecycleBin(requestId, record.TransactionId, record.BackupPath!, snapshot.Backup!);
-                results.AddRange(unsupported.Items); error = unsupported.Error; status = unsupported.Status;
+                var recycled = RecycleBinHelper.MoveDirectoryToRecycleBin(requestId, record.TransactionId, record.BackupPath!, snapshot.Backup!);
+                results.AddRange(recycled.Items); error = recycled.Error; status = recycled.Status;
             }
             else
             {

@@ -67,7 +67,7 @@ internal static partial class Program
             return await RecoverSwitchChild(args);
         string suite = args.Length == 6 ? args[5] : "Invalid";
         string[] suites = suite == "All" ? ["Boundary", "Identity", "Probe", "Copy", "Switch", "Regression", "Backup"] : [suite];
-        var cases = suites.SelectMany(s => CaseNames(s).Select(name => new CaseEvidence(name) { Suite = s })).ToArray();
+        var cases = suites.SelectMany(s => (s == "Recycle" ? RecycleCaseNames : s == "Verification" ? VerificationCaseNames : CaseNames(s)).Select(name => new CaseEvidence(name) { Suite = s })).ToArray();
         var started = DateTimeOffset.UtcNow;
         Guid? runId = null;
         Guid? attemptId = null;
@@ -86,7 +86,7 @@ internal static partial class Program
                 else if (current == "Copy") await RunCopyCases(lab, attemptId.Value, selected);
                 else if (current == "Switch") await RunSwitchCases(lab, attemptId.Value, selected);
                 else if (current == "Regression") await RunRegressionCases(lab, attemptId.Value, selected);
-                else if (current == "Backup") await RunBackupCases(lab, attemptId.Value, selected);
+                else if (current is "Backup" or "Recycle" or "Verification") await RunBackupCases(lab, attemptId.Value, selected);
                 else await RunCases(lab, attemptId.Value, selected);
             }
             Require(cases.All(c => c.Status == "Passed"), "Some declared cases were not executed.");
@@ -114,8 +114,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup" or "All"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup|All.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup" or "Recycle" or "Verification" or "All"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup|Recycle|Verification|All.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");

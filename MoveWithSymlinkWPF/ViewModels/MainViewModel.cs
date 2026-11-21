@@ -9,7 +9,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
-using System.Diagnostics;
 
 namespace MoveWithSymlinkWPF.ViewModels;
 
@@ -119,8 +118,6 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private QuickMigrateTask? _backupTask;
-    [ObservableProperty]
-    private BackupDeletionMode _backupMode = BackupDeletionMode.Recycle;
     [ObservableProperty]
     private bool _useContentHash;
     public bool IsOperationBusy => IsMigrating || (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting);
@@ -796,9 +793,25 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void BackToStep1()
+    private async Task BackToStep1Async()
     {
         if (IsOperationBusy) return;
+        IsMigrating = true;
+        try
+        {
+            if (BackupTask?.TransactionId is Guid id)
+            {
+                var record = await new MigrationTransactionStore().LoadAsync(id)
+                    ?? throw new IOException("事务记录缺失，不能确认备份保留状态。");
+                if (!UnverifiedExitConfirmation.Confirm([record], "完成并返回")) return;
+            }
+        }
+        catch (Exception ex)
+        {
+            CustomMessageBox.ShowWarning(ex.Message, "不能完成");
+            return;
+        }
+        finally { IsMigrating = false; }
         BackupTask = null;
         CurrentStep = 1;
         HasValidationError = false;
@@ -835,7 +848,7 @@ public partial class MainViewModel : ObservableObject
     private void CloseApplication()
     {
         if (IsOperationBusy) { CancelCurrentOperations(); return; }
-        Application.Current.Shutdown();
+        Application.Current.MainWindow.Close();
     }
 
     /// <summary>
@@ -1176,59 +1189,37 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsOperationBusy || BackupTask?.TransactionId is not Guid id) return;
         IsMigrating = true;
-        _cancellationTokenSource = new CancellationTokenSource();
         try
         {
-            await Task.Run(() => new BackupManagementService().MarkUserVerifiedAsync(id, _cancellationTokenSource.Token));
+            await MigrationVerificationWindow.ShowForTransactionAsync(id);
             await RefreshBackupTaskAsync(id);
-            AddLog("用户已确认应用及数据验证；此确认不授权删除。");
+            if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm)
+                vm.RefreshTransactionState();
         }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能确认验证"); }
-        finally
-        {
-            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
-            IsMigrating = false;
-        }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "无法打开迁移验证"); }
+        finally { IsMigrating = false; }
     }
 
-    [RelayCommand]
-    private async Task ManageBackupAsync()
+    public async Task RefreshDisplayedTransactionAsync(Guid transactionId)
     {
-        if (IsOperationBusy || BackupTask?.TransactionId is not Guid id) return;
+        if (BackupTask?.TransactionId == transactionId) await RefreshBackupTaskAsync(transactionId);
+    }
+
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (IsOperationBusy) return false;
         IsMigrating = true;
-        ProgressMessage = "正在处理备份，等待后台结束。";
-        _cancellationTokenSource = new CancellationTokenSource();
         try
         {
-            var result = await BackupConfirmationWindow.ShowDeletionAsync(id, BackupMode, _cancellationTokenSource.Token);
-            await RefreshBackupTaskAsync(id);
-            if (result is not null)
-            {
-                ResultMessage += $"\n\n备份处理：{result.Status}\n{result.Error}\n"
-                    + string.Join("\n", result.Items.Select(i => $"{i.Outcome}：{i.Path} {i.Error}"));
-                AddLog($"备份处理结果：{result.Status}；{result.Error}");
-            }
+            var records = await new MigrationTransactionStore().ReadAllAsync();
+            return UnverifiedExitConfirmation.Confirm(records, "关闭应用");
         }
-        catch (OperationCanceledException) { AddLog("已取消备份处理；确认及审计记录保留。"); }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "备份未处理"); }
-        finally
+        catch (Exception ex)
         {
-            _cancellationTokenSource?.Dispose(); _cancellationTokenSource = null;
-            IsMigrating = false;
+            CustomMessageBox.ShowWarning($"无法核对待验证记录：{ex.Message}\n请先确认备份状态。", "暂不关闭");
+            return false;
         }
-    }
-
-    [RelayCommand]
-    private void OpenBackupDirectory()
-    {
-        try
-        {
-            string path = BackupTask?.BackupPath ?? throw new IOException("本次没有原始备份；请查看源/目标数据位置。");
-            MigrationRuntime.AssertDataPath(path);
-            if (!Directory.Exists(path)) throw new IOException($"目录当前不存在：{path}");
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能打开备份目录"); }
+        finally { IsMigrating = false; }
     }
 
     public void CancelCurrentOperations()

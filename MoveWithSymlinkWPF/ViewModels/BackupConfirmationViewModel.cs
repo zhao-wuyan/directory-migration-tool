@@ -18,9 +18,9 @@ public partial class BackupConfirmationViewModel(MigrationTransactionRecord reco
     public string SourcePath => record.SourcePath;
     public string TargetPath => record.TargetPath;
     public string VerificationText => record.VerificationSummary?.Description ?? "核对结果不可用";
-    public string ModeText => request.Mode == BackupDeletionMode.Permanent ? "永久删除：不可恢复" : "仅移入回收站，不允许永久降级";
+    public string ModeText => request.Mode == BackupDeletionMode.Permanent ? "永久删除：不可恢复" : "移入回收站：过大或无法回收时保留备份，不永久删除";
     public bool NeedsName => step == ConfirmationStep.Second && request.Mode == BackupDeletionMode.Permanent;
-    public string ExpectedName => Path.GetFileName(record.BackupPath)!;
+    public string ExpectedName => Path.GetFileName(Path.TrimEndingDirectorySeparator(record.SourcePath));
     public string ConfirmText => step == ConfirmationStep.First ? "确认并进入第二次确认（尚不删除）" : "确认处理此原始备份";
     public void SetWindow(Window window) => _window = window;
     private bool CanConfirm() => !NeedsName || ConfirmationText == ExpectedName;

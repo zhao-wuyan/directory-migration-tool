@@ -6,7 +6,7 @@
         FontFamily="Microsoft YaHei UI, Segoe UI" FocusManager.FocusedElement="{Binding ElementName=CancelButton}">
     <StackPanel Margin="24">
         <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
-        <TextBlock Text="{Binding ModeText}" Foreground="#B91C1C" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <TextBlock Text="{Binding ModeText}" TextWrapping="Wrap" Foreground="#B91C1C" FontWeight="SemiBold" Margin="0,0,0,8"/>
         <TextBlock Text="{Binding VerificationText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <TextBlock Text="只处理此原始备份；不删除当前源或目标数据。取消会保留实体与已记录的确认。" TextWrapping="Wrap" Margin="0,0,0,12"/>
         <TextBlock Text="原始备份（本次处理对象）" FontWeight="SemiBold"/>
@@ -23,7 +23,7 @@
                     <Style.Triggers><DataTrigger Binding="{Binding NeedsName}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
                 </Style>
             </StackPanel.Style>
-            <TextBlock Text="永久删除第二次确认：请准确输入以下目录名称，输入框不会预填。" TextWrapping="Wrap"/>
+            <TextBlock Text="永久删除第二次确认：请准确输入原目录名称（不含备份的随机后缀），输入框不会预填。实际处理的完整备份路径见上方。" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding ExpectedName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,6"/>
             <TextBox Text="{Binding ConfirmationText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30"
                      AutomationProperties.AutomationId="BackupNameInput"/>

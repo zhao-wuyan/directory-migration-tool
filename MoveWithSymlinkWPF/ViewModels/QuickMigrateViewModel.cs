@@ -8,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows;
-using System.Diagnostics;
 using MoveWithSymlinkWPF.Views;
 
 namespace MoveWithSymlinkWPF.ViewModels;
@@ -96,8 +95,6 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     private QuickMigrateConfig? _config;
     private CancellationTokenSource? _cancellationTokenSource;
-    [ObservableProperty]
-    private BackupDeletionMode _backupMode = BackupDeletionMode.Recycle;
     [ObservableProperty]
     private bool _useContentHash;
     public Task Initialization { get; }
@@ -630,52 +627,21 @@ public partial class QuickMigrateViewModel : ObservableObject
     {
         if (IsExecuting || OtherEntryBusy || task.TransactionId is not Guid id) return;
         IsExecuting = true;
-        _cancellationTokenSource = new CancellationTokenSource();
         try
         {
-            await Task.Run(() => new BackupManagementService().MarkUserVerifiedAsync(id, _cancellationTokenSource.Token));
-            AddLog($"[{task.DisplayName}] 用户已验证，尚未授予删除权限。");
+            await MigrationVerificationWindow.ShowForTransactionAsync(id);
+            if (Application.Current.MainWindow?.DataContext is MainViewModel main)
+                await main.RefreshDisplayedTransactionAsync(id);
         }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能确认验证"); }
+        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "无法打开迁移验证"); }
         finally
         {
-            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
-            IsExecuting = false; ScanAndBuildTasks();
+            IsExecuting = false;
+            ScanAndBuildTasks();
         }
     }
 
-    [RelayCommand]
-    private async Task ManageTaskBackupAsync(QuickMigrateTask task)
-    {
-        if (IsExecuting || OtherEntryBusy || task.TransactionId is not Guid id) return;
-        IsExecuting = true;
-        _cancellationTokenSource = new CancellationTokenSource();
-        try
-        {
-            var result = await BackupConfirmationWindow.ShowDeletionAsync(id, BackupMode, _cancellationTokenSource.Token);
-            if (result is not null) AddLog($"[{task.DisplayName}] 备份处理：{result.Status}；{result.Error}");
-        }
-        catch (OperationCanceledException) { AddLog("已取消，审计及所有未处理实体保留。"); }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "备份未处理"); }
-        finally
-        {
-            _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
-            IsExecuting = false; ScanAndBuildTasks();
-        }
-    }
-
-    [RelayCommand]
-    private void OpenTaskBackupDirectory(QuickMigrateTask task)
-    {
-        try
-        {
-            string path = task.BackupPath ?? throw new IOException("没有原始备份位置。");
-            MigrationRuntime.AssertDataPath(path);
-            if (!Directory.Exists(path)) throw new IOException($"目录当前不存在：{path}");
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
-        catch (Exception ex) { CustomMessageBox.ShowWarning(ex.Message, "不能打开备份目录"); }
-    }
+    public void RefreshTransactionState() => ScanAndBuildTasks();
 
     [RelayCommand]
     private void CancelExecution()

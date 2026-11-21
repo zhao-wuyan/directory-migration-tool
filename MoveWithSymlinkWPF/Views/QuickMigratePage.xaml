@@ -341,9 +341,7 @@
                 <TextBlock Text="{Binding BackupStatusText}" FontSize="11" Margin="0,3,0,0"/>
                 <TextBox Text="{Binding BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="26" FontSize="11" Margin="0,3,0,0" AutomationProperties.AutomationId="TaskBackupPath"/>
                 <WrapPanel Margin="0,5,0,0" IsEnabled="{Binding DataContext.IsExecuting, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}">
-                    <Button Content="打开目录" Command="{Binding DataContext.OpenTaskBackupDirectoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource TaskButtonStyle}" IsEnabled="{Binding BackupPath, Converter={StaticResource StringToBoolConverter}}"/>
-                    <Button Content="确认已验证" Command="{Binding DataContext.VerifyTaskDataCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" IsEnabled="{Binding CanVerifyData}" Style="{StaticResource TaskButtonStyle}" AutomationProperties.AutomationId="TaskVerifyData"/>
-                    <Button Content="处理原始备份" Command="{Binding DataContext.ManageTaskBackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" IsEnabled="{Binding CanManageBackup}" Style="{StaticResource TaskButtonStyle}" AutomationProperties.AutomationId="TaskManageBackup"/>
+                    <Button Content="验证迁移并管理备份…" Command="{Binding DataContext.VerifyTaskDataCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource TaskButtonStyle}" AutomationProperties.AutomationId="TaskVerifyData"/>
                 </WrapPanel>
                 <Expander Header="逐项处理结果" FontSize="11">
                     <ScrollViewer MaxHeight="150"><TextBlock Text="{Binding DeletionDetails}" TextWrapping="Wrap"/></ScrollViewer>
@@ -393,11 +391,6 @@
                     </Grid.RowDefinitions>
                     <WrapPanel Grid.Row="0" Margin="0,0,0,6">
                         <CheckBox Content="完整内容哈希（可选；默认快速核对）" IsChecked="{Binding UseContentHash}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <TextBlock Text="备份处理方式：" VerticalAlignment="Center"/>
-                        <ComboBox SelectedValue="{Binding BackupMode}" SelectedValuePath="Tag" Width="190" AutomationProperties.AutomationId="TaskBackupMode">
-                            <ComboBoxItem Content="回收（当前不可用，保留）" Tag="{x:Static models:BackupDeletionMode.Recycle}"/>
-                            <ComboBoxItem Content="永久删除（双确认）" Tag="{x:Static models:BackupDeletionMode.Permanent}"/>
-                        </ComboBox>
                     </WrapPanel>
 
                     <!-- Original Controls -->

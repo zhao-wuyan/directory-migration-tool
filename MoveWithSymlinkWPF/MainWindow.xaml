@@ -1004,13 +1004,7 @@
                                     <TextBlock Text="{Binding BackupTask.BackupStatusText}" Margin="0,5,0,0"/>
                                     <TextBox Text="{Binding BackupTask.BackupPath, Mode=OneWay, TargetNullValue='未创建原始备份'}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="38" Margin="0,5,0,0" AutomationProperties.AutomationId="MainBackupPath"/>
                                     <WrapPanel Margin="0,8,0,0" IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
-                                        <Button Content="打开目录" Command="{Binding OpenBackupDirectoryCommand}"/>
-                                        <Button Content="确认已验证" Command="{Binding VerifyDataCommand}" IsEnabled="{Binding BackupTask.CanVerifyData}" AutomationProperties.AutomationId="MainVerifyData"/>
-                                        <ComboBox SelectedValue="{Binding BackupMode}" SelectedValuePath="Tag" Width="190" Margin="5,0" AutomationProperties.AutomationId="MainBackupMode">
-                                            <ComboBoxItem Content="回收（当前不可用，保留）" Tag="{x:Static models:BackupDeletionMode.Recycle}"/>
-                                            <ComboBoxItem Content="永久删除（双确认）" Tag="{x:Static models:BackupDeletionMode.Permanent}"/>
-                                        </ComboBox>
-                                        <Button Content="处理原始备份" Command="{Binding ManageBackupCommand}" IsEnabled="{Binding BackupTask.CanManageBackup}" AutomationProperties.AutomationId="MainManageBackup"/>
+                                        <Button Content="验证迁移并管理备份…" Command="{Binding VerifyDataCommand}" AutomationProperties.AutomationId="MainVerifyData"/>
                                     </WrapPanel>
                                     <Expander Header="逐项处理结果" Margin="0,8,0,0">
                                         <ScrollViewer MaxHeight="150"><TextBlock Text="{Binding BackupTask.DeletionDetails}" TextWrapping="Wrap"/></ScrollViewer>
@@ -1020,9 +1014,9 @@
                             </Border>
                             
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                                <Button Content="完成" Command="{Binding BackToStep1Command}"
+                                <Button Content="完成" Command="{Binding BackToStep1Command}" AutomationProperties.AutomationId="CompleteMigrationResult"
                                         Background="#0078D4" Foreground="White" FontWeight="SemiBold"/>
-                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}"
+                                <Button Content="关闭应用" Command="{Binding CloseApplicationCommand}" AutomationProperties.AutomationId="CloseMigrationApplication"
                                         Margin="12,0,0,0"/>
                             </StackPanel>
                         </StackPanel>
