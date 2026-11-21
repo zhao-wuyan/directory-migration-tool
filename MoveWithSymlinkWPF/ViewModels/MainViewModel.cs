@@ -41,13 +41,15 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _repairHint = string.Empty;
 
+    private bool _suppressPathDetection;
+
     private string _sourcePath = string.Empty;
     public string SourcePath
     {
         get => _sourcePath;
         set
         {
-            if (SetProperty(ref _sourcePath, value))
+            if (SetProperty(ref _sourcePath, value) && !_suppressPathDetection)
             {
                 // 当源路径变更时，自动检测模式
                 DetectAndSwitchMode();
@@ -63,7 +65,7 @@ public partial class MainViewModel : ObservableObject
         get => _targetPath;
         set
         {
-            if (SetProperty(ref _targetPath, value))
+            if (SetProperty(ref _targetPath, value) && !_suppressPathDetection)
             {
                 // 当目标路径变更时，检测是否可以修复
                 CheckRepairCondition();
@@ -1046,43 +1048,39 @@ public partial class MainViewModel : ObservableObject
         try
         {
             bool sourceExists = Directory.Exists(SourcePath);
-            
+
             if (!sourceExists)
             {
-                // 源不存在 - 可以修复
-                CanRepair = true;
-                RepairHint = "源路径不存在，可以直接创建符号链接";
+                // 与后端 PrepareRepairAsync 准入一致：源不存在时必须存在匹配的历史事务，不能认领未知目录。
+                if (HasMatchingRepairTransaction(SourcePath, TargetPath))
+                {
+                    CanRepair = true;
+                    RepairHint = "已匹配到历史迁移事务，可直接重建符号链接";
+                }
             }
             else
             {
                 bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(SourcePath);
-                
+
                 if (isSymlink)
                 {
-                    // 源是符号链接 - 检查是否指向正确目标
+                    // 源是符号链接时，仅当存在匹配的历史事务且链接未指向预期目标才可修复。
                     var dirInfo = new DirectoryInfo(SourcePath);
                     string? currentTarget = dirInfo.LinkTarget;
-                    
-                    if (!string.IsNullOrEmpty(currentTarget))
-                    {
-                        string currentTargetFull = Path.GetFullPath(currentTarget);
-                        string expectedTarget = Path.GetFullPath(TargetPath);
-                        
-                        if (!string.Equals(currentTargetFull, expectedTarget, StringComparison.OrdinalIgnoreCase))
-                        {
-                            CanRepair = true;
-                            RepairHint = $"符号链接指向错误目标，可以修复重定向到正确位置";
-                        }
-                    }
-                    else
+                    bool pointsToExpected = !string.IsNullOrEmpty(currentTarget)
+                        && string.Equals(Path.GetFullPath(currentTarget), Path.GetFullPath(TargetPath), StringComparison.OrdinalIgnoreCase);
+
+                    if (!pointsToExpected && HasMatchingRepairTransaction(SourcePath, TargetPath))
                     {
                         CanRepair = true;
-                        RepairHint = "符号链接无法读取目标，可以修复";
+                        RepairHint = string.IsNullOrEmpty(currentTarget)
+                            ? "已匹配到历史事务，符号链接目标异常，可修复"
+                            : "已匹配到历史事务，符号链接指向不一致，可修复重定向";
                     }
                 }
                 else
                 {
-                    // 源是普通目录 - 可以修复（会备份）
+                    // 源是普通目录 - 可以修复（非空会备份，空目录将删除后建链）
                     bool hasContent = PathValidator.HasUserContent(SourcePath);
                     if (hasContent)
                     {
@@ -1106,6 +1104,30 @@ public partial class MainViewModel : ObservableObject
 #if DEBUG
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] CheckRepairCondition: CanRepair={CanRepair}, Hint={RepairHint}");
 #endif
+    }
+
+    private static bool HasMatchingRepairTransaction(string sourcePath, string targetPath)
+    {
+        try
+        {
+            string normalizedSource = PathIdentityService.Normalize(sourcePath);
+            string normalizedTarget = PathIdentityService.Normalize(targetPath);
+            var identity = new PathIdentityService();
+            DirectoryIdentity targetIdentity = identity.ReadDirectory(normalizedTarget, false);
+            if (targetIdentity.IsReparsePoint) return false;
+            var records = new MigrationTransactionStore().ReadAllAsync().GetAwaiter().GetResult();
+            var matched = records.Where(r =>
+                r.SourcePath.Equals(normalizedSource, StringComparison.OrdinalIgnoreCase)
+                && r.TargetPath.Equals(normalizedTarget, StringComparison.OrdinalIgnoreCase)
+                && r.TargetIdentity == targetIdentity).ToArray();
+            if (matched.Any(r => r.IsActive || r.BackupDeletionInProgress)) return false;
+            var known = matched.Where(r => !(r.Mode == MigrationMode.Restore && r.Stage is MigrationStage.Cancelled or MigrationStage.Failed)).ToArray();
+            return known.Length == 1;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -1157,8 +1179,13 @@ public partial class MainViewModel : ObservableObject
             var records = await new MigrationTransactionStore().ReadAllAsync();
             var record = records.OrderByDescending(r => r.UpdatedAtUtc).FirstOrDefault();
             if (record is null) return;
-            SourcePath = record.SourcePath;
-            TargetPath = record.TargetPath;
+            _suppressPathDetection = true;
+            try
+            {
+                SourcePath = record.SourcePath;
+                TargetPath = record.TargetPath;
+            }
+            finally { _suppressPathDetection = false; }
             if (record.Mode == MigrationMode.Restore) SwitchToRestoreMode();
             else if (record.Mode == MigrationMode.Repair) SwitchToRepairMode();
             else SwitchToMigrateMode();
@@ -1166,9 +1193,11 @@ public partial class MainViewModel : ObservableObject
             await RefreshBackupTaskAsync(record.TransactionId);
             MigrationCompleted = true;
             MigrationSuccess = record.Stage == MigrationStage.AwaitingUserVerification;
-            ResultMessage = "已读取持久化事务；技术完成不代表用户验收。\n\n"
+            string modeLabel = record.Mode switch { MigrationMode.Restore => "还原", MigrationMode.Repair => "修复", _ => "迁移" };
+            ResultMessage = $"已读取持久化{modeLabel}事务；技术完成不代表用户验收。\n\n"
                 + $"源：{record.SourcePath}\n目标：{record.TargetPath}\n备份：{record.BackupPath ?? "未创建"}\n"
-                + $"staging：{record.StagingPath ?? "未创建"}\n试改名：{record.ProbePath ?? "未创建"}\n{record.LastError}";
+                + $"staging：{record.StagingPath ?? "未创建"}\n试改名：{record.ProbePath ?? "未创建"}"
+                + (string.IsNullOrWhiteSpace(record.LastError) ? "" : $"\n{record.LastError}");
             CurrentStep = 4;
         }
         catch (Exception ex) { AddLog($"读取事务失败，未认领任何目录：{ex.Message}"); }

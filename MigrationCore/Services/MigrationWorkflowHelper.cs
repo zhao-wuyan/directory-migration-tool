@@ -303,9 +303,12 @@ public static class MigrationWorkflowHelper
         if (target.IsReparsePoint) throw new IOException("修复目标必须是普通实体目录。");
         DirectoryIdentity? source = identity.ReadIfExists(config.SourcePath);
         var store = new MigrationTransactionStore();
-        var known = (await store.ReadAllAsync(ct).ConfigureAwait(false)).Where(r =>
+        var matched = (await store.ReadAllAsync(ct).ConfigureAwait(false)).Where(r =>
             r.SourcePath.Equals(config.SourcePath, StringComparison.OrdinalIgnoreCase)
             && r.TargetPath.Equals(config.TargetPath, StringComparison.OrdinalIgnoreCase) && r.TargetIdentity == target).ToArray();
+        if (matched.Any(r => r.IsActive || r.BackupDeletionInProgress))
+            throw new IOException("存在尚未结束的迁移、还原或备份处理事务，不能开始修复。");
+        var known = matched.Where(r => !(r.Mode == MigrationMode.Restore && r.Stage is MigrationStage.Cancelled or MigrationStage.Failed)).ToArray();
         if (known.Length > 1) throw new IOException("存在多个匹配事务，不能猜测归属。");
         if (known.Length == 1)
         {

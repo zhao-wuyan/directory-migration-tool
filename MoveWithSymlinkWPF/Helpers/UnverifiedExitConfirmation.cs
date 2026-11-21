@@ -9,9 +9,15 @@ public static class UnverifiedExitConfirmation
 {
     public static bool Confirm(IEnumerable<MigrationTransactionRecord> records, string action)
     {
-        var pending = records.Where(record => record.Stage == MigrationStage.AwaitingUserVerification
-                && record.UserVerifiedAtUtc is null)
-            .DistinctBy(record => record.TransactionId).ToArray();
+        // 同一源路径只检查最新事务记录，避免已被后续还原/新迁移取代或目录已手工清除的陈旧记录反复弹窗。
+        var pending = records
+            .DistinctBy(record => record.TransactionId)
+            .GroupBy(record => record.SourcePath, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(r => r.UpdatedAtUtc).First())
+            .Where(record => record.Stage == MigrationStage.AwaitingUserVerification
+                && record.UserVerifiedAtUtc is null
+                && HasLiveSubject(record))
+            .ToArray();
         if (pending.Length == 0) return true;
 
         string folders = string.Join("\n", pending.Take(5).Select(record =>
@@ -32,5 +38,14 @@ public static class UnverifiedExitConfirmation
             defaultResult: MessageResult.No,
             yesText: "是，继续操作",
             noText: "否，留在当前界面（建议）") == MessageResult.Yes;
+    }
+
+    private static bool HasLiveSubject(MigrationTransactionRecord record)
+    {
+        bool hasLiveBackup = record.BackupPath is not null
+            && record.BackupState is not (BackupState.Deleted or BackupState.Recycled)
+            && Directory.Exists(record.BackupPath);
+        if (hasLiveBackup) return true;
+        return Directory.Exists(record.SourcePath) || Directory.Exists(record.TargetPath);
     }
 }

@@ -170,32 +170,64 @@ public sealed class MigrationTransactionStore
         if (owner.TransactionId == other.TransactionId || owner.BackupPath is null) return false;
         bool Touches(string? path) => path is not null && (PathIdentityService.IsWithin(path, owner.BackupPath)
             || PathIdentityService.IsWithin(owner.BackupPath, path));
-        if (Touches(other.SourcePath) || Touches(other.TargetPath) || Touches(other.BackupPath) || Touches(other.StagingPath))
-            return true;
-        if (owner.BackupIdentity is null) return false;
+        bool WouldDelete(string? path) => path is not null && PathIdentityService.IsWithin(path, owner.BackupPath);
 
         if (other.IsActive)
-            return other.SourceIdentity == owner.BackupIdentity
-                || other.TargetIdentity == owner.BackupIdentity
-                || other.BackupIdentity == owner.BackupIdentity;
+        {
+            if (Touches(other.SourcePath) || Touches(other.TargetPath) || Touches(other.BackupPath) || Touches(other.StagingPath))
+                return true;
+            return owner.BackupIdentity is not null
+                && (other.SourceIdentity == owner.BackupIdentity
+                    || other.TargetIdentity == owner.BackupIdentity
+                    || other.BackupIdentity == owner.BackupIdentity);
+        }
 
-        // 非活动历史事务可能因同卷移动或二次链式迁移（A→B 后再 B→C）与当前备份共享过历史 FileId；
-        // 仅当该历史事务在磁盘上的实际路径仍解析到当前备份实体（或无法核实磁盘状态）时才视为占用。
+        // 非活动历史事务仅核验其当前在磁盘上仍真实归属的存活目录或未删除备份：
+        // 避免历史还原/旧目标父目录（例如 Downloads\test1 包含新还原备份 Downloads\test1\01.bak_<id>）
+        // 或同卷移动/二次链式迁移共享过历史 FileId 时误拦新备份清理。
         var checker = identity ?? new PathIdentityService();
-        if (other.TargetIdentity == owner.BackupIdentity
-            && (PathStillMatchesIdentity(checker, other.TargetPath, owner.BackupIdentity, followLink: false)
-                || PathStillMatchesIdentity(checker, other.TargetPath, owner.BackupIdentity, followLink: true)
-                || PathStillMatchesIdentity(checker, other.SourcePath, owner.BackupIdentity, followLink: true)))
-            return true;
 
-        if (other.StagingIdentity == owner.BackupIdentity
-            && PathStillMatchesIdentity(checker, other.SourcePath, owner.BackupIdentity, followLink: false))
-            return true;
-
-        if (other.BackupIdentity == owner.BackupIdentity
+        if (other.BackupPath is not null
             && other.BackupState is not (BackupState.Deleted or BackupState.Recycled)
-            && PathStillMatchesIdentity(checker, other.BackupPath, owner.BackupIdentity, followLink: false))
-            return true;
+            && (other.BackupIdentity is null || PathStillMatchesIdentity(checker, other.BackupPath, other.BackupIdentity, followLink: false)))
+        {
+            if (Touches(other.BackupPath)) return true;
+            if (owner.BackupIdentity is not null && other.BackupIdentity == owner.BackupIdentity) return true;
+        }
+
+        if (other.Stage == MigrationStage.AwaitingUserVerification)
+        {
+            if (other.Mode == MigrationMode.Restore)
+            {
+                bool liveSource = other.StagingIdentity is not null
+                    && PathStillMatchesIdentity(checker, other.SourcePath, other.StagingIdentity, followLink: false);
+                if (liveSource)
+                {
+                    if (WouldDelete(other.SourcePath)) return true;
+                    if (owner.BackupIdentity is not null && other.StagingIdentity == owner.BackupIdentity) return true;
+                }
+            }
+            else
+            {
+                bool liveTarget = other.TargetIdentity is not null
+                    && (PathStillMatchesIdentity(checker, other.TargetPath, other.TargetIdentity, followLink: false)
+                        || PathStillMatchesIdentity(checker, other.TargetPath, other.TargetIdentity, followLink: true));
+                bool liveLink = other.LinkIdentity is not null
+                    && PathStillMatchesIdentity(checker, other.SourcePath, other.LinkIdentity, followLink: false);
+                if (liveTarget)
+                {
+                    if (WouldDelete(other.TargetPath)) return true;
+                    if (owner.BackupIdentity is not null && other.TargetIdentity == owner.BackupIdentity) return true;
+                }
+                if (liveLink)
+                {
+                    if (WouldDelete(other.SourcePath)) return true;
+                    if (owner.BackupIdentity is not null
+                        && PathStillMatchesIdentity(checker, other.SourcePath, owner.BackupIdentity, followLink: true))
+                        return true;
+                }
+            }
+        }
 
         return false;
     }

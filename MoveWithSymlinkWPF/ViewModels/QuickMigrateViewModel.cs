@@ -423,10 +423,12 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         foreach (var task in tasks)
         {
+            if (_cancellationTokenSource.Token.IsCancellationRequested) break;
             try
             {
-                // 获取源目录大小
-                long sourceSize = FileStatsService.GetDirectorySize(task.SourcePath);
+                // 在后台线程统计源目录大小，避免大目录阻塞 UI 线程
+                long sourceSize = await Task.Run(() => FileStatsService.GetDirectorySize(task.SourcePath),
+                    _cancellationTokenSource.Token);
                 
                 // 获取目标磁盘根路径
                 string? targetRoot = Path.GetPathRoot(task.TargetPath);
@@ -657,7 +659,7 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             if (LogMessages.Count == 0)
             {
-                MessageBox.Show("暂无日志可复制", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                CustomMessageBox.ShowInformation("暂无日志可复制", "提示");
                 return;
             }
 
@@ -956,35 +958,39 @@ public partial class QuickMigrateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 异步设置剪贴板内容（不阻塞UI线程）
+    /// 在 WPF STA 线程设置剪贴板内容（含短暂重试避免剪贴板瞬时占用）
     /// </summary>
-    private async Task<bool> TrySetClipboardAsync(string text)
+    private static async Task<bool> TrySetClipboardAsync(string text)
     {
         if (string.IsNullOrEmpty(text))
             return false;
 
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            // 在后台线程执行，避免阻塞UI
-            await Task.Run(() =>
+            bool copied = await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                // 尝试简单设置一次，失败就失败
                 try
                 {
-                    System.Windows.Clipboard.SetDataObject(text, true);
+                    Clipboard.SetDataObject(text, true);
+                    return true;
                 }
                 catch
                 {
-                    // 备用方法
-                    System.Windows.Clipboard.SetText(text);
+                    try
+                    {
+                        Clipboard.SetText(text);
+                        return true;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
                 }
             });
-            return true;
+            if (copied) return true;
+            await Task.Delay(50);
         }
-        catch
-        {
-            return false;
-        }
+        return false;
     }
 }
 

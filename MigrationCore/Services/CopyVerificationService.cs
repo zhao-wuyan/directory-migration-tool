@@ -126,13 +126,18 @@ public sealed class CopyVerificationService
         return entry;
     }
 
-    internal static bool SameEntry(FileManifestEntry expected, FileManifestEntry actual, bool identity, bool writeTime = true) =>
+    internal static bool SameEntry(FileManifestEntry expected, FileManifestEntry actual, bool identity, bool writeTime = true, bool checkHash = true) =>
         expected.IsDirectory == actual.IsDirectory && expected.Length == actual.Length
         && (!writeTime || expected.LastWriteTimeUtc == actual.LastWriteTimeUtc) && expected.Attributes == actual.Attributes
         && (expected.AclSddl == actual.AclSddl || (!identity && expected.RelativePath.Length == 0
             && RootSecuritySnapshot.Create(expected.AclSddl).GetSddlForm(SecuritySections) == actual.AclSddl))
-        && expected.Hash == actual.Hash
-        && expected.AlternateStreams.SequenceEqual(actual.AlternateStreams) && (!identity || expected.Identity == actual.Identity);
+        && (!checkHash || expected.Hash == actual.Hash)
+        && (checkHash
+            ? expected.AlternateStreams.SequenceEqual(actual.AlternateStreams)
+            : expected.AlternateStreams.Length == actual.AlternateStreams.Length
+              && expected.AlternateStreams.Zip(actual.AlternateStreams).All(pair =>
+                  pair.First.Name == pair.Second.Name && pair.First.Length == pair.Second.Length))
+        && (!identity || expected.Identity == actual.Identity);
 
     public async Task<VerificationSummary> VerifyAsync(FileManifest sourceBefore, string sourceRoot, string targetRoot,
         VerificationMode mode, CancellationToken ct)

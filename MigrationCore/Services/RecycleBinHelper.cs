@@ -129,16 +129,20 @@ public static class RecycleBinHelper
             return path;
         }
 
-        // 同 Mode 重新捕获，不将当前集合认领为新的删除清单。
-        private void ValidateRemaining()
+        // ValidateInitial 已对全树完成 _manifest.Mode 完整核对；逐项回调时用 Basic 检查剩余树结构与元数据，
+        // 避免 ContentHash 模式下对未删除兄弟文件 O(N²) 重复哈希，并对当前被删项单独按 _manifest.Mode 核验。
+        private void ValidateRemaining(bool fullContentHash = true)
         {
             _identity.RequireSame(Root, _manifest.RootIdentity);
-            FileManifest current = _verification.CaptureAsync(Root, _manifest.Mode, CancellationToken.None).GetAwaiter().GetResult();
+            VerificationMode captureMode = fullContentHash ? _manifest.Mode : VerificationMode.Basic;
+            bool checkHash = captureMode == _manifest.Mode;
+            FileManifest current = _verification.CaptureAsync(Root, captureMode, CancellationToken.None).GetAwaiter().GetResult();
             foreach (var pair in current.Entries)
             {
                 if (!_manifest.Entries.TryGetValue(pair.Key, out FileManifestEntry? expected)
                     || !CopyVerificationService.SameEntry(expected, pair.Value, true,
-                        writeTime: !expected.IsDirectory || _recycled.Count == 0))
+                        writeTime: !expected.IsDirectory || _recycled.Count == 0,
+                        checkHash: checkHash))
                     throw new IOException($"回收前发现新增、替换或变化的项目：{pair.Key}");
             }
             foreach (string relative in _manifest.Entries.Keys)
@@ -158,7 +162,14 @@ public static class RecycleBinHelper
                 string relative = path.Equals(Root, StringComparison.OrdinalIgnoreCase) ? "" : Path.GetRelativePath(Root, path);
                 if (!_manifest.Entries.TryGetValue(relative, out FileManifestEntry? expected))
                     throw new IOException($"Shell 删除项目不在冻结清单：{path}");
-                ValidateRemaining();
+                ValidateRemaining(fullContentHash: _approved.Count == 0);
+                if (_approved.Count > 0 && _manifest.Mode == VerificationMode.ContentHash && !expected.IsDirectory)
+                {
+                    FileManifestEntry actual = _verification.CaptureDeletionEntryAsync(path, Root, false, _manifest.Mode, CancellationToken.None)
+                        .GetAwaiter().GetResult();
+                    if (!CopyVerificationService.SameEntry(expected, actual, identity: true, writeTime: true, checkHash: true))
+                        throw new IOException($"回收前项目内容已变化：{path}");
+                }
                 _identity.RequireSame(path, expected.Identity);
                 _approved.Add(path);
                 return 0;

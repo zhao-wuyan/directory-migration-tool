@@ -2,37 +2,194 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Title}" AutomationProperties.AutomationId="{Binding DialogId}"
-        Width="680" SizeToContent="Height" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
-        FontFamily="Microsoft YaHei UI, Segoe UI" FocusManager.FocusedElement="{Binding ElementName=CancelButton}">
-    <StackPanel Margin="24">
-        <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
-        <TextBlock Text="{Binding ModeText}" TextWrapping="Wrap" Foreground="#B91C1C" FontWeight="SemiBold" Margin="0,0,0,8"/>
-        <TextBlock Text="{Binding VerificationText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-        <TextBlock Text="只处理此原始备份；不删除当前源或目标数据。取消会保留实体与已记录的确认。" TextWrapping="Wrap" Margin="0,0,0,12"/>
-        <TextBlock Text="{Binding BackupPathLabel}" FontWeight="SemiBold"/>
-        <TextBox Text="{Binding BackupPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="38" BorderThickness="0" Margin="0,4,0,12"
-                 AutomationProperties.AutomationId="FrozenBackupPath"/>
-        <TextBlock Text="{Binding SourcePathLabel}" FontWeight="SemiBold"/>
-        <TextBlock Text="{Binding SourcePath}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-        <TextBlock Text="{Binding TargetPathLabel}" FontWeight="SemiBold"/>
-        <TextBlock Text="{Binding TargetPath}" TextWrapping="Wrap" Margin="0,4,0,12"/>
-        <StackPanel>
-            <StackPanel.Style>
-                <Style TargetType="StackPanel">
+        Width="640" SizeToContent="Height" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+        Background="#F6F8FA"
+        FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType" UseLayoutRounding="True"
+        FocusManager.FocusedElement="{Binding ElementName=CancelButton}">
+    <Window.Resources>
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#4B5563"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <Style x:Key="PathReadOnlyBox" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Height" Value="Auto"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto"
+                                          Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SafePrimaryButton" TargetType="Button">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#004578"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerSecondaryButton" TargetType="Button">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="#B91C1C"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FCA5A5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FEF2F2"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#EF4444"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FEE2E2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#F3F4F6"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E5E7EB"/>
+                                <Setter Property="Foreground" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="18,16,18,16">
+        <TextBlock Text="{Binding Title}" FontSize="17.5" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,10"/>
+
+        <!-- 风险警示条 -->
+        <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="6" Padding="12,9" Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="{Binding ModeText}" TextWrapping="Wrap" Foreground="#B91C1C" FontWeight="SemiBold" FontSize="12.5"/>
+                <TextBlock Text="只处理下方冻结的备份对象，不删除当前生效数据；取消将完整保留备份及已记录的验证状态。"
+                           TextWrapping="Wrap" Foreground="#7F1D1D" FontSize="12" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 路径核对卡 -->
+        <Border Style="{StaticResource CardBorder}">
+            <StackPanel>
+                <TextBlock Text="{Binding BackupPathLabel}" Style="{StaticResource FieldLabel}"/>
+                <TextBox Text="{Binding BackupPath, Mode=OneWay}" Style="{StaticResource PathReadOnlyBox}" Margin="0,0,0,10"
+                         AutomationProperties.AutomationId="FrozenBackupPath"/>
+
+                <TextBlock Text="{Binding SourcePathLabel}" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{Binding SourcePath}" TextWrapping="Wrap" Foreground="#374151" FontSize="12.5" Margin="0,0,0,8"/>
+
+                <TextBlock Text="{Binding TargetPathLabel}" Style="{StaticResource FieldLabel}"/>
+                <TextBlock Text="{Binding TargetPath}" TextWrapping="Wrap" Foreground="#374151" FontSize="12.5" Margin="0,0,0,8"/>
+
+                <Border Height="1" Background="#F1F5F9" Margin="0,2,0,8"/>
+                <TextBlock Text="{Binding VerificationText}" TextWrapping="Wrap" Foreground="#6B7280" FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 永久删除二次确认输入卡 -->
+        <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+            <Border.Style>
+                <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers><DataTrigger Binding="{Binding NeedsName}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding NeedsName}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
                 </Style>
-            </StackPanel.Style>
-            <TextBlock Text="永久删除第二次确认：请准确输入原目录名称（不含备份的随机后缀），输入框不会预填。实际处理的完整备份路径见上方。" TextWrapping="Wrap"/>
-            <TextBlock Text="{Binding ExpectedName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,6"/>
-            <TextBox Text="{Binding ConfirmationText, UpdateSourceTrigger=PropertyChanged}" MinHeight="30"
-                     AutomationProperties.AutomationId="BackupNameInput"/>
-        </StackPanel>
-        <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button x:Name="CancelButton" Content="取消并保留备份" IsDefault="True" IsCancel="True" Command="{Binding CancelCommand}"
-                    Padding="12,7" Margin="0,0,10,0" AutomationProperties.AutomationId="CancelBackupAction"/>
-            <Button Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}" IsDefault="False" Padding="12,7"
-                    AutomationProperties.AutomationId="ConfirmBackupAction"/>
-        </WrapPanel>
+            </Border.Style>
+            <StackPanel>
+                <TextBlock Text="永久删除第二次确认：请准确输入原目录名称（不含备份随机后缀），输入框不会预填。"
+                           TextWrapping="Wrap" Foreground="#92400E" FontSize="12.5" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                    <TextBlock Text="需输入名称：" Foreground="#78350F" FontSize="12.5" VerticalAlignment="Center"/>
+                    <Border Background="White" BorderBrush="#FCD34D" BorderThickness="1" CornerRadius="4" Padding="8,2">
+                        <TextBlock Text="{Binding ExpectedName}" FontWeight="SemiBold" Foreground="#92400E" FontSize="12.5"/>
+                    </Border>
+                </StackPanel>
+                <TextBox Text="{Binding ConfirmationText, UpdateSourceTrigger=PropertyChanged}"
+                         Height="32" Padding="8,4" VerticalContentAlignment="Center" FontSize="13"
+                         BorderBrush="#D97706" BorderThickness="1" Background="White"
+                         AutomationProperties.AutomationId="BackupNameInput"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 底部操作栏：默认高亮并聚焦取消按钮 -->
+        <Border BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,4,0,0">
+            <WrapPanel HorizontalAlignment="Right">
+                <Button Content="{Binding ConfirmText}" Command="{Binding ConfirmCommand}" IsDefault="False"
+                        Style="{StaticResource DangerSecondaryButton}" Margin="0,0,10,0"
+                        AutomationProperties.AutomationId="ConfirmBackupAction"/>
+                <Button x:Name="CancelButton" Content="取消并保留备份" IsDefault="True" IsCancel="True"
+                        Command="{Binding CancelCommand}" Style="{StaticResource SafePrimaryButton}"
+                        AutomationProperties.AutomationId="CancelBackupAction"/>
+            </WrapPanel>
+        </Border>
     </StackPanel>
 </Window>

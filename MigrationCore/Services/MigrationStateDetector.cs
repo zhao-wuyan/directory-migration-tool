@@ -10,6 +10,7 @@ public static class MigrationStateDetector
         try
         {
             store ??= new MigrationTransactionStore();
+            bool pinnedTransaction = task.TransactionId is not null;
             MigrationTransactionRecord? record = task.TransactionId is Guid id
                 ? store.LoadAsync(id).GetAwaiter().GetResult() ?? throw new IOException("已登记事务缺失。")
                 : store.ReadAllAsync().GetAwaiter().GetResult()
@@ -32,7 +33,30 @@ public static class MigrationStateDetector
                 }
                 if (!record.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase)
                     || !record.TargetPath.Equals(task.TargetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 已还原回实目录或已安全取消/失败后更换目标盘时，不沿用旧目标事务卡死新迁移。
+                    DirectoryIdentity? liveSource = identity.ReadIfExists(task.SourcePath);
+                    bool canReassignTarget = !pinnedTransaction
+                        && record.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase)
+                        && !record.IsActive
+                        && !record.BackupDeletionInProgress
+                        && liveSource is { IsDirectory: true, IsReparsePoint: false }
+                        && ((record.Mode == MigrationMode.Restore && record.Stage == MigrationStage.AwaitingUserVerification
+                             && liveSource == record.StagingIdentity)
+                            || (record.Stage is MigrationStage.Cancelled or MigrationStage.Failed
+                                && liveSource == record.SourceIdentity));
+                    if (canReassignTarget)
+                    {
+                        task.Transaction = null;
+                        task.BackupPath = null;
+                        task.ErrorMessage = null;
+                        task.MigrationState = MigrationState.Pending;
+                        task.Status = QuickMigrateTaskStatus.Pending;
+                        task.StatusMessage = "待迁移";
+                        return task;
+                    }
                     throw new IOException("当前配置与已登记事务路径不同，不能认领另一目标。");
+                }
                 bool restoreTargetBackup = BackupManagementService.IsRestoreTargetBackup(record)
                     && record.BackupIdentity == record.TargetIdentity;
                 if (record.TargetIdentity is not null && !restoreTargetBackup)
