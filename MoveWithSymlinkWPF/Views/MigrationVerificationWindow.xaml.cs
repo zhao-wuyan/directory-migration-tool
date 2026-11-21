@@ -63,6 +63,12 @@ public partial class MigrationVerificationWindow : Window
         }
     }
 
+    private void ViewDeletionDetails_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.CurrentDeletionResult is not { } result) return;
+        BackupDeletionDetailsWindow.ShowDetails(_viewModel.Name, _viewModel.Record?.BackupPath, result, owner: this);
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private async void Window_Closing(object? sender, CancelEventArgs e)

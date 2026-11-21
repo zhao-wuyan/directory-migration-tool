@@ -123,6 +123,7 @@ public partial class QuickMigrateTask : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanManageBackup))]
     [NotifyPropertyChangedFor(nameof(DeletionDetails))]
     [NotifyPropertyChangedFor(nameof(HasDeletionDetails))]
+    [NotifyPropertyChangedFor(nameof(DeletionDetailsButtonText))]
     [NotifyPropertyChangedFor(nameof(IsAwaitingUserVerification))]
     [NotifyPropertyChangedFor(nameof(IsUserVerified))]
     [NotifyPropertyChangedFor(nameof(IsTransactionAbnormal))]
@@ -173,7 +174,10 @@ public partial class QuickMigrateTask : ObservableObject
             or Models.BackupState.Missing or Models.BackupState.IdentityChanged) && MigrationState != Models.MigrationState.Inconsistent;
     public string DeletionDetails => Transaction?.LastDeletionResult is not { } result ? ""
         : $"{result.Status}：{result.Error}\n" + string.Join("\n", result.Items.Select(i => $"{i.Outcome}：{i.Path} {i.Error}"));
-    public bool HasDeletionDetails => !string.IsNullOrWhiteSpace(DeletionDetails);
+    public bool HasDeletionDetails => Transaction?.LastDeletionResult is not null;
+    public string DeletionDetailsButtonText => Transaction?.LastDeletionResult is { } result
+        ? $"处理明细 ({result.Items.Length})"
+        : "处理明细";
     public bool IsAwaitingUserVerification => Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false, UserVerifiedAtUtc: null };
     public bool IsUserVerified => Transaction is { Stage: MigrationStage.AwaitingUserVerification, BackupDeletionInProgress: false, UserVerifiedAtUtc: not null };
     public bool IsTransactionAbnormal => Transaction is not null && (Transaction.BackupDeletionInProgress || Transaction.Stage != MigrationStage.AwaitingUserVerification || MigrationState == Models.MigrationState.Inconsistent);

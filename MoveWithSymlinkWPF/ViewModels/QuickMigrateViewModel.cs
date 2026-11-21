@@ -69,6 +69,9 @@ public partial class QuickMigrateViewModel : ObservableObject
     private int _pendingTaskCount = 0;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMigratedTasks))]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedFilterEmptyState))]
+    [NotifyPropertyChangedFor(nameof(MigratedFilterSummaryText))]
     private int _migratedTaskCount = 0;
 
     [ObservableProperty]
@@ -82,6 +85,41 @@ public partial class QuickMigrateViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(UnverifiedMigratedBadgeText))]
     private int _unverifiedMigratedCount = 0;
+
+    [ObservableProperty]
+    private int _retainedBackupMigratedCount = 0;
+
+    [ObservableProperty]
+    private int _abnormalMigratedCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedFilterEmptyState))]
+    [NotifyPropertyChangedFor(nameof(MigratedFilterSummaryText))]
+    private int _filteredMigratedTaskCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMigratedFilterAll))]
+    [NotifyPropertyChangedFor(nameof(IsMigratedFilterUnverified))]
+    [NotifyPropertyChangedFor(nameof(IsMigratedFilterRetainedBackup))]
+    [NotifyPropertyChangedFor(nameof(IsMigratedFilterAbnormal))]
+    [NotifyPropertyChangedFor(nameof(ShowMigratedFilterEmptyState))]
+    [NotifyPropertyChangedFor(nameof(MigratedFilterSummaryText))]
+    private MigratedTaskFilter _migratedFilter = MigratedTaskFilter.All;
+
+    partial void OnMigratedFilterChanged(MigratedTaskFilter value)
+    {
+        RebuildMigratedTaskGroups();
+    }
+
+    public bool HasMigratedTasks => MigratedTaskCount > 0;
+    public bool ShowMigratedFilterEmptyState => HasMigratedTasks && FilteredMigratedTaskCount == 0;
+    public bool IsMigratedFilterAll => MigratedFilter == MigratedTaskFilter.All;
+    public bool IsMigratedFilterUnverified => MigratedFilter == MigratedTaskFilter.Unverified;
+    public bool IsMigratedFilterRetainedBackup => MigratedFilter == MigratedTaskFilter.RetainedBackup;
+    public bool IsMigratedFilterAbnormal => MigratedFilter == MigratedTaskFilter.Abnormal;
+    public string MigratedFilterSummaryText => MigratedFilter == MigratedTaskFilter.All
+        ? $"共 {MigratedTaskCount} 项已迁移"
+        : $"已筛选 {FilteredMigratedTaskCount} / {MigratedTaskCount} 项";
 
     public string UnverifiedPendingBadgeText => UnverifiedPendingCount > 0 ? $"{UnverifiedPendingCount} 待验证" : string.Empty;
     public string UnverifiedMigratedBadgeText => UnverifiedMigratedCount > 0 ? $"{UnverifiedMigratedCount} 待验证" : string.Empty;
@@ -139,6 +177,8 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     // 保留最近一次未入事务（如目标盘不存在、路径准入拒绝）的执行失败信息，避免刷新列表时被洗白
     private readonly Dictionary<string, (string ErrorMessage, ErrorType ErrorType)> _lastTaskErrors = new(StringComparer.OrdinalIgnoreCase);
+    // 完整已迁移任务快照，供「已迁移」页签按状态实时筛选而不必重新扫描磁盘
+    private List<QuickMigrateTask> _allMigratedTasks = new();
 
     private QuickMigrateConfig? _config;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -320,16 +360,8 @@ public partial class QuickMigrateViewModel : ObservableObject
             t.MigrationState == MigrationState.Inconsistent ||
             t.MigrationState == MigrationState.NeedsCleanup).ToList();
 
-        // 按 ProfileName 分组
+        // 按 ProfileName 分组（未迁移）
         var pendingGroups = pendingTasks
-            .GroupBy(t => t.ProfileName ?? "自定义目录")
-            .Select(g => new QuickMigrateTaskGroup
-            {
-                GroupName = g.Key,
-                Tasks = new ObservableCollection<QuickMigrateTask>(g)
-            });
-
-        var migratedGroups = migratedTasks
             .GroupBy(t => t.ProfileName ?? "自定义目录")
             .Select(g => new QuickMigrateTaskGroup
             {
@@ -354,25 +386,26 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
         }
 
-        foreach (var group in migratedGroups)
-        {
-            MigratedTaskGroups.Add(group);
-        }
+        // 保存完整已迁移任务列表，并按当前筛选条件填充展示分组
+        _allMigratedTasks = migratedTasks;
+        MigratedTaskCount = migratedTasks.Count;
+        UnverifiedMigratedCount = migratedTasks.Count(t => t.IsAwaitingUserVerification);
+        RetainedBackupMigratedCount = migratedTasks.Count(t => t.HasRetainedBackup);
+        AbnormalMigratedCount = migratedTasks.Count(IsAbnormalMigratedTask);
+        RebuildMigratedTaskGroups();
 
-        // 更新错误状态（基于恢复后的任务状态，同时覆盖未迁移与已迁移页签）
+        // 更新错误状态（基于全量恢复后的任务状态，不受筛选影响）
         var currentFailedCount = PendingTaskGroups
             .SelectMany(g => g.Tasks)
-            .Concat(MigratedTaskGroups.SelectMany(g => g.Tasks))
+            .Concat(_allMigratedTasks)
             .Count(t => t.Status == QuickMigrateTaskStatus.Failed);
 
         HasErrors = currentFailedCount > 0;
 
         PendingTaskCount = pendingTasks.Count;
-        MigratedTaskCount = migratedTasks.Count;
         UnverifiedPendingCount = pendingTasks.Count(t => t.IsAwaitingUserVerification);
-        UnverifiedMigratedCount = migratedTasks.Count(t => t.IsAwaitingUserVerification);
 
-        HasValidTasks = PendingTaskGroups.Any() || MigratedTaskGroups.Any();
+        HasValidTasks = PendingTaskGroups.Any() || _allMigratedTasks.Any();
         HasPendingTasks = PendingTaskGroups.Any();
         OnPropertyChanged(nameof(AllTasksMigrated));
 
@@ -391,6 +424,44 @@ public partial class QuickMigrateViewModel : ObservableObject
         // 初始化选择状态
         UpdateSelectionState();
     }
+
+    [RelayCommand]
+    private void SetMigratedFilter(MigratedTaskFilter filter)
+    {
+        MigratedFilter = filter;
+    }
+
+    private void RebuildMigratedTaskGroups()
+    {
+        MigratedTaskGroups.Clear();
+
+        IEnumerable<QuickMigrateTask> filtered = MigratedFilter switch
+        {
+            MigratedTaskFilter.Unverified => _allMigratedTasks.Where(t => t.IsAwaitingUserVerification),
+            MigratedTaskFilter.RetainedBackup => _allMigratedTasks.Where(t => t.HasRetainedBackup),
+            MigratedTaskFilter.Abnormal => _allMigratedTasks.Where(IsAbnormalMigratedTask),
+            _ => _allMigratedTasks
+        };
+
+        var filteredList = filtered.ToList();
+        FilteredMigratedTaskCount = filteredList.Count;
+
+        foreach (var group in filteredList
+            .GroupBy(t => t.ProfileName ?? "自定义目录")
+            .Select(g => new QuickMigrateTaskGroup
+            {
+                GroupName = g.Key,
+                Tasks = new ObservableCollection<QuickMigrateTask>(g)
+            }))
+        {
+            MigratedTaskGroups.Add(group);
+        }
+    }
+
+    private static bool IsAbnormalMigratedTask(QuickMigrateTask task) =>
+        task.IsTransactionAbnormal
+        || task.MigrationState == MigrationState.Inconsistent
+        || task.Status == QuickMigrateTaskStatus.Failed;
 
     [RelayCommand]
     private void BrowseUnifiedTarget()
@@ -900,6 +971,14 @@ public partial class QuickMigrateViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ViewDeletionDetails(QuickMigrateTask task)
+    {
+        if (task.Transaction?.LastDeletionResult is not { } result)
+            return;
+        BackupDeletionDetailsWindow.ShowDetails(task.DisplayName, task.BackupPath, result);
+    }
+
     public void RefreshTransactionState() => ScanAndBuildTasks();
 
     [RelayCommand]
@@ -1254,6 +1333,17 @@ public partial class QuickMigrateViewModel : ObservableObject
         }
         return false;
     }
+}
+
+/// <summary>
+/// 「已迁移」页签筛选条件
+/// </summary>
+public enum MigratedTaskFilter
+{
+    All,
+    Unverified,
+    RetainedBackup,
+    Abnormal
 }
 
 /// <summary>

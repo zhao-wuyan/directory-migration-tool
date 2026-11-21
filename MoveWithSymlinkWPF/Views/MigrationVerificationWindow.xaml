@@ -526,13 +526,23 @@
                                     AutomationProperties.AutomationId="ManageVerifiedBackup"/>
                         </Grid>
 
-                        <!-- 仅在有实际处理反馈/取消记录时展示一行摘要，悬停或展开详情看完整逐项日志 -->
+                        <!-- 仅在有实际处理反馈/取消记录时展示一行摘要，并支持弹窗查看虚拟化完整明细 -->
                         <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="5"
-                                Padding="8,5" Margin="0,8,0,0" Cursor="Help"
-                                ToolTip="{Binding DeletionResultText}"
+                                Padding="8,5" Margin="0,8,0,0"
                                 Visibility="{Binding HasDeletionFeedback, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="{Binding DeletionFeedbackShortText}" FontSize="12" Foreground="#475569"
-                                       TextTrimming="CharacterEllipsis"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding DeletionFeedbackShortText}" FontSize="12" Foreground="#475569"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding DeletionFeedbackShortText}"/>
+                                <Button Grid.Column="1" Content="查看明细…" Click="ViewDeletionDetails_Click"
+                                        Style="{StaticResource CompactSecondaryButton}" Height="24" MinWidth="72"
+                                        FontSize="11.5" Padding="8,0" Margin="8,0,0,0"
+                                        Visibility="{Binding HasDeletionResultItems, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </Grid>
                         </Border>
                     </StackPanel>
                 </Border>

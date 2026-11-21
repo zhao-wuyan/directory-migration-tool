@@ -199,8 +199,15 @@ public partial class MigrationVerificationViewModel(Guid transactionId) : Observ
         catch (Exception ex) { ErrorText = "打开目录失败：" + ex.Message; }
     }
 
+    private const int MaxInlinePreviewItems = 50;
+
+    public BackupDeletionResult? CurrentDeletionResult { get; private set; }
+    public bool HasDeletionResultItems => CurrentDeletionResult is not null;
+
     public void ShowDeletionCancelled()
     {
+        CurrentDeletionResult = null;
+        OnPropertyChanged(nameof(HasDeletionResultItems));
         DeletionResultText = "已取消处理备份，未执行删除；已记录的确认及备份保持原状。";
         DeletionFeedbackShortText = "已取消处理备份，原备份保持原状。";
         HasDeletionFeedback = true;
@@ -208,11 +215,22 @@ public partial class MigrationVerificationViewModel(Guid transactionId) : Observ
 
     public void ShowDeletionResult(BackupDeletionResult result)
     {
+        CurrentDeletionResult = result;
+        OnPropertyChanged(nameof(HasDeletionResultItems));
+
         var text = new StringBuilder($"实际处理结果：{result.Status}；完成时间：{(result.CompletedAtUtc is { } time ? FormatTime(time) : "未完成")}\n");
         if (result.Error is not null) text.AppendLine("错误：" + result.Error);
         text.AppendLine($"逐项结果共 {result.Items.Length} 项：");
-        foreach (var item in result.Items)
+
+        int previewCount = Math.Min(result.Items.Length, MaxInlinePreviewItems);
+        for (int i = 0; i < previewCount; i++)
+        {
+            var item = result.Items[i];
             text.AppendLine($"{item.Outcome}：{item.Path}{(item.Error is null ? "" : "；" + item.Error)}");
+        }
+        if (result.Items.Length > MaxInlinePreviewItems)
+            text.AppendLine($"...（其余 {result.Items.Length - MaxInlinePreviewItems} 项已省略，请点击「查看明细…」在虚拟化弹窗中浏览与筛选）");
+
         DeletionResultText = text.ToString();
         string statusText = result.Status switch
         {
