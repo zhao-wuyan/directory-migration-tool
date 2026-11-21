@@ -97,6 +97,21 @@ public partial class QuickMigrateViewModel : ObservableObject
     [ObservableProperty]
     private string _unifiedTargetRoot = string.Empty;
 
+    partial void OnUseUnifiedTargetChanged(bool value)
+    {
+        if (IsLoading || IsExecuting) return;
+        UpdatePendingTasksTargetPaths();
+    }
+
+    partial void OnUnifiedTargetRootChanged(string value)
+    {
+        if (IsLoading || IsExecuting) return;
+        if (UseUnifiedTarget)
+        {
+            UpdatePendingTasksTargetPaths();
+        }
+    }
+
     [ObservableProperty]
     private int _selectedTabIndex = 0; // 0 = 未迁移, 1 = 已迁移
 
@@ -115,9 +130,15 @@ public partial class QuickMigrateViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasErrors = false;
 
+    [ObservableProperty]
+    private bool _isLogExpanded = false;
+
     public ObservableCollection<QuickMigrateTaskGroup> PendingTaskGroups { get; } = new();
     public ObservableCollection<QuickMigrateTaskGroup> MigratedTaskGroups { get; } = new();
     public ObservableCollection<string> LogMessages { get; } = new();
+
+    // 保留最近一次未入事务（如目标盘不存在、路径准入拒绝）的执行失败信息，避免刷新列表时被洗白
+    private readonly Dictionary<string, (string ErrorMessage, ErrorType ErrorType)> _lastTaskErrors = new(StringComparer.OrdinalIgnoreCase);
 
     private QuickMigrateConfig? _config;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -136,6 +157,7 @@ public partial class QuickMigrateViewModel : ObservableObject
     {
         if (IsExecuting || IsLoading) return;
         IsLoading = true;
+        _lastTaskErrors.Clear();
         StatusMessage = "正在加载配置...";
         try
         {
@@ -237,32 +259,55 @@ public partial class QuickMigrateViewModel : ObservableObject
         // 去重
         allTasks = RegistryLocatorService.DeduplicateTasks(allTasks);
 
-        // 设置目标路径
+        // 读取已登记事务（供已迁移任务与未收尾还原任务保留真实目标路径，避免被顶部“统一目标目录”覆盖）
+        var savedTransactions = TryLoadTransactions();
+        var pathIdentity = new PathIdentityService();
+
+        // 设置目标路径：已核实身份的已迁移/待收尾还原任务沿用事务登记目标，未迁移任务使用统一/默认目标
         foreach (var task in allTasks)
         {
-            if (UseUnifiedTarget && !string.IsNullOrEmpty(UnifiedTargetRoot))
+            if (TryResolveTrackedTargetPath(task, savedTransactions, pathIdentity) is string trackedTarget)
             {
-                // 统一目标模式：使用用户选择的统一目标根目录
-                string sourceName = string.IsNullOrEmpty(task.RelativePath) 
-                    ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) 
-                    : task.RelativePath;
-                task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
+                task.TargetPath = trackedTarget;
+                continue;
+            }
+
+            if (UseUnifiedTarget)
+            {
+                task.TargetPath = string.IsNullOrWhiteSpace(UnifiedTargetRoot)
+                    ? string.Empty
+                    : Path.Combine(UnifiedTargetRoot.Trim(), ResolveTaskSubPath(task));
             }
             else if (!string.IsNullOrEmpty(_config.Defaults.UnifiedTargetRoot))
             {
                 // 非统一模式但配置文件中有默认目标根目录：使用配置文件中的路径作为默认值
-                string sourceName = string.IsNullOrEmpty(task.RelativePath) 
-                    ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) 
-                    : task.RelativePath;
-                task.TargetPath = Path.Combine(_config.Defaults.UnifiedTargetRoot, sourceName);
+                task.TargetPath = Path.Combine(_config.Defaults.UnifiedTargetRoot, ResolveTaskSubPath(task));
             }
             // 如果两者都为空，TargetPath 保持为空，UI 会提示用户设置
         }
 
-        // 检测迁移状态
+        // 检测迁移状态，并恢复错误分类及未入事务的最近一次执行错误
         foreach (var task in allTasks)
         {
             MigrationStateDetector.DetectMigrationState(task);
+            if (task.Status == QuickMigrateTaskStatus.Failed)
+            {
+                if (string.IsNullOrWhiteSpace(task.ErrorMessage) && _lastTaskErrors.TryGetValue(task.SourcePath, out var cached))
+                {
+                    task.ErrorMessage = cached.ErrorMessage;
+                    task.ErrorType = cached.ErrorType;
+                }
+                else if (!string.IsNullOrWhiteSpace(task.ErrorMessage))
+                {
+                    task.ErrorType = ClassifyError(task.ErrorMessage);
+                }
+            }
+            else if (_lastTaskErrors.TryGetValue(task.SourcePath, out var cachedError))
+            {
+                task.Status = QuickMigrateTaskStatus.Failed;
+                task.ErrorMessage = cachedError.ErrorMessage;
+                task.ErrorType = cachedError.ErrorType;
+            }
         }
 
         // 分组：未迁移 vs 已迁移
@@ -314,9 +359,10 @@ public partial class QuickMigrateViewModel : ObservableObject
             MigratedTaskGroups.Add(group);
         }
 
-        // 更新错误状态（基于恢复后的任务状态）
+        // 更新错误状态（基于恢复后的任务状态，同时覆盖未迁移与已迁移页签）
         var currentFailedCount = PendingTaskGroups
             .SelectMany(g => g.Tasks)
+            .Concat(MigratedTaskGroups.SelectMany(g => g.Tasks))
             .Count(t => t.Status == QuickMigrateTaskStatus.Failed);
 
         HasErrors = currentFailedCount > 0;
@@ -361,19 +407,112 @@ public partial class QuickMigrateViewModel : ObservableObject
             string? selectedPath = picker.SelectedPath;
             if (!string.IsNullOrWhiteSpace(selectedPath))
             {
+                // OnUnifiedTargetRootChanged 会自动同步更新所有未迁移任务的目标路径
                 UnifiedTargetRoot = selectedPath;
-            
-                // 更新所有未迁移任务的目标路径
-                foreach (var group in PendingTaskGroups)
+                UpdatePendingTasksTargetPaths();
+            }
+        }
+    }
+
+    private void UpdatePendingTasksTargetPaths()
+    {
+        string? root = UseUnifiedTarget
+            ? UnifiedTargetRoot.Trim()
+            : _config?.Defaults.UnifiedTargetRoot;
+
+        foreach (var group in PendingTaskGroups)
+        {
+            foreach (var task in group.Tasks)
+            {
+                task.TargetPath = string.IsNullOrWhiteSpace(root)
+                    ? string.Empty
+                    : Path.Combine(root, ResolveTaskSubPath(task));
+            }
+        }
+    }
+
+    private static string ResolveTaskSubPath(QuickMigrateTask task) =>
+        string.IsNullOrEmpty(task.RelativePath)
+            ? Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            : task.RelativePath;
+
+    private static IReadOnlyList<MigrationTransactionRecord> TryLoadTransactions()
+    {
+        try
+        {
+            return new MigrationTransactionStore().ReadAllAsync().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // 事务读取异常时交由 MigrationStateDetector 逐项按严格安全策略判定为 Inconsistent
+            return Array.Empty<MigrationTransactionRecord>();
+        }
+    }
+
+    /// <summary>
+    /// 仅在底层卷/文件身份完全匹配已登记事务时，保留该任务的真实目标路径，防止被顶部“统一目标目录”误覆盖。
+    /// 不按目录名认领，任何身份不符都交回 MigrationStateDetector 严格判定。
+    /// </summary>
+    private static string? TryResolveTrackedTargetPath(
+        QuickMigrateTask task,
+        IReadOnlyList<MigrationTransactionRecord> records,
+        PathIdentityService identity)
+    {
+        if (records.Count == 0 || string.IsNullOrWhiteSpace(task.SourcePath))
+            return null;
+
+        try
+        {
+            var latest = records
+                .Where(r => r.SourcePath.Equals(task.SourcePath, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(r => r.UpdatedAtUtc)
+                .FirstOrDefault();
+            if (latest is null)
+                return null;
+
+            // 1. 已迁移链接：核实源链接身份、目标实目录身份、以及链接真实解析目标全部一致
+            if (latest.Mode != MigrationMode.Restore
+                && latest.LinkIdentity is not null
+                && latest.TargetIdentity is not null)
+            {
+                var liveLink = identity.ReadIfExists(task.SourcePath);
+                var liveTarget = identity.ReadIfExists(latest.TargetPath);
+                if (liveLink is { IsReparsePoint: true }
+                    && liveLink == latest.LinkIdentity
+                    && liveTarget == latest.TargetIdentity
+                    && identity.ReadDirectory(task.SourcePath, followLink: true) == latest.TargetIdentity)
                 {
-                    foreach (var task in group.Tasks)
+                    return latest.TargetPath;
+                }
+            }
+
+            // 2. 刚还原但待用户验证或还原备份仍保留的目录：保留原事务目标以维持验证与备份管理入口
+            if (latest.Mode == MigrationMode.Restore
+                && latest.Stage == MigrationStage.AwaitingUserVerification
+                && latest.StagingIdentity is not null)
+            {
+                bool needsVerificationOrBackup = latest.UserVerifiedAtUtc is null
+                    || latest.BackupDeletionInProgress
+                    || (latest.BackupPath is not null
+                        && latest.BackupState is BackupState.RetainedUnverified or BackupState.UserVerified
+                            or BackupState.DeleteRequested or BackupState.DeleteFailed);
+                if (needsVerificationOrBackup)
+                {
+                    var liveSource = identity.ReadIfExists(task.SourcePath);
+                    if (liveSource is { IsDirectory: true, IsReparsePoint: false }
+                        && liveSource == latest.StagingIdentity)
                     {
-                        string sourceName = Path.GetFileName(task.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                        task.TargetPath = Path.Combine(UnifiedTargetRoot, sourceName);
+                        return latest.TargetPath;
                     }
                 }
             }
         }
+        catch
+        {
+            // 任何探测异常都不认领目标，交回 MigrationStateDetector 处理
+        }
+
+        return null;
     }
 
     private void UpdateSelectionState()
@@ -503,12 +642,30 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
         }
 
-        // 检查每个目标磁盘的可用空间
+        // 检查每个目标磁盘的可用性与剩余空间
         bool spaceCheckFailed = false;
+        var unavailableDrives = new List<string>();
         foreach (var kvp in diskSpaceRequirements)
         {
             string diskRoot = kvp.Key;
             long requiredBytes = kvp.Value;
+
+            bool driveReady = false;
+            try
+            {
+                driveReady = new DriveInfo(diskRoot).IsReady;
+            }
+            catch
+            {
+                driveReady = false;
+            }
+
+            if (!driveReady)
+            {
+                AddLog($"❌ 目标驱动器 {diskRoot} 不存在或不可用！");
+                unavailableDrives.Add(diskRoot);
+                continue;
+            }
             
             var (sufficient, available, required) = PathValidator.CheckDiskSpace(diskRoot, requiredBytes);
             
@@ -527,14 +684,27 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
         }
 
-        if (spaceCheckFailed)
+        if (unavailableDrives.Count > 0)
         {
-            CustomMessageBox.ShowError(
-                "目标磁盘空间不足，无法继续迁移！\n\n请查看日志了解详细信息。",
-                "空间不足");
+            IsLogExpanded = true;
             IsExecuting = false;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+            CustomMessageBox.ShowError(
+                $"目标驱动器不可用：{string.Join("、", unavailableDrives)}\n\n请检查磁盘连接或修改目标路径后再试。",
+                "目标驱动器不可用");
+            return;
+        }
+
+        if (spaceCheckFailed)
+        {
+            IsLogExpanded = true;
+            IsExecuting = false;
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
+            CustomMessageBox.ShowError(
+                "目标磁盘空间不足，无法继续迁移！\n\n请查看日志了解详细信息。",
+                "空间不足");
             return;
         }
 
@@ -556,12 +726,11 @@ public partial class QuickMigrateViewModel : ObservableObject
                 break;
             }
 
-          
-
             await ExecuteSingleMigrationTaskAsync(task);
         }
 
-        if (_cancellationTokenSource.Token.IsCancellationRequested)
+        bool wasCancelled = _cancellationTokenSource.Token.IsCancellationRequested;
+        if (wasCancelled)
         {
             AddLog($"操作已取消。成功: {CompletedCount}, 失败: {FailedCount}, 跳过: {tasks.Count - CompletedCount - FailedCount}");
         }
@@ -574,8 +743,17 @@ public partial class QuickMigrateViewModel : ObservableObject
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
 
-        // 刷新任务列表
+        // 刷新任务列表（_lastTaskErrors 会保留未入事务的失败状态供卡片展示）
         ScanAndBuildTasks();
+
+        if (!wasCancelled && FailedCount > 0)
+        {
+            IsLogExpanded = true;
+            string title = CompletedCount > 0 ? "迁移部分失败" : "迁移失败";
+            CustomMessageBox.ShowError(
+                $"一键迁移结束：成功 {CompletedCount} 项，失败 {FailedCount} 项。\n\n请查看失败任务卡片或下方执行日志了解详情。",
+                title);
+        }
     }
 
     [RelayCommand]
@@ -614,24 +792,38 @@ public partial class QuickMigrateViewModel : ObservableObject
         AddLog($"开始迁移: {task.DisplayName}");
 
         _cancellationTokenSource = new CancellationTokenSource();
+        string? failureDetail = null;
+        bool wasCancelled = false;
 
-        await ExecuteSingleMigrationTaskAsync(task);
-
-        if (task.Status == QuickMigrateTaskStatus.Completed)
+        try
         {
-            AddLog("迁移操作完成");
+            await ExecuteSingleMigrationTaskAsync(task);
+            wasCancelled = task.Status == QuickMigrateTaskStatus.Skipped;
+            if (task.Status == QuickMigrateTaskStatus.Completed)
+            {
+                AddLog("迁移操作完成");
+            }
+            else if (!wasCancelled)
+            {
+                failureDetail = task.ErrorMessage;
+                AddLog("迁移操作失败");
+            }
         }
-        else
+        finally
         {
-            AddLog("迁移操作失败");
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
+            IsExecuting = false;
+            ScanAndBuildTasks();
         }
 
-        IsExecuting = false;
-        _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = null;
-
-        // 刷新任务列表
-        ScanAndBuildTasks();
+        if (!wasCancelled && failureDetail is not null)
+        {
+            IsLogExpanded = true;
+            CustomMessageBox.ShowError(
+                $"迁移任务 \"{task.DisplayName}\" 失败：\n\n{failureDetail}\n\n请查看下方执行日志了解详细信息。",
+                "迁移失败");
+        }
     }
 
     [RelayCommand]
@@ -648,15 +840,44 @@ public partial class QuickMigrateViewModel : ObservableObject
             return;
 
         IsExecuting = true;
+        CompletedCount = 0;
+        FailedCount = 0;
+        TotalCount = 1;
         LogMessages.Clear();
         AddLog($"开始还原: {task.DisplayName}");
         _cancellationTokenSource = new CancellationTokenSource();
-        try { await ExecuteSingleRestoreTaskAsync(task); }
+        string? failureDetail = null;
+        bool succeeded = false;
+        bool wasCancelled = false;
+        try
+        {
+            await ExecuteSingleRestoreTaskAsync(task);
+            succeeded = task.Status == QuickMigrateTaskStatus.Completed;
+            wasCancelled = task.Status == QuickMigrateTaskStatus.Skipped;
+            if (!succeeded && !wasCancelled)
+            {
+                failureDetail = task.ErrorMessage;
+            }
+        }
         finally
         {
             _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
             IsExecuting = false;
             ScanAndBuildTasks();
+        }
+
+        if (succeeded)
+        {
+            CustomMessageBox.ShowSuccess(
+                $"任务 \"{task.DisplayName}\" 已完成还原！\n\n原目标目录已转为还原备份保留，可在「未迁移」页签完成使用验证。",
+                "还原完成");
+        }
+        else if (!wasCancelled && failureDetail is not null)
+        {
+            IsLogExpanded = true;
+            CustomMessageBox.ShowError(
+                $"还原任务 \"{task.DisplayName}\" 失败：\n\n{failureDetail}\n\n请查看下方执行日志了解详细信息。",
+                "还原失败");
         }
     }
 
@@ -718,6 +939,7 @@ public partial class QuickMigrateViewModel : ObservableObject
 
     private async Task ExecuteSingleMigrationTaskAsync(QuickMigrateTask task)
     {
+        _lastTaskErrors.Remove(task.SourcePath);
         task.Status = QuickMigrateTaskStatus.InProgress;
         task.ShowProgress = true;
         AddLog($"[{task.DisplayName}] 开始迁移");
@@ -771,10 +993,12 @@ public partial class QuickMigrateViewModel : ObservableObject
             }
             else
             {
+                string errorText = FormatFailureMessage(result.ErrorMessage, result.RecoveryPaths);
                 task.Status = QuickMigrateTaskStatus.Failed;
-                task.ErrorMessage = result.ErrorMessage + "\n" + string.Join("\n", result.RecoveryPaths);
+                task.ErrorMessage = errorText;
                 task.ShowProgress = false;
                 task.ErrorType = ClassifyError(result.ErrorMessage);
+                _lastTaskErrors[task.SourcePath] = (errorText, task.ErrorType);
                 FailedCount++;
                 HasErrors = true;
                 AddLog($"[{task.DisplayName}] ❌ 迁移失败: {result.ErrorMessage}");
@@ -791,14 +1015,18 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             task.Status = QuickMigrateTaskStatus.Failed;
             task.ErrorMessage = ex.Message;
+            task.ErrorType = ClassifyError(ex.Message);
             task.ShowProgress = false;
+            _lastTaskErrors[task.SourcePath] = (ex.Message, task.ErrorType);
             FailedCount++;
+            HasErrors = true;
             AddLog($"[{task.DisplayName}] ❌ 异常: {ex.Message}");
         }
     }
 
     private async Task ExecuteSingleRestoreTaskAsync(QuickMigrateTask task)
     {
+        _lastTaskErrors.Remove(task.SourcePath);
         task.Status = QuickMigrateTaskStatus.InProgress;
         task.ShowProgress = true;
         AddLog($"[{task.DisplayName}] 开始还原");
@@ -847,14 +1075,18 @@ public partial class QuickMigrateViewModel : ObservableObject
                 task.MigrationState = MigrationState.Pending;
                 task.MigratedAt = null;
                 task.ShowProgress = false;
+                CompletedCount++;
                 AddLog($"[{task.DisplayName}] ✅ 还原成功");
             }
             else
             {
+                string errorText = FormatFailureMessage(result.ErrorMessage, result.RecoveryPaths);
                 task.Status = QuickMigrateTaskStatus.Failed;
-                task.ErrorMessage = result.ErrorMessage + "\n" + string.Join("\n", result.RecoveryPaths);
+                task.ErrorMessage = errorText;
                 task.ShowProgress = false;
                 task.ErrorType = ClassifyError(result.ErrorMessage);
+                _lastTaskErrors[task.SourcePath] = (errorText, task.ErrorType);
+                FailedCount++;
                 HasErrors = true;
                 AddLog($"[{task.DisplayName}] ❌ 还原失败: {result.ErrorMessage}");
             }
@@ -870,9 +1102,22 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             task.Status = QuickMigrateTaskStatus.Failed;
             task.ErrorMessage = ex.Message;
+            task.ErrorType = ClassifyError(ex.Message);
             task.ShowProgress = false;
+            _lastTaskErrors[task.SourcePath] = (ex.Message, task.ErrorType);
+            FailedCount++;
+            HasErrors = true;
             AddLog($"[{task.DisplayName}] ❌ 异常: {ex.Message}");
         }
+    }
+
+    private static string FormatFailureMessage(string? errorMessage, string[]? recoveryPaths)
+    {
+        string primary = string.IsNullOrWhiteSpace(errorMessage) ? "操作未完成" : errorMessage.Trim();
+        var paths = recoveryPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+        if (paths is null || paths.Length == 0)
+            return primary;
+        return primary + "\n相关/保留位置：\n" + string.Join("\n", paths);
     }
 
     private static async Task ApplyTaskResultAsync(QuickMigrateTask task, MigrationResult result)
@@ -905,28 +1150,9 @@ public partial class QuickMigrateViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 分类错误类型
+    /// 分类错误类型（委托至统一分类器 ErrorTypeClassifier）
     /// </summary>
-    private ErrorType ClassifyError(string? errorMessage)
-    {
-        if (string.IsNullOrEmpty(errorMessage))
-            return ErrorType.None;
-
-        var lowerError = errorMessage.ToLower();
-
-        if (lowerError.Contains("access") || lowerError.Contains("denied") || lowerError.Contains("permission") || lowerError.Contains("权限"))
-            return ErrorType.Permission;
-        else if (lowerError.Contains("space") || lowerError.Contains("disk") || lowerError.Contains("空间") || lowerError.Contains("磁盘"))
-            return ErrorType.DiskSpace;
-        else if (lowerError.Contains("lock") || lowerError.Contains("used") || lowerError.Contains("占用") || lowerError.Contains("in use"))
-            return ErrorType.FileInUse;
-        else if (lowerError.Contains("network") || lowerError.Contains("connection") || lowerError.Contains("网络") || lowerError.Contains("连接"))
-            return ErrorType.Network;
-        else if (lowerError.Contains("system") || lowerError.Contains("critical") || lowerError.Contains("系统") || lowerError.Contains("严重"))
-            return ErrorType.System;
-        else
-            return ErrorType.Unknown;
-    }
+    private static ErrorType ClassifyError(string? errorMessage) => ErrorTypeClassifier.Classify(errorMessage);
 
     /// <summary>
     /// 复制错误信息到剪贴板（public 方法，因为源生成器未生成 Command 属性）

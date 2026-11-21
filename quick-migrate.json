@@ -15,7 +15,8 @@
       },
       "items": [
         { "displayName": "测试一", "relativePath": "01", "enabled": true },
-        { "displayName": "测试二", "relativePath": "02", "enabled": true }
+        { "displayName": "测试二", "relativePath": "02", "enabled": true },
+        { "displayName": "测试三", "relativePath": "03", "enabled": true }
       ]
     },
     {

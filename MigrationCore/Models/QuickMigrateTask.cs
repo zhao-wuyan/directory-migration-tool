@@ -138,6 +138,7 @@ public partial class QuickMigrateTask : ObservableObject
     [NotifyPropertyChangedFor(nameof(VerifyActionButtonText))]
     [NotifyPropertyChangedFor(nameof(DisplayMigratedAt))]
     [NotifyPropertyChangedFor(nameof(HasDisplayMigratedAt))]
+    [NotifyPropertyChangedFor(nameof(DisplayMigratedTarget))]
     [NotifyPropertyChangedFor(nameof(BackupPathLabel))]
     private MigrationTransactionRecord? _transaction;
 
@@ -182,7 +183,10 @@ public partial class QuickMigrateTask : ObservableObject
     public bool ShowPendingVerificationEntry => Transaction is { Mode: MigrationMode.Restore, Stage: MigrationStage.AwaitingUserVerification }
         && (Transaction.UserVerifiedAtUtc is null || HasRetainedBackup || Transaction.BackupDeletionInProgress);
     public bool ShowPendingHistoryNotice => !ShowPendingVerificationEntry && Transaction is { Stage: MigrationStage.Cancelled or MigrationStage.Failed };
-    public bool ShowMigratedWarningBanner => !HasTransaction && (MigrationState == Models.MigrationState.Inconsistent || HasBackupPath);
+    public bool ShowMigratedWarningBanner =>
+        MigrationState == Models.MigrationState.Inconsistent
+        || IsTransactionAbnormal
+        || (!HasTransaction && HasBackupPath);
     public string VerificationBadgeText => Transaction is null
         ? (MigrationState == Models.MigrationState.Inconsistent ? "无事务记录" : "")
         : Transaction.BackupDeletionInProgress ? "备份处理中"
@@ -213,6 +217,7 @@ public partial class QuickMigrateTask : ObservableObject
                 : "查看验证记录";
     public DateTime? DisplayMigratedAt => MigratedAt ?? (Transaction is { Mode: not MigrationMode.Restore } ? Transaction.UpdatedAtUtc.LocalDateTime : null);
     public bool HasDisplayMigratedAt => DisplayMigratedAt.HasValue;
+    public string DisplayMigratedTarget => !string.IsNullOrWhiteSpace(SymlinkTarget) ? SymlinkTarget : Transaction?.TargetPath ?? string.Empty;
     public string BackupPathLabel => Transaction?.Mode == MigrationMode.Restore ? "还原备份:" : "原始备份:";
 
     /// <summary>
@@ -230,6 +235,7 @@ public partial class QuickMigrateTask : ObservableObject
     /// 符号链接目标（实际解析出来的）
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayMigratedTarget))]
     private string? _symlinkTarget;
 
     /// <summary>
@@ -287,9 +293,149 @@ public enum ErrorType
     System,
 
     /// <summary>
+    /// 驱动器不存在或不可用
+    /// </summary>
+    DriveUnavailable,
+
+    /// <summary>
+    /// 路径或目录无效
+    /// </summary>
+    PathInvalid,
+
+    /// <summary>
+    /// 目标目录非空或已存在冲突
+    /// </summary>
+    TargetConflict,
+
+    /// <summary>
+    /// 符号链接或重解析点错误
+    /// </summary>
+    SymlinkError,
+
+    /// <summary>
+    /// 事务状态或目录身份不匹配
+    /// </summary>
+    TransactionMismatch,
+
+    /// <summary>
+    /// 数据核对或清单校验失败
+    /// </summary>
+    VerificationFailed,
+
+    /// <summary>
+    /// 文件复制过程失败
+    /// </summary>
+    CopyFailed,
+
+    /// <summary>
     /// 未知错误
     /// </summary>
     Unknown
+}
+
+/// <summary>
+/// 统一错误消息分类器（ViewModel 与 UI 转换器共用，避免规则漂移）
+/// </summary>
+public static class ErrorTypeClassifier
+{
+    public static ErrorType Classify(string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+            return ErrorType.None;
+
+        // 仅用主错误内容分类，避免被追加的“相关/保留位置”路径文本误触发关键词
+        string primary = ExtractPrimaryMessage(errorMessage);
+        string lower = primary.ToLowerInvariant();
+
+        // 1. 文件占用（需先于权限检查，因为 Windows 英文占用报错包含 "cannot access ... being used by another process"）
+        if (ContainsAny(lower,
+            "占用", "被另一进程使用", "正在被", "不能锁定", "sharing violation",
+            "being used by another process", "in use", "file is locked", "lock"))
+            return ErrorType.FileInUse;
+
+        // 2. 磁盘空间不足（需先于驱动器与复制失败，例如“实际复制目的卷空间不足，尚未创建 staging”）
+        if (ContainsAny(lower,
+            "空间不足", "磁盘已满", "disk full", "not enough space", "insufficient space", "no space"))
+            return ErrorType.DiskSpace;
+
+        // 3. 驱动器不可用 / 不存在
+        if (ContainsAny(lower,
+            "驱动器不可用", "驱动器不存在", "找不到指定的驱动器", "设备未就绪", "盘符无效", "本地卷", "卷 guid", "卷身份",
+            "drive not ready", "device is not ready", "not ready", "could not find drive", "cannot find the drive"))
+            return ErrorType.DriveUnavailable;
+
+        // 4. 目标目录冲突（非空 / 已存在不得覆盖）
+        if (ContainsAny(lower,
+            "目标非空", "目标目录已存在且不为空", "路径已存在", "不得覆盖", "归属不明", "源出现新内容"))
+            return ErrorType.TargetConflict;
+
+        // 5. 符号链接 / 重解析点错误
+        if (ContainsAny(lower,
+            "符号链接", "mklink", "重解析", "reparse", "不是已登记的链接", "不是普通实体目录",
+            "必须是普通实体目录", "新建对象不是链接", "恢复结果不是链接", "链接目标"))
+            return ErrorType.SymlinkError;
+
+        // 6. 数据核对 / 清单 / 元数据校验失败
+        if (ContainsAny(lower,
+            "核对失败", "核对基线", "无法核对", "核对", "清单", "大小写歧义",
+            "长度已经变化", "长度变化", "内容已变化", "元数据或内容已变化", "ads", "acl"))
+            return ErrorType.VerificationFailed;
+
+        // 7. 事务状态 / 目录身份冲突
+        if (ContainsAny(lower,
+            "事务", "路径身份", "实体身份", "身份不符", "身份匹配", "不能认领", "不能按目录名认领",
+            "不能猜测归属", "revision", "备份处理尚未结束", "备份意图", "不能跳过备份", "删除请求"))
+            return ErrorType.TransactionMismatch;
+
+        // 8. 文件复制过程失败
+        if (ContainsAny(lower,
+            "robocopy", "staging", "退出码", "复制失败", "复制进程"))
+            return ErrorType.CopyFailed;
+
+        // 9. 系统保护目录或系统级进程/环境错误（避免泛匹配 "system"/"process" 误伤 Windows 路径或占用报错）
+        if (ContainsAny(lower,
+            "系统关键目录", "卷系统信息", "系统错误", "严重", "无法创建本任务", "进程集",
+            "system error", "critical", "job"))
+            return ErrorType.System;
+
+        // 10. 权限不足
+        if (ContainsAny(lower,
+            "权限", "无权", "拒绝访问", "管理员", "安全描述符", "恢复令牌",
+            "access denied", "access to the path", "unauthorized", "permission", "denied"))
+            return ErrorType.Permission;
+
+        // 11. 网络错误
+        if (ContainsAny(lower,
+            "网络", "连接", "network", "connection", "unc"))
+            return ErrorType.Network;
+
+        // 12. 路径或目录无效 / 不存在
+        if (ContainsAny(lower,
+            "目录不存在", "路径不存在", "路径无效", "路径不能为空", "不能相同", "不能位于",
+            "互相包含", "驱动器根目录", "规范绝对路径", "无效路径", "保留的 dos", "cmd 元字符",
+            "父目录", "父路径缺失", "不是目录", "找不到", "cannot find the path", "cannot find the file",
+            "could not find", "does not exist", "not found"))
+            return ErrorType.PathInvalid;
+
+        return ErrorType.Unknown;
+    }
+
+    public static string ExtractPrimaryMessage(string errorMessage)
+    {
+        int marker = errorMessage.IndexOf("\n相关/保留位置：", StringComparison.Ordinal);
+        string head = marker >= 0 ? errorMessage[..marker] : errorMessage;
+        return head.Trim();
+    }
+
+    private static bool ContainsAny(string text, params string[] keywords)
+    {
+        foreach (string keyword in keywords)
+        {
+            if (text.Contains(keyword, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
 }
 
 /// <summary>
