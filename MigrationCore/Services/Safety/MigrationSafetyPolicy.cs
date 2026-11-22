@@ -127,7 +127,25 @@ public static partial class MigrationSafetyPolicy
         "Microsoft",
         "Package Cache",
         "WindowsHolographicDevices",
+        "USOPrivate",
+        "USOShared",
         "ssh"
+    ];
+
+    private static readonly string[] AppDataLocalBlockedSubtrees =
+    [
+        "Microsoft",
+        "Packages",
+        "Temp",
+        "VirtualStore",
+        "Comms",
+        "ConnectedDevicesPlatform",
+        "Publishers",
+        "Diagnostics",
+        "ElevatedDiagnostics",
+        "PeerDistRepub",
+        "CrashDumps",
+        "D3DSCache"
     ];
 
     private static readonly string[] HighRiskPathSegments =
@@ -305,15 +323,27 @@ public static partial class MigrationSafetyPolicy
 
         foreach (string profile in env.UserProfileRoots)
         {
-            string[] profileBlocked =
+            foreach (string sub in AppDataLocalBlockedSubtrees)
+            {
+                string blocked = Path.Combine(profile, "AppData", "Local", sub);
+                if (PathIdentityService.IsWithin(full, blocked))
+                {
+                    return HardDeny(SafetyReasonCodes.L0WindowsComponent, $"不允许操作系统关键目录：{blocked}");
+                }
+            }
+
+            string userProgramsCommon = Path.Combine(profile, "AppData", "Local", "Programs", "Common");
+            if (PathIdentityService.IsWithin(full, userProgramsCommon))
+            {
+                return HardDeny(SafetyReasonCodes.L0WindowsComponent, $"不允许操作系统公共组件目录：{userProgramsCommon}");
+            }
+
+            string[] otherProfileBlocked =
             [
-                Path.Combine(profile, "AppData", "Local", "Microsoft"),
-                Path.Combine(profile, "AppData", "Local", "Packages"),
-                Path.Combine(profile, "AppData", "Local", "Temp"),
                 Path.Combine(profile, "AppData", "Roaming", "Microsoft"),
                 Path.Combine(profile, "AppData", "LocalLow", "Microsoft")
             ];
-            foreach (string blocked in profileBlocked)
+            foreach (string blocked in otherProfileBlocked)
             {
                 if (PathIdentityService.IsWithin(full, blocked))
                 {
@@ -630,10 +660,24 @@ public static partial class MigrationSafetyPolicy
 
                 if (isAppDataBucket && parts.Length >= 4)
                 {
+                    // <Users>\<User>\AppData\Local\Programs 是 Windows 官方用户级程序安装根目录（对应 Program Files），
+                    // 整体迁移会影响所有用户级安装软件（VS Code / Python / IDE 等），仅禁止根本身，允许展开迁移其下具体数据子目录
+                    if (parts[2].Equals("Local", StringComparison.OrdinalIgnoreCase)
+                        && parts[3].Equals("Programs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (parts.Length == 4)
+                        {
+                            return HardDeny(SafetyReasonCodes.L0SystemContainerRoot, $"不允许整体迁移用户级程序安装根目录：{fullPath}（请展开选择具体软件的数据子目录）");
+                        }
+                        if (parts.Length >= 5 && parts[4].Equals("Common", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return HardDeny(SafetyReasonCodes.L0WindowsComponent, $"不允许操作系统公共组件目录：{fullPath}");
+                        }
+                    }
+
                     if (parts[3].Equals("Microsoft", StringComparison.OrdinalIgnoreCase)
                         || (parts[2].Equals("Local", StringComparison.OrdinalIgnoreCase)
-                            && (parts[3].Equals("Packages", StringComparison.OrdinalIgnoreCase)
-                                || parts[3].Equals("Temp", StringComparison.OrdinalIgnoreCase))))
+                            && AppDataLocalBlockedSubtrees.Any(s => parts[3].Equals(s, StringComparison.OrdinalIgnoreCase))))
                     {
                         return HardDeny(SafetyReasonCodes.L0WindowsComponent, $"不允许操作系统关键目录：{fullPath}");
                     }
@@ -665,7 +709,11 @@ public static partial class MigrationSafetyPolicy
         foreach (string p in env.ProgramFilesDirectories) yield return p;
         foreach (string p in env.ProgramDataDirectories) yield return p;
         foreach (string p in env.UsersRoots) yield return p;
-        foreach (string p in env.UserProfileRoots) yield return p;
+        foreach (string p in env.UserProfileRoots)
+        {
+            yield return p;
+            yield return Path.Combine(p, "AppData", "Local", "Programs");
+        }
         foreach (string p in env.AppDataRoots) yield return p;
         foreach (string u in env.UsersRoots) yield return Path.Combine(u, "Public");
     }

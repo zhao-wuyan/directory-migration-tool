@@ -377,7 +377,12 @@
 
                     <Border Grid.Row="1" Style="{StaticResource FluentCardBorderStyle}" Padding="12">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="最近扫描记录" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,8"/>
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="清除开发缓存" Command="{Binding ClearDevCacheCommand}"
+                                        Style="{StaticResource FluentLinkButtonStyle}" FontSize="11" Foreground="#64748B"
+                                        Visibility="{Binding HasDevCache, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <TextBlock Text="最近扫描记录" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </DockPanel>
                             <TextBlock Text="本次会话尚无扫描记录。点击上方任意磁盘卡片的「开始扫描」即可秒级生成目录树快照。"
                                        FontSize="12" Foreground="#64748B" TextWrapping="Wrap"
                                        Visibility="{Binding HasRecentScans, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
@@ -522,13 +527,15 @@
                 </DockPanel>
             </Border>
 
-            <!-- S01FilterBar：面包屑 + 目录树/大软件切换 + 搜索框 -->
+            <!-- S01FilterBar：面包屑 + 目录树/大软件切换 + 显示文件开关 + 搜索框 -->
             <DockPanel Grid.Row="1" Margin="0,0,0,9">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <CheckBox IsChecked="{Binding ShowFilesInTree}" Content="显示文件" FontSize="11.5" Foreground="#475569"
+                              VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="默认只显示可浏览/可迁移的文件夹；勾选后可查看单个大文件"/>
                     <Border Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="2" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
                             <Button Content="目录树" Command="{Binding SwitchToTreeViewCommand}"
-                                    Style="{StaticResource FluentNavPillButtonStyle}" Height="26" MinWidth="60" Padding="10,0" FontSize="11.5"
+                                    Style="{StaticResource FluentNavPillButtonStyle}" Height="26" MinWidth="58" Padding="10,0" FontSize="11.5"
                                     Tag="{Binding TreeViewTag}"/>
                             <Button Content="大软件目录" Command="{Binding SwitchToHotspotViewCommand}"
                                     Style="{StaticResource FluentNavPillButtonStyle}" Height="26" MinWidth="76" Padding="10,0" FontSize="11.5"
@@ -538,7 +545,7 @@
                     <TextBox Text="{Binding SearchFilter, UpdateSourceTrigger=PropertyChanged}"
                              Tag="搜索目录或软件名…"
                              Style="{StaticResource FluentCompactTextBoxStyle}"
-                             Width="190"/>
+                             Width="180"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{StaticResource IconFolderOpen}" Width="14" Height="14" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,7,0"/>
@@ -562,19 +569,51 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- 简洁 4 列表头（对齐 Artboard 01） -->
-                        <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,8">
-                            <Grid>
+                        <!-- 简洁 4 列表头（大软件模式下内嵌「直达列表 | 按路径展开」子视角切换） -->
+                        <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,6">
+                            <Grid MinHeight="22">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="82"/>
                                     <ColumnDefinition Width="96"/>
                                     <ColumnDefinition Width="108"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="目录名称（按占用降序）" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B"/>
-                                <TextBlock Grid.Column="1" Text="实际占用" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Right"/>
-                                <TextBlock Grid.Column="2" Text="空间占比" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="12,0,0,0"/>
-                                <TextBlock Grid.Column="3" Text="准入等级" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Center"/>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="目录名称（按占用降序）" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    <Border Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="2" Margin="10,0,0,0"
+                                            Visibility="{Binding IsHotspotMode, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Command="{Binding SwitchToHotspotPathTreeCommand}"
+                                                    Style="{StaticResource FluentNavPillButtonStyle}" Height="20" MinWidth="0" Padding="7,0" FontSize="11"
+                                                    Tag="{Binding HotspotPathTreeTag}" ToolTip="{Binding HotspotPathTreeToolTip}">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Path Width="10" Height="10" Stretch="Uniform"
+                                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                          StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                          Margin="0,0,4,0" VerticalAlignment="Center">
+                                                        <Path.Style>
+                                                            <Style TargetType="Path">
+                                                                <Setter Property="Data" Value="{StaticResource IconChevronRight}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsHotspotPathTreeExpanded}" Value="True">
+                                                                        <Setter Property="Data" Value="{StaticResource IconChevronDown}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Path.Style>
+                                                    </Path>
+                                                    <TextBlock Text="按路径" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Content="直达列表" Command="{Binding SwitchToHotspotFlatCommand}"
+                                                    Style="{StaticResource FluentNavPillButtonStyle}" Height="20" MinWidth="0" Padding="7,0" FontSize="11"
+                                                    Tag="{Binding HotspotFlatTag}" ToolTip="跳过中间容器层，按占用降序直达各大软件目录"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="实际占用" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Right" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding ShareColumnHeader}" ToolTip="{Binding ShareColumnToolTip}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="准入等级" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
 
@@ -629,59 +668,77 @@
                                             <ColumnDefinition Width="108"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- 第 1 列：缩进 + 展开箭头 + 锁/勾选状态 + 类型图标 + 目录名 -->
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="{Binding IndentMargin}" VerticalAlignment="Center">
-                                            <Button Content="{Binding ExpandGlyph}"
+                                        <!-- 第 1 列：缩进 + 展开箭头 + 锁/勾选状态 + 类型图标 + 目录名（DockPanel 防止标签右端被硬切） -->
+                                        <DockPanel Grid.Column="0" Margin="{Binding IndentMargin}" VerticalAlignment="Center" LastChildFill="True">
+                                            <Button DockPanel.Dock="Left" Content="{Binding ExpandGlyph}"
                                                     Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource FluentIconButtonStyle}"
                                                     Visibility="{Binding ShowExpandButton, Converter={StaticResource BoolToVisibilityConverter}}"
                                                     Width="20" Height="20" FontSize="11" Margin="0,0,2,0"/>
-                                            <Border Width="20" Height="20" Margin="0,0,2,0"
+                                            <Border DockPanel.Dock="Left" Width="20" Height="20" Margin="0,0,2,0"
                                                     Visibility="{Binding ShowExpandButton, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
 
-                                            <!-- L0 红锁 / L2 外链 / L1&L3 可直接勾选 -->
-                                            <Path Data="{StaticResource IconLock}" Width="13" Height="13" Stretch="Uniform"
-                                                  Stroke="#C42B1C" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                  Visibility="{Binding IsHardDenied, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <Path Data="{StaticResource IconExternalLink}" Width="13" Height="13" Stretch="Uniform"
-                                                  Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                  Visibility="{Binding IsNativeGuide, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <Button Command="{Binding DataContext.ToggleRowInPlanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource FluentIconButtonStyle}"
-                                                    Width="18" Height="18" Margin="0,0,5,0"
-                                                    ToolTip="勾选加入或移出待迁移清单"
-                                                    Visibility="{Binding CanToggleInPlan, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                <Border Width="14" Height="14" CornerRadius="3" BorderThickness="1.3">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#FFFFFF"/>
-                                                            <Setter Property="BorderBrush" Value="#CBD5E1"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsInPlan}" Value="True">
-                                                                    <Setter Property="Background" Value="#0078D4"/>
-                                                                    <Setter Property="BorderBrush" Value="#0078D4"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Path Data="{StaticResource IconCheck}" Width="9" Height="9" Stretch="Uniform"
-                                                          Stroke="#FFFFFF" StrokeThickness="2.4"
-                                                          Visibility="{Binding IsInPlan, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                </Border>
-                                            </Button>
+                                            <!-- 固定 18px 宽度的状态槽位（L0 红锁 / L2 外链 / L1&L3 勾选框），确保各等级文件夹图标严格像素对齐 -->
+                                            <Grid DockPanel.Dock="Left" Width="18" Height="18" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                  Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Path Data="{StaticResource IconLock}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="#C42B1C" StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Visibility="{Binding IsHardDenied, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <Path Data="{StaticResource IconExternalLink}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Visibility="{Binding IsNativeGuide, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <Button Command="{Binding DataContext.ToggleRowInPlanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource FluentIconButtonStyle}"
+                                                        Width="18" Height="18"
+                                                        ToolTip="勾选加入或移出待迁移清单"
+                                                        Visibility="{Binding CanToggleInPlan, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Border Width="14" Height="14" CornerRadius="3" BorderThickness="1.3">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#FFFFFF"/>
+                                                                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsInPlan}" Value="True">
+                                                                        <Setter Property="Background" Value="#0078D4"/>
+                                                                        <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Path Data="{StaticResource IconCheck}" Width="9" Height="9" Stretch="Uniform"
+                                                              Stroke="#FFFFFF" StrokeThickness="2.4"
+                                                              Visibility="{Binding IsInPlan, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    </Border>
+                                                </Button>
+                                            </Grid>
 
-                                            <Path Data="{StaticResource IconFolder}" Width="14" Height="14" Stretch="Uniform"
+                                            <Path DockPanel.Dock="Left" Data="{StaticResource IconFolder}" Width="14" Height="14" Stretch="Uniform"
                                                   Stroke="{Binding TypeIconColor}" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"
                                                   Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-                                            <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Medium" Foreground="#0F172A"
+                                            <TextBlock DockPanel.Dock="Left" Text="{Binding DisplayName}" FontSize="12.5" FontWeight="Medium" Foreground="#0F172A"
                                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding FullPath}"/>
+
+                                            <!-- 文件夹名右侧悬浮提示图标：琥珀黄感叹号（特别注意/工具保护/谨慎风险）或蓝色信息图标（常见目录用途说明） -->
+                                            <Border DockPanel.Dock="Left" Background="Transparent" Padding="4,2,2,2" VerticalAlignment="Center"
+                                                    ToolTip="{Binding HintToolTip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="15000"
+                                                    Visibility="{Binding ShowWarningHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Path Data="{StaticResource IconTriangleAlert}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="#D97706" StrokeThickness="2" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <Border DockPanel.Dock="Left" Background="Transparent" Padding="4,2,2,2" VerticalAlignment="Center"
+                                                    ToolTip="{Binding HintToolTip}" ToolTipService.InitialShowDelay="150" ToolTipService.ShowDuration="15000"
+                                                    Visibility="{Binding ShowInfoHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Path Data="{StaticResource IconInfo}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="1.9" VerticalAlignment="Center"/>
+                                            </Border>
+
                                             <TextBlock Text="{Binding AttributionLabel, StringFormat=· {0}}" FontSize="11" Foreground="#64748B"
-                                                       Margin="6,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       Margin="6,0,6,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                        Visibility="{Binding HasAttribution, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                        </StackPanel>
+                                        </DockPanel>
 
                                         <!-- 第 2 列：实际占用 -->
                                         <TextBlock Grid.Column="1" Text="{Binding AllocatedText}" FontSize="12.5" FontWeight="SemiBold"
@@ -758,7 +815,57 @@
                                 </Border>
                             </UniformGrid>
 
-                            <!-- 归属与安全核验卡 -->
+                                <!-- 目录用途说明卡（面向常见系统目录、个人目录、工具自身保护与高频软件/开发目录） -->
+                                <Border BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,9"
+                                        Visibility="{Binding HasDirectoryExplanation, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedExplanationIsWarning}" Value="True">
+                                                    <Setter Property="Background" Value="#FFFBEB"/>
+                                                    <Setter Property="BorderBrush" Value="#FCD34D"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,4">
+                                            <Path DockPanel.Dock="Left" Width="13" Height="13" Stretch="Uniform"
+                                                  StrokeThickness="1.9" Margin="0,2,6,0" VerticalAlignment="Top">
+                                                <Path.Style>
+                                                    <Style TargetType="Path">
+                                                        <Setter Property="Data" Value="{StaticResource IconInfo}"/>
+                                                        <Setter Property="Stroke" Value="#0078D4"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedExplanationIsWarning}" Value="True">
+                                                                <Setter Property="Data" Value="{StaticResource IconTriangleAlert}"/>
+                                                                <Setter Property="Stroke" Value="#D97706"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Path.Style>
+                                            </Path>
+                                            <TextBlock Text="{Binding SelectedDirectoryRoleTitle}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" TextWrapping="Wrap"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding SelectedDirectoryPurpose}" FontSize="11.5" Foreground="#334155" TextWrapping="Wrap" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding SelectedDirectoryAdvice, StringFormat=建议：{0}}" FontSize="11.5" FontWeight="Medium" TextWrapping="Wrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#005A9E"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedExplanationIsWarning}" Value="True">
+                                                            <Setter Property="Foreground" Value="#B45309"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 归属与安全核验卡 -->
                             <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,9">
                                 <StackPanel>
                                     <TextBlock Text="归属与安全核验" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,5"/>

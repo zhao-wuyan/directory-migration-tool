@@ -441,7 +441,32 @@ public static class NtfsMftRecordParser
         });
         dirRecordToNodeId[RootDirectoryRecordNumber] = (0, rootSeq);
 
-        // 先为所有非根、非元文件（RecordNumber >= 16 或存在明确非 $ 元文件名）目录创建节点占位
+        // 先识别全部 NTFS 内部保留元文件及其子项（Record #0..#15 中除根 #5 外，以及 $Extend #11 下的 $UsnJrnl/$RmMetadata/$Deleted/$Quota/$ObjId/$Reparse/$Txf 等）
+        var ntfsMetaRecordNumbers = new HashSet<ulong>();
+        foreach (ParsedMftRecord rec in baseRecords.Values)
+        {
+            if (rec.RecordNumber < 16 && rec.RecordNumber != RootDirectoryRecordNumber)
+            {
+                ntfsMetaRecordNumbers.Add(rec.RecordNumber);
+            }
+        }
+        bool addedMeta;
+        do
+        {
+            addedMeta = false;
+            foreach (ParsedMftRecord rec in baseRecords.Values)
+            {
+                if (rec.RecordNumber == RootDirectoryRecordNumber || ntfsMetaRecordNumbers.Contains(rec.RecordNumber))
+                    continue;
+                if (rec.FileNames.Count > 0 && rec.FileNames.All(fn => ntfsMetaRecordNumbers.Contains(fn.ParentRecordNumber)))
+                {
+                    ntfsMetaRecordNumbers.Add(rec.RecordNumber);
+                    addedMeta = true;
+                }
+            }
+        } while (addedMeta);
+
+        // 先为所有非根、非 NTFS 内部元文件的用户目录创建节点占位
         long metadataBytes = 0;
         var pendingEntries = new List<(ParsedMftRecord Record, List<ParsedFileNameEntry> EffectiveNames)>(baseRecords.Count);
 
@@ -452,9 +477,10 @@ public static class NtfsMftRecordParser
                 continue;
             }
 
-            if (rec.RecordNumber < 16)
+            if (ntfsMetaRecordNumbers.Contains(rec.RecordNumber))
             {
-                // NTFS 元数据文件（$MFT, $LogFile, $Bitmap 等）计入 MetadataBytes，不作为普通可迁移用户目录展示
+                // NTFS 系统元数据文件（$MFT, $LogFile, $Bitmap, $Extend\$UsnJrnl, $Extend\$RmMetadata, $Extend\$Deleted 等）
+                // 计入 MetadataBytes，绝不误归入“未解析位置”或展示为可迁移目录
                 metadataBytes = SafeAdd(metadataBytes, rec.DefaultDataAllocatedBytes + rec.AdsAllocatedBytes);
                 continue;
             }

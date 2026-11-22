@@ -28,6 +28,17 @@ public enum DiskScanSubView
 }
 
 /// <summary>
+/// 阶段 01 的三种目录浏览视角：
+/// DirectoryTree = 全盘目录树；HotspotFlatList = 大软件直达列表（互不重叠）；HotspotPathTree = 大软件按路径展开（顶层向下剪枝树）。
+/// </summary>
+public enum ScanBrowseMode
+{
+    DirectoryTree,
+    HotspotFlatList,
+    HotspotPathTree
+}
+
+/// <summary>
 /// 00 选盘入口磁盘卡片视图模型。
 /// </summary>
 public partial class VolumeCardItem : ObservableObject
@@ -94,14 +105,18 @@ public partial class VolumeCardItem : ObservableObject
 }
 
 /// <summary>
-/// 最近扫描记录条目（会话内可一键切回目录树）。
+/// 最近扫描记录条目（会话内内存快照或 #if DEBUG 开发模式磁盘缓存，均可一键切回目录树）。
 /// </summary>
 public sealed record RecentScanItem(
     Guid ScanId,
     string VolumeTitle,
     string CompletedTimeText,
     string SummaryText,
-    ScanSnapshot Snapshot);
+    ScanSnapshot? Snapshot,
+    string? DevCacheFilePath = null)
+{
+    public bool IsDevCached => !string.IsNullOrEmpty(DevCacheFilePath) && Snapshot is null;
+}
 
 /// <summary>
 /// 虚拟化扁平目录树投影行模型（只为当前可见/已展开节点创建，避免百万节点对象爆炸）。
@@ -117,6 +132,7 @@ public partial class ScanTreeRowItem : ObservableObject
     public int LoadMoreNextOffset { get; init; }
 
     public string Name { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
     public long LogicalBytes { get; init; }
     public long AllocatedBytes { get; init; }
@@ -126,6 +142,9 @@ public partial class ScanTreeRowItem : ObservableObject
     public double ParentSharePercent { get; init; }
     public string AttributionLabel { get; init; } = string.Empty;
     public MigrationAdmissionLevel AdmissionLevel { get; init; } = MigrationAdmissionLevel.ManualRiskConfirm;
+    public bool IsToolSelfProtected { get; init; }
+    public DirectoryHintLevel HintLevel { get; init; } = DirectoryHintLevel.None;
+    public string HintToolTip { get; init; } = string.Empty;
     public ScanNodeFlags Flags { get; init; }
 
     [ObservableProperty]
@@ -141,6 +160,8 @@ public partial class ScanTreeRowItem : ObservableObject
     public bool IsHardDenied => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel == MigrationAdmissionLevel.HardDenied;
     public bool IsNativeGuide => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel == MigrationAdmissionLevel.VendorNativeRecommended;
     public bool CanToggleInPlan => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.ManualRiskConfirm;
+    public bool ShowWarningHint => IsDirectory && !IsLoadMorePlaceholder && HintLevel == DirectoryHintLevel.Warning;
+    public bool ShowInfoHint => IsDirectory && !IsLoadMorePlaceholder && HintLevel == DirectoryHintLevel.Info;
 
     public string AllocatedText => IsLoadMorePlaceholder ? string.Empty : FileStatsService.FormatBytes(UniqueAllocatedBytes);
     public string LogicalText => IsLoadMorePlaceholder ? string.Empty : FileStatsService.FormatBytes(LogicalBytes);
@@ -168,7 +189,7 @@ public partial class ScanTreeRowItem : ObservableObject
 
     public string LevelBadgeText => IsLoadMorePlaceholder || !IsDirectory ? string.Empty : AdmissionLevel switch
     {
-        MigrationAdmissionLevel.HardDenied => "L0 系统保护",
+        MigrationAdmissionLevel.HardDenied => IsToolSelfProtected ? "L0 工具保护" : "L0 系统保护",
         MigrationAdmissionLevel.VerifiedEligible => "L1 推荐迁移",
         MigrationAdmissionLevel.VendorNativeRecommended => "L2 原生引导",
         _ => "L3 人工确认"
@@ -379,6 +400,9 @@ public partial class DiskScanViewModel : ObservableObject
 
     public bool HasRecentScans => RecentScans.Count > 0;
 
+    [ObservableProperty]
+    private bool _hasDevCache;
+
     // ---- 01 目录树与 4 级详情 ----
     [ObservableProperty] private string _snapshotVolumeTitle = string.Empty;
     [ObservableProperty] private string _snapshotModeBadge = "未扫描";
@@ -388,14 +412,46 @@ public partial class DiskScanViewModel : ObservableObject
     [ObservableProperty] private string _breadcrumbText = "此电脑";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHotspotMode))]
     [NotifyPropertyChangedFor(nameof(TreeViewTag))]
     [NotifyPropertyChangedFor(nameof(HotspotViewTag))]
-    private bool _isHotspotView;
+    [NotifyPropertyChangedFor(nameof(HotspotFlatTag))]
+    [NotifyPropertyChangedFor(nameof(HotspotPathTreeTag))]
+    [NotifyPropertyChangedFor(nameof(HotspotPathTreeToolTip))]
+    [NotifyPropertyChangedFor(nameof(ShareColumnHeader))]
+    [NotifyPropertyChangedFor(nameof(ShareColumnToolTip))]
+    private ScanBrowseMode _browseMode = ScanBrowseMode.DirectoryTree;
 
-    public string TreeViewTag => !IsHotspotView ? "Active" : string.Empty;
-    public string HotspotViewTag => IsHotspotView ? "Active" : string.Empty;
+    private ScanBrowseMode _lastHotspotMode = ScanBrowseMode.HotspotPathTree;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HotspotPathTreeToolTip))]
+    private bool _isHotspotPathTreeExpanded;
+
+    private HashSet<int>? _hotspotPathKeptNodes;
+    private HashSet<int>? _hotspotPathAncestorNodes;
+
+    [ObservableProperty]
+    private bool _showFilesInTree;
+
+    public bool IsHotspotMode => BrowseMode is ScanBrowseMode.HotspotFlatList or ScanBrowseMode.HotspotPathTree;
+    public string TreeViewTag => BrowseMode == ScanBrowseMode.DirectoryTree ? "Active" : string.Empty;
+    public string HotspotViewTag => IsHotspotMode ? "Active" : string.Empty;
+    public string HotspotFlatTag => BrowseMode == ScanBrowseMode.HotspotFlatList ? "Active" : string.Empty;
+    public string HotspotPathTreeTag => BrowseMode == ScanBrowseMode.HotspotPathTree ? "Active" : string.Empty;
+    public string HotspotPathTreeToolTip => BrowseMode != ScanBrowseMode.HotspotPathTree
+        ? "按目录层级查看大软件（默认收起）；再次点击可一键展开或收起"
+        : IsHotspotPathTreeExpanded
+            ? "当前已展开大软件路径，再次点击一键收起到顶层"
+            : "当前已收起，再次点击一键展开全部大软件路径";
+    public string ShareColumnHeader => (IsHotspotMode || !string.IsNullOrWhiteSpace(SearchFilter)) ? "全盘占比" : "父级占比";
+    public string ShareColumnToolTip => (IsHotspotMode || !string.IsNullOrWhiteSpace(SearchFilter))
+        ? "占当前扫描磁盘总已用空间的比例（全局统一标尺，子目录占比恒不超过父目录）"
+        : "占直接父目录已用空间的比例";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShareColumnHeader))]
+    [NotifyPropertyChangedFor(nameof(ShareColumnToolTip))]
     private string _searchFilter = string.Empty;
 
     [ObservableProperty]
@@ -413,6 +469,11 @@ public partial class DiskScanViewModel : ObservableObject
     [ObservableProperty] private string _selectedPathDisplay = "点击目录树中的任意目录查看空间占用与 L0–L3 安全准入评估。";
     [ObservableProperty] private string _selectedAllocatedDisplay = "—";
     [ObservableProperty] private string _selectedFileCountDisplay = "—";
+    [ObservableProperty] private bool _hasDirectoryExplanation;
+    [ObservableProperty] private bool _selectedExplanationIsWarning;
+    [ObservableProperty] private string _selectedDirectoryRoleTitle = string.Empty;
+    [ObservableProperty] private string _selectedDirectoryPurpose = string.Empty;
+    [ObservableProperty] private string _selectedDirectoryAdvice = string.Empty;
     [ObservableProperty] private string _selectedEvidenceIdentity = "• 识别依据：等待选择目录";
     [ObservableProperty] private string _selectedEvidenceStructure = "• 结构核验：—";
     [ObservableProperty] private string _selectedEvidenceStorage = "• 空间口径：—";
@@ -544,6 +605,9 @@ public partial class DiskScanViewModel : ObservableObject
 
         LoadVolumes();
         UpdateTargetSpaceHint();
+#if DEBUG
+        LoadDevCachedRecents();
+#endif
     }
 
     public void SyncUnverifiedBackupCount(int count)
@@ -557,7 +621,9 @@ public partial class DiskScanViewModel : ObservableObject
         if (newValue is not null) newValue.IsSelected = true;
     }
 
-    partial void OnIsHotspotViewChanged(bool value) => RebuildVisibleRows();
+    partial void OnBrowseModeChanged(ScanBrowseMode value) => RebuildVisibleRows();
+
+    partial void OnShowFilesInTreeChanged(bool value) => RebuildVisibleRows();
 
     partial void OnSearchFilterChanged(string value)
     {
@@ -719,6 +785,22 @@ public partial class DiskScanViewModel : ObservableObject
                 snapshot));
             if (RecentScans.Count > 5) RecentScans.RemoveAt(RecentScans.Count - 1);
 
+#if DEBUG
+            if (!MigrationRuntime.IsTestLab && snapshot.CanUseForMigrationPlanning)
+            {
+                string volTitleForCache = target.DisplayTitle;
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        ScanSnapshotDevCache.Save(snapshot, volTitleForCache, largeCount, l1Count, l1Bytes);
+                        Application.Current?.Dispatcher.BeginInvoke(() => HasDevCache = true);
+                    }
+                    catch { }
+                });
+            }
+#endif
+
             // 扫描完成后自动进入阶段 01 目录树（严格对齐 docs/untitled.pen 00 脚栏说明）
             ActiveSubView = DiskScanSubView.DirectoryTree;
         }
@@ -758,13 +840,105 @@ public partial class DiskScanViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenRecentScan(RecentScanItem? recent)
+    private async Task OpenRecentScanAsync(RecentScanItem? recent)
     {
         if (recent is null || IsScanning) return;
-        double sec = Math.Max(0.1, (recent.Snapshot.CompletedAtUtc - recent.Snapshot.StartedAtUtc).TotalSeconds);
-        ApplySnapshot(recent.Snapshot, recent.VolumeTitle, sec);
-        ActiveSubView = DiskScanSubView.DirectoryTree;
+
+        if (recent.Snapshot is not null)
+        {
+            double sec = Math.Max(0.1, (recent.Snapshot.CompletedAtUtc - recent.Snapshot.StartedAtUtc).TotalSeconds);
+            ApplySnapshot(recent.Snapshot, recent.VolumeTitle, sec);
+            ActiveSubView = DiskScanSubView.DirectoryTree;
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(recent.DevCacheFilePath))
+        {
+            IsScanning = true;
+            ScanProgressPercent = 45;
+            ScanStageBadgeText = "开发缓存加载";
+            ScanStageHeading = $"正在从本地开发缓存秒级恢复 {recent.VolumeTitle} 快照…";
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var (loaded, header) = await Task.Run(() =>
+                {
+                    ScanSnapshot snap = ScanSnapshotDevCache.Load(recent.DevCacheFilePath, out DevScanCacheHeader h);
+                    return (snap, h);
+                });
+                sw.Stop();
+
+                // 用内存中的已加载快照替换条目，本会话再次切回零等待
+                int idx = RecentScans.IndexOf(recent);
+                if (idx >= 0)
+                {
+                    RecentScans[idx] = recent with { Snapshot = loaded };
+                }
+
+                ScanProgressPercent = 100;
+                ScanElapsedText = $"缓存加载 {sw.Elapsed.TotalSeconds:F1} s";
+                ScanProcessedRecordsText = $"{loaded.Nodes.Length:N0} 项";
+                ScanLargeDirCountText = $"{header.LargeDirCount:N0} 个";
+                ScanL1SummaryText = header.L1Count > 0 ? $"{header.L1Count} 项 · {FileStatsService.FormatBytes(header.L1Bytes)}" : "0 项";
+                ScanStageBadgeText = "已加载开发缓存";
+                ScanStageHeading = $"已从开发缓存恢复 {loaded.Nodes.Length:N0} 个对象（执行迁移前仍实时复核）";
+                ScanStep1State = 2; ScanStep1Status = "缓存命中";
+                ScanStep2State = 2; ScanStep2Status = "缓存命中";
+                ScanStep3State = 2; ScanStep3Status = $"耗时 {sw.Elapsed.TotalSeconds:F1} s";
+
+                ApplySnapshot(loaded, recent.VolumeTitle, sw.Elapsed.TotalSeconds);
+                SnapshotModeBadge = $"开发缓存 · {sw.Elapsed.TotalSeconds:F1} s";
+                UsnStatusNote = "当前展示为开发模式临时缓存快照；点击「重新扫描」可实时重读 MFT，执行迁移前仍强制逐项实时核验。";
+                ActiveSubView = DiskScanSubView.DirectoryTree;
+            }
+            catch (Exception ex)
+            {
+                ScanStageBadgeText = "缓存失效";
+                ScanStageHeading = $"开发缓存读取失败（已忽略，可重新扫描）：{ex.Message}";
+            }
+            finally
+            {
+                IsScanning = false;
+            }
+        }
     }
+
+    [RelayCommand]
+    private void ClearDevCache()
+    {
+        ScanSnapshotDevCache.ClearAll();
+        HasDevCache = false;
+        for (int i = RecentScans.Count - 1; i >= 0; i--)
+        {
+            if (RecentScans[i].IsDevCached)
+            {
+                RecentScans.RemoveAt(i);
+            }
+        }
+    }
+
+#if DEBUG
+    private void LoadDevCachedRecents()
+    {
+        if (MigrationRuntime.IsTestLab) return;
+        try
+        {
+            var headers = ScanSnapshotDevCache.ListValidHeaders(MigrationSafetyPolicy.CurrentPolicyVersion, TimeSpan.FromHours(24));
+            foreach (DevScanCacheHeader h in headers)
+            {
+                RecentScans.Add(new RecentScanItem(
+                    h.ScanId,
+                    h.VolumeTitle,
+                    $"开发缓存 · {h.CompletedAtUtc.ToLocalTime():HH:mm}",
+                    $"{h.NodeCount:N0} 项 · 发现 {h.LargeDirCount} 个 >1 GB 大目录（点击秒开）",
+                    Snapshot: null,
+                    DevCacheFilePath: h.FilePath));
+            }
+            HasDevCache = headers.Count > 0;
+        }
+        catch { }
+    }
+#endif
 
     [RelayCommand]
     private void GoToVolumeSelect()
@@ -801,10 +975,32 @@ public partial class DiskScanViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SwitchToTreeView() => IsHotspotView = false;
+    private void SwitchToTreeView() => BrowseMode = ScanBrowseMode.DirectoryTree;
 
     [RelayCommand]
-    private void SwitchToHotspotView() => IsHotspotView = true;
+    private void SwitchToHotspotView() => BrowseMode = _lastHotspotMode;
+
+    [RelayCommand]
+    private void SwitchToHotspotFlat()
+    {
+        _lastHotspotMode = ScanBrowseMode.HotspotFlatList;
+        BrowseMode = ScanBrowseMode.HotspotFlatList;
+    }
+
+    [RelayCommand]
+    private void SwitchToHotspotPathTree()
+    {
+        if (BrowseMode == ScanBrowseMode.HotspotPathTree)
+        {
+            // 已在“按路径”模式下再次点击：切换一键展开 / 收起
+            IsHotspotPathTreeExpanded = !IsHotspotPathTreeExpanded;
+            RebuildVisibleRows();
+            return;
+        }
+
+        _lastHotspotMode = ScanBrowseMode.HotspotPathTree;
+        BrowseMode = ScanBrowseMode.HotspotPathTree;
+    }
 
     [RelayCommand]
     private void SetFastVerification() => UseContentHash = false;
@@ -843,7 +1039,26 @@ public partial class DiskScanViewModel : ObservableObject
         else
         {
             row.IsExpanded = true;
-            InsertChildRows(row.NodeId, row.Depth + 1, index + 1, startOffset: 0);
+            if (BrowseMode == ScanBrowseMode.HotspotPathTree
+                && _hotspotPathAncestorNodes is not null
+                && _hotspotPathKeptNodes is not null
+                && _hotspotPathAncestorNodes.Contains(row.NodeId))
+            {
+                // 按路径模式下手动展开祖先容器时，仅展开通向大软件的剪枝子目录（保持全盘统一标尺）
+                long rootTotal = GetNodeSizeForShare(_snapshot.RootNodeId);
+                ReadOnlySpan<int> children = _snapshot.GetChildrenSpan(row.NodeId);
+                int cursor = index + 1;
+                for (int i = 0; i < children.Length; i++)
+                {
+                    int cid = children[i];
+                    if (!_hotspotPathKeptNodes.Contains(cid)) continue;
+                    VisibleTreeRows.Insert(cursor++, BuildRowItem(cid, row.Depth + 1, rootTotal));
+                }
+            }
+            else
+            {
+                InsertChildRows(row.NodeId, row.Depth + 1, index + 1, startOffset: 0);
+            }
         }
     }
 
@@ -1229,6 +1444,9 @@ public partial class DiskScanViewModel : ObservableObject
     private void ApplySnapshot(ScanSnapshot snapshot, string volumeTitle, double elapsedSec)
     {
         _snapshot = snapshot;
+        _hotspotPathKeptNodes = null;
+        _hotspotPathAncestorNodes = null;
+        IsHotspotPathTreeExpanded = false;
         HasSnapshot = true;
         SnapshotVolumeTitle = volumeTitle;
         IsSnapshotMftBackend = snapshot.Backend == ScanBackendKind.RawNtfsMft;
@@ -1250,12 +1468,11 @@ public partial class DiskScanViewModel : ObservableObject
     private (int LargeDirCount, int L1Count, long L1Bytes) SummarizeSnapshotHighlights(ScanSnapshot snapshot)
     {
         const long OneGb = 1024L * 1024 * 1024;
-        int largeDirs = 0;
         int l1Count = 0;
         long l1Bytes = 0;
 
-        int[] hotspots = snapshot.GetHotspotDirectories(maxCount: 120, minAllocatedBytes: OneGb);
-        largeDirs = hotspots.Length;
+        int[] hotspots = CollectDisjointHotspots(snapshot, minAllocatedBytes: OneGb, maxCount: 120);
+        int largeDirs = hotspots.Length;
         foreach (int nodeId in hotspots)
         {
             string fullPath = snapshot.GetFullPath(nodeId);
@@ -1263,10 +1480,139 @@ public partial class DiskScanViewModel : ObservableObject
             if (d.Level == MigrationAdmissionLevel.VerifiedEligible)
             {
                 l1Count++;
-                l1Bytes += Math.Max(snapshot.Nodes[nodeId].UniqueAllocatedBytes, snapshot.Nodes[nodeId].LogicalBytes);
+                l1Bytes += snapshot.Nodes[nodeId].UniqueAllocatedBytes;
             }
         }
         return (largeDirs, l1Count, l1Bytes);
+    }
+
+    /// <summary>
+    /// 采集互不嵌套的大软件/热点目录（穿透 L0 容器目录与单子项包装层，保证任意两项无父子包含关系，绝不重复计算空间）。
+    /// </summary>
+    private int[] CollectDisjointHotspots(ScanSnapshot snapshot, long minAllocatedBytes, int maxCount)
+    {
+        var results = new List<(int NodeId, long Size)>();
+
+        void Visit(int nodeId, int depth)
+        {
+            ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
+            for (int i = 0; i < children.Length; i++)
+            {
+                int childId = children[i];
+                ref readonly ScanNodeRecord child = ref snapshot.Nodes[childId];
+                if (!child.IsDirectory || child.IsOrphaned) continue;
+
+                long size = child.UniqueAllocatedBytes;
+                if (size < minAllocatedBytes) continue;
+
+                string fullPath = snapshot.GetFullPath(childId);
+                string name = snapshot.GetNodeName(childId);
+                SafetyPolicyDecision decision = MigrationSafetyPolicy.EvaluateSource(
+                    fullPath,
+                    _catalog,
+                    SafetyEvaluationContext.ScanPreview,
+                    checkFilesystem: false);
+
+                // L1 推荐迁移或 L2 原生引导：直接作为精准软件热点输出并停止下钻（绝不重复计入子项）
+                if (decision.Level is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.VendorNativeRecommended)
+                {
+                    results.Add((childId, size));
+                    continue;
+                }
+
+                // L0 系统容器（Users / 用户名 / AppData / Local / Program Files 等）：本身绝不作为大软件展示；
+                // 对纯系统内核黑盒直接跳过，对可能包含应用数据的容器继续下钻
+                if (decision.Level == MigrationAdmissionLevel.HardDenied)
+                {
+                    if (!child.IsReparsePoint && depth < 10 && ShouldDescendL0Container(name, fullPath))
+                    {
+                        Visit(childId, depth + 1);
+                    }
+                    continue;
+                }
+
+                // L3 普通目录：若为包装目录（如 Programs）或包含已知 L1/L2 子目录或存在单一超大子目录（>=85%），则继续下钻到具体软件目录
+                if (!child.IsReparsePoint && depth < 10 && ShouldDescendL3Wrapper(snapshot, childId, name, size, minAllocatedBytes))
+                {
+                    Visit(childId, depth + 1);
+                    continue;
+                }
+
+                results.Add((childId, size));
+            }
+        }
+
+        Visit(snapshot.RootNodeId, depth: 0);
+
+        return results
+            .OrderByDescending(x => x.Size)
+            .Take(maxCount)
+            .Select(x => x.NodeId)
+            .ToArray();
+    }
+
+    private static bool ShouldDescendL0Container(string name, string fullPath)
+    {
+        // 纯 OS 内部黑盒目录不下钻，节省遍历开销且无任何可迁项
+        if (name.Equals("Windows", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Windows.old", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Recovery", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Boot", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("WindowsApps", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("WinSxS", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Temp", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Microsoft", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Packages", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Users、用户根目录、AppData、Local/Roaming/LocalLow、Program Files、ProgramData 等容器下钻查找大软件
+        return !fullPath.Contains(@"\Windows\", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool ShouldDescendL3Wrapper(ScanSnapshot snapshot, int nodeId, string name, long parentSize, long minAllocatedBytes)
+    {
+        ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
+        if (children.Length == 0) return false;
+
+        bool isWrapperName = name.Equals("Programs", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("AI_Workspace", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Games", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("Apps", StringComparison.OrdinalIgnoreCase);
+
+        long largestChildDirSize = 0;
+        int qualifyingChildDirs = 0;
+        for (int i = 0; i < children.Length; i++)
+        {
+            int cid = children[i];
+            ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
+            if (!c.IsDirectory || c.IsOrphaned || c.UniqueAllocatedBytes < minAllocatedBytes) continue;
+            qualifyingChildDirs++;
+            if (c.UniqueAllocatedBytes > largestChildDirSize) largestChildDirSize = c.UniqueAllocatedBytes;
+
+            // 若子目录本身命中 L1 或 L2 规则（如 NovaStudio\comfyui\models），强制下钻暴露精准规则目录
+            string cPath = snapshot.GetFullPath(cid);
+            SafetyPolicyDecision cd = MigrationSafetyPolicy.EvaluateSource(cPath, _catalog, SafetyEvaluationContext.ScanPreview, checkFilesystem: false);
+            if (cd.Level is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.VendorNativeRecommended)
+                return true;
+        }
+
+        if (qualifyingChildDirs == 0) return false;
+        if (isWrapperName) return true;
+
+        // 若包含已知规则应用名（如 NovaStudio、Steam），继续下钻一层让其子数据目录（如 NovaMax/comfyui/models）浮出
+        if (BuiltInApplicationRules.All.Any(r =>
+            r.PathContainsMarkers.Any(m => name.Equals(m, StringComparison.OrdinalIgnoreCase))
+            || r.InstallDetectionNames.Any(n => name.Equals(n, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        // 单一子目录占比 >= 85%（典型中间套壳目录），下钻一层直达真正的大目录
+        return qualifyingChildDirs == 1 && parentSize > 0 && largestChildDirSize * 100.0 / parentSize >= 85.0;
     }
 
     private void UpdateExecutionMetricsAndSteps(BatchItemProgress p)
@@ -1349,7 +1695,7 @@ public partial class DiskScanViewModel : ObservableObject
                 }
             }
 
-            long rootTotal = Math.Max(1, _snapshot.Nodes[_snapshot.RootNodeId].UniqueAllocatedBytes);
+            long rootTotal = GetNodeSizeForShare(_snapshot.RootNodeId);
             foreach (var (nodeId, _) in matches.OrderByDescending(m => m.Size).Take(300))
             {
                 VisibleTreeRows.Add(BuildRowItem(nodeId, depth: 0, parentBytes: rootTotal));
@@ -1357,43 +1703,141 @@ public partial class DiskScanViewModel : ObservableObject
             return;
         }
 
-        if (IsHotspotView)
+        if (BrowseMode == ScanBrowseMode.HotspotFlatList)
         {
-            long rootTotal = Math.Max(1, _snapshot.Nodes[_snapshot.RootNodeId].UniqueAllocatedBytes);
-            int[] hotspots = _snapshot.GetHotspotDirectories(maxCount: 80, minAllocatedBytes: 10L * 1024 * 1024);
+            long rootTotal = GetNodeSizeForShare(_snapshot.RootNodeId);
+            int[] hotspots = CollectDisjointHotspots(_snapshot, minAllocatedBytes: 50L * 1024 * 1024, maxCount: 80);
+            if (hotspots.Length == 0)
+            {
+                hotspots = CollectDisjointHotspots(_snapshot, minAllocatedBytes: 1L * 1024 * 1024, maxCount: 80);
+            }
             foreach (int nodeId in hotspots)
             {
-                VisibleTreeRows.Add(BuildRowItem(nodeId, depth: 0, parentBytes: rootTotal));
+                VisibleTreeRows.Add(BuildRowItem(nodeId, depth: 0, parentBytes: rootTotal, includeParentHint: true));
             }
+            return;
+        }
+
+        if (BrowseMode == ScanBrowseMode.HotspotPathTree)
+        {
+            BuildHotspotPathTreeRows();
             return;
         }
 
         InsertChildRows(_snapshot.RootNodeId, depth: 0, insertAt: 0, startOffset: 0);
     }
 
+    private long GetNodeSizeForShare(int nodeId)
+    {
+        ref readonly ScanNodeRecord node = ref _snapshot!.Nodes[nodeId];
+        long bytes = node.UniqueAllocatedBytes > 0 ? node.UniqueAllocatedBytes : node.LogicalBytes;
+        return Math.Max(1, bytes);
+    }
+
+    /// <summary>
+    /// 构筑“按路径展开”的大软件剪枝路径树：仅保留通向真实大软件/大目录的祖先支路，从顶层自动缩进展开，
+    /// 所有层级的空间占比均以全盘已用空间为统一标尺，避免出现“5 GB 子目录 100% 超过 500 GB 父目录”的视觉倒挂。
+    /// </summary>
+    private void BuildHotspotPathTreeRows()
+    {
+        if (_snapshot is null) return;
+
+        int[] hotspots = CollectDisjointHotspots(_snapshot, minAllocatedBytes: 50L * 1024 * 1024, maxCount: 50);
+        if (hotspots.Length == 0)
+        {
+            hotspots = CollectDisjointHotspots(_snapshot, minAllocatedBytes: 1L * 1024 * 1024, maxCount: 50);
+        }
+        if (hotspots.Length == 0) return;
+
+        var keptNodes = new HashSet<int>();
+        var autoExpandNodes = new HashSet<int>();
+        foreach (int h in hotspots)
+        {
+            keptNodes.Add(h);
+            int curr = _snapshot.Nodes[h].ParentNodeId;
+            int guard = 0;
+            while (curr >= 0 && curr != _snapshot.RootNodeId && guard++ < 64)
+            {
+                keptNodes.Add(curr);
+                autoExpandNodes.Add(curr);
+                curr = _snapshot.Nodes[curr].ParentNodeId;
+            }
+        }
+
+        _hotspotPathKeptNodes = keptNodes;
+        _hotspotPathAncestorNodes = autoExpandNodes;
+
+        long rootTotal = GetNodeSizeForShare(_snapshot.RootNodeId);
+
+        void EmitSubtree(int parentId, int depth)
+        {
+            ReadOnlySpan<int> children = _snapshot.GetChildrenSpan(parentId);
+            for (int i = 0; i < children.Length; i++)
+            {
+                int cid = children[i];
+                if (!keptNodes.Contains(cid)) continue;
+                ScanTreeRowItem row = BuildRowItem(cid, depth, rootTotal);
+                bool expand = IsHotspotPathTreeExpanded && autoExpandNodes.Contains(cid);
+                row.IsExpanded = expand;
+                VisibleTreeRows.Add(row);
+                if (expand)
+                {
+                    EmitSubtree(cid, depth + 1);
+                }
+            }
+        }
+
+        EmitSubtree(_snapshot.RootNodeId, depth: 0);
+    }
+
     private void InsertChildRows(int parentNodeId, int depth, int insertAt, int startOffset)
     {
         if (_snapshot is null) return;
         ReadOnlySpan<int> children = _snapshot.GetChildrenSpan(parentNodeId);
-        long parentBytes = Math.Max(1, Math.Max(_snapshot.Nodes[parentNodeId].UniqueAllocatedBytes, _snapshot.Nodes[parentNodeId].LogicalBytes));
+        // 在“按路径展开”大软件模式下手动展开节点时，仍延续全盘统一标尺，防止子项占比突然跳回 100%
+        long shareBaseBytes = BrowseMode == ScanBrowseMode.HotspotPathTree
+            ? GetNodeSizeForShare(_snapshot.RootNodeId)
+            : GetNodeSizeForShare(parentNodeId);
 
-        int end = Math.Min(children.Length, startOffset + DirectoryPageSize);
+        // 默认仅展示文件夹（隐藏无法迁移的单个文件如 hiberfil.sys/pagefile.sys），用户勾选“显示文件”时全部显示
         int cursor = insertAt;
-        for (int i = startOffset; i < end; i++)
+        int matched = 0;
+        int displayed = 0;
+        int remaining = 0;
+        for (int i = 0; i < children.Length; i++)
         {
-            VisibleTreeRows.Insert(cursor++, BuildRowItem(children[i], depth, parentBytes));
+            int cid = children[i];
+            ref readonly ScanNodeRecord child = ref _snapshot.Nodes[cid];
+            if (!ShowFilesInTree && !child.IsDirectory) continue;
+
+            if (matched < startOffset)
+            {
+                matched++;
+                continue;
+            }
+
+            if (displayed < DirectoryPageSize)
+            {
+                VisibleTreeRows.Insert(cursor++, BuildRowItem(cid, depth, shareBaseBytes));
+                displayed++;
+                matched++;
+            }
+            else
+            {
+                remaining++;
+            }
         }
 
-        if (end < children.Length)
+        if (remaining > 0)
         {
-            int remaining = children.Length - end;
             VisibleTreeRows.Insert(cursor, new ScanTreeRowItem
             {
                 IsLoadMorePlaceholder = true,
                 LoadMoreParentNodeId = parentNodeId,
-                LoadMoreNextOffset = end,
+                LoadMoreNextOffset = startOffset + displayed,
                 Depth = depth,
-                Name = $"加载更多子项（剩余 {remaining:N0} 项）…"
+                Name = $"加载更多子项（剩余 {remaining:N0} 项）…",
+                DisplayName = $"加载更多子项（剩余 {remaining:N0} 项）…"
             });
         }
     }
@@ -1406,28 +1850,90 @@ public partial class DiskScanViewModel : ObservableObject
         InsertChildRows(placeholder.LoadMoreParentNodeId, placeholder.Depth, idx, placeholder.LoadMoreNextOffset);
     }
 
-    private ScanTreeRowItem BuildRowItem(int nodeId, int depth, long parentBytes)
+    private ScanTreeRowItem BuildRowItem(int nodeId, int depth, long parentBytes, bool includeParentHint = false)
     {
         ref readonly ScanNodeRecord node = ref _snapshot!.Nodes[nodeId];
         string fullPath = _snapshot.GetFullPath(nodeId);
         string name = _snapshot.GetNodeName(nodeId);
-        long sizeForShare = Math.Max(node.UniqueAllocatedBytes, node.LogicalBytes);
+        string displayName = name;
+        long sizeForShare = node.UniqueAllocatedBytes > 0 ? node.UniqueAllocatedBytes : node.LogicalBytes;
         double share = Math.Clamp(sizeForShare * 100.0 / parentBytes, 0, 100);
 
         MigrationAdmissionLevel level = MigrationAdmissionLevel.ManualRiskConfirm;
+        bool isToolSelfProtected = false;
+        DirectoryHintLevel hintLevel = DirectoryHintLevel.None;
+        string hintToolTip = string.Empty;
         string attrLabel = string.Empty;
         if (node.IsDirectory)
         {
-            SafetyPolicyDecision preview = MigrationSafetyPolicy.EvaluateSource(
-                fullPath,
-                _catalog,
-                SafetyEvaluationContext.ScanPreview,
-                checkFilesystem: false);
-            level = preview.Level;
-            attrLabel = preview.MatchedApplicationName ?? _catalog.IdentifyAttributionLabel(fullPath) ?? string.Empty;
+            if (node.IsOrphaned || nodeId == _snapshot.OrphanContainerNodeId)
+            {
+                // 虚拟孤立/未解析容器及其子项绝不允许作为 L3 迁移，强制标为 L0 系统保护
+                level = MigrationAdmissionLevel.HardDenied;
+                attrLabel = "只读诊断";
+            }
+            else
+            {
+                SafetyPolicyDecision preview = MigrationSafetyPolicy.EvaluateSource(
+                    fullPath,
+                    _catalog,
+                    SafetyEvaluationContext.ScanPreview,
+                    checkFilesystem: false);
+                level = preview.Level;
+                isToolSelfProtected = preview.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase);
+
+                DirectoryExplanation? explanation = KnownDirectoryExplainer.Explain(fullPath, _catalog, preview);
+                if (explanation is { HintLevel: not DirectoryHintLevel.None })
+                {
+                    hintLevel = explanation.HintLevel;
+                    hintToolTip = KnownDirectoryExplainer.FormatHoverToolTip(explanation);
+                }
+
+                string rawAttr = preview.MatchedApplicationName ?? _catalog.IdentifyAttributionLabel(fullPath) ?? string.Empty;
+
+                if (includeParentHint)
+                {
+                    string? parentDir = Path.GetDirectoryName(fullPath);
+                    string parentName = string.IsNullOrEmpty(parentDir) ? string.Empty : Path.GetFileName(parentDir.TrimEnd('\\'));
+                    if (!string.IsNullOrEmpty(parentName) && !IsGenericContainerName(parentName))
+                    {
+                        displayName = $"{parentName} / {name}";
+                    }
+
+                    if (!string.IsNullOrEmpty(rawAttr)
+                        && !displayName.Contains(rawAttr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        attrLabel = rawAttr;
+                    }
+                    else if (parentDir is not null)
+                    {
+                        if (parentDir.EndsWith(@"\AppData\Local", StringComparison.OrdinalIgnoreCase)) attrLabel = "AppData\\Local";
+                        else if (parentDir.EndsWith(@"\AppData\Roaming", StringComparison.OrdinalIgnoreCase)) attrLabel = "AppData\\Roaming";
+                    }
+                }
+                else if (!string.IsNullOrEmpty(rawAttr) && !name.Equals(rawAttr, StringComparison.OrdinalIgnoreCase))
+                {
+                    attrLabel = rawAttr;
+                }
+            }
         }
 
-        bool hasChildren = node.IsDirectory && !node.IsReparsePoint && _snapshot.GetChildrenSpan(nodeId).Length > 0;
+        bool hasChildren = false;
+        if (node.IsDirectory && !node.IsReparsePoint)
+        {
+            ReadOnlySpan<int> childIds = _snapshot.GetChildrenSpan(nodeId);
+            if (ShowFilesInTree)
+            {
+                hasChildren = childIds.Length > 0;
+            }
+            else
+            {
+                for (int i = 0; i < childIds.Length; i++)
+                {
+                    if (_snapshot.Nodes[childIds[i]].IsDirectory) { hasChildren = true; break; }
+                }
+            }
+        }
         return new ScanTreeRowItem
         {
             NodeId = nodeId,
@@ -1435,6 +1941,7 @@ public partial class DiskScanViewModel : ObservableObject
             IsDirectory = node.IsDirectory,
             HasChildren = hasChildren,
             Name = name,
+            DisplayName = displayName,
             FullPath = fullPath,
             LogicalBytes = node.LogicalBytes,
             AllocatedBytes = node.AllocatedBytes,
@@ -1444,10 +1951,25 @@ public partial class DiskScanViewModel : ObservableObject
             ParentSharePercent = share,
             AttributionLabel = attrLabel,
             AdmissionLevel = level,
+            IsToolSelfProtected = isToolSelfProtected,
+            HintLevel = hintLevel,
+            HintToolTip = hintToolTip,
             Flags = node.Flags,
             IsInPlan = PlanItems.Any(p => p.SourcePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase))
         };
     }
+
+    private static bool IsGenericContainerName(string folderName) =>
+        folderName.Equals("Users", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("AppData", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("Local", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("Roaming", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("LocalLow", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("Programs", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("Program Files", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("Program Files (x86)", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals("ProgramData", StringComparison.OrdinalIgnoreCase)
+        || folderName.Equals(Environment.UserName, StringComparison.OrdinalIgnoreCase);
 
     private void SyncTreePlanChecks()
     {
@@ -1473,6 +1995,11 @@ public partial class DiskScanViewModel : ObservableObject
             SelectedPathDisplay = "点击目录树中的任意目录查看空间占用与 L0–L3 安全准入评估。";
             SelectedAllocatedDisplay = "—";
             SelectedFileCountDisplay = "—";
+            HasDirectoryExplanation = false;
+            SelectedExplanationIsWarning = false;
+            SelectedDirectoryRoleTitle = string.Empty;
+            SelectedDirectoryPurpose = string.Empty;
+            SelectedDirectoryAdvice = string.Empty;
             SelectedEvidenceIdentity = "• 识别依据：等待选择目录";
             SelectedEvidenceStructure = "• 结构核验：—";
             SelectedEvidenceStorage = "• 空间口径：—";
@@ -1484,10 +2011,16 @@ public partial class DiskScanViewModel : ObservableObject
             return;
         }
 
-        SelectedTitle = string.IsNullOrWhiteSpace(row.AttributionLabel) ? row.Name : $"{row.AttributionLabel} / {row.Name}";
+        SelectedTitle = string.IsNullOrWhiteSpace(row.DisplayName) ? row.Name : row.DisplayName;
         SelectedPathDisplay = row.FullPath;
         SelectedAllocatedDisplay = FileStatsService.FormatBytes(row.UniqueAllocatedBytes);
         SelectedFileCountDisplay = row.IsDirectory ? $"{row.FileCount:N0} 个" : "1 个文件";
+
+        HasDirectoryExplanation = false;
+        SelectedExplanationIsWarning = false;
+        SelectedDirectoryRoleTitle = string.Empty;
+        SelectedDirectoryPurpose = string.Empty;
+        SelectedDirectoryAdvice = string.Empty;
 
         // 更新面包屑
         string[] segs = row.FullPath.Split('\\', StringSplitOptions.RemoveEmptyEntries);
@@ -1501,6 +2034,23 @@ public partial class DiskScanViewModel : ObservableObject
         if ((row.Flags & ScanNodeFlags.IsIncomplete) != 0) storageTags.Add("存在受限/损坏子节点");
         SelectedEvidenceStorage = $"• 空间口径：逻辑 {FileStatsService.FormatBytes(row.LogicalBytes)} / 唯一分配 {FileStatsService.FormatBytes(row.UniqueAllocatedBytes)}"
             + (storageTags.Count > 0 ? $"（{string.Join("、", storageTags)}）" : string.Empty);
+
+        if ((row.Flags & ScanNodeFlags.IsOrphaned) != 0)
+        {
+            SelectedDecision = null;
+            SelectedLevelBadgeText = "L0 硬拒绝 · 未解析系统/孤立记录";
+            SelectedLevelBadgeBg = "#FEF2F2";
+            SelectedLevelBadgeBorder = "#FECACA";
+            SelectedLevelBadgeFg = "#C42B1C";
+            SelectedEvidenceIdentity = "• 识别依据：无法解析到真实磁盘路径的孤立或元数据记录（仅供只读空间诊断）";
+            SelectedEvidenceStructure = "• 结构核验：禁止迁移或删除此类虚拟诊断项";
+            SelectedSafeNote = "该节点为只读诊断项，不可加入迁移清单。";
+            ShowNativeGuidance = false;
+            ShowL3ConfirmCheck = false;
+            CanAddSelectedToPlan = false;
+            IsSelectedAlreadyInPlan = false;
+            return;
+        }
 
         if (!row.IsDirectory)
         {
@@ -1525,9 +2075,18 @@ public partial class DiskScanViewModel : ObservableObject
             checkFilesystem: true);
 
         SelectedDecision = decision;
+        bool isSelfProtected = decision.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase);
+
+        DirectoryExplanation? explanation = KnownDirectoryExplainer.Explain(row.FullPath, _catalog, decision);
+        HasDirectoryExplanation = explanation is not null;
+        SelectedExplanationIsWarning = explanation?.HintLevel == DirectoryHintLevel.Warning;
+        SelectedDirectoryRoleTitle = explanation?.RoleTitle ?? string.Empty;
+        SelectedDirectoryPurpose = explanation?.Purpose ?? string.Empty;
+        SelectedDirectoryAdvice = explanation?.MigrationAdvice ?? string.Empty;
+
         (SelectedLevelBadgeText, SelectedLevelBadgeBg, SelectedLevelBadgeBorder, SelectedLevelBadgeFg) = decision.Level switch
         {
-            MigrationAdmissionLevel.HardDenied => ("L0 硬拒绝 · 系统/高危保护", "#FEF2F2", "#FECACA", "#C42B1C"),
+            MigrationAdmissionLevel.HardDenied => (isSelfProtected ? "L0 硬拒绝 · 工具自身/事务保护" : "L0 硬拒绝 · 系统/高危保护", "#FEF2F2", "#FECACA", "#C42B1C"),
             MigrationAdmissionLevel.VerifiedEligible => ("L1 推荐迁移 · 已验证规则", "#ECFDF5", "#A7F3D0", "#0F7B4B"),
             MigrationAdmissionLevel.VendorNativeRecommended => ("L2 原生引导 · 推荐官方方案", "#EBF5FF", "#BFDBFE", "#0078D4"),
             _ => ("L3 人工确认 · 普通/未收录目录", "#FFFBEB", "#FDE68A", "#B45309")

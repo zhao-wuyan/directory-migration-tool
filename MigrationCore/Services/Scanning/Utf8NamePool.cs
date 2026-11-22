@@ -75,6 +75,56 @@ public sealed class Utf8NamePool
         return Encoding.UTF8.GetString(page, offset, length);
     }
 
+    public void WriteTo(BinaryWriter writer)
+    {
+        writer.Write(_pages.Count);
+        writer.Write(_currentPageOffset);
+        for (int i = 0; i < _pages.Count; i++)
+        {
+            int used = i == _pages.Count - 1 ? _currentPageOffset : PageSize;
+            writer.Write(used);
+            if (used > 0)
+            {
+                writer.Write(_pages[i], 0, used);
+            }
+        }
+    }
+
+    public static Utf8NamePool ReadFrom(BinaryReader reader)
+    {
+        int pageCount = reader.ReadInt32();
+        int currentOffset = reader.ReadInt32();
+        if (pageCount <= 0 || pageCount > byte.MaxValue + 1 || currentOffset < 0 || currentOffset > PageSize)
+        {
+            throw new InvalidDataException("UTF-8 名称池缓存头无效。");
+        }
+
+        var pool = new Utf8NamePool();
+        pool._pages.Clear();
+        for (int i = 0; i < pageCount; i++)
+        {
+            int used = reader.ReadInt32();
+            if (used < 0 || used > PageSize)
+            {
+                throw new InvalidDataException("UTF-8 名称池页长度无效。");
+            }
+            byte[] page = new byte[PageSize];
+            if (used > 0)
+            {
+                int totalRead = 0;
+                while (totalRead < used)
+                {
+                    int n = reader.Read(page, totalRead, used - totalRead);
+                    if (n <= 0) throw new EndOfStreamException("UTF-8 名称池缓存数据截断。");
+                    totalRead += n;
+                }
+            }
+            pool._pages.Add(page);
+        }
+        pool._currentPageOffset = currentOffset;
+        return pool;
+    }
+
     private void EnsureCapacity(int requiredBytes)
     {
         if (requiredBytes > PageSize)

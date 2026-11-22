@@ -126,6 +126,12 @@ internal static class Program
                 @"E:\Users",
                 @"E:\Users\Alice",
                 @"E:\Users\Alice\AppData",
+                @"E:\Users\Alice\AppData\Local\Programs",
+                @"E:\Users\Alice\AppData\Local\Programs\Common",
+                @"E:\Users\Alice\AppData\Local\Programs\Common\Sub",
+                @"E:\Users\Alice\AppData\Local\VirtualStore\App",
+                @"E:\Users\Alice\AppData\Local\D3DSCache",
+                @"E:\ProgramData\USOShared\Update",
                 @"E:\Users\Alice\AppData\Local\Microsoft\Edge",
                 @"E:\Users\Alice\AppData\Local\Packages\StoreApp",
                 @"D:\Tools\MoveFolder\sub",
@@ -210,6 +216,59 @@ internal static class Program
                 new DirectoryInfo(tempDir).SetAccessControl(restored);
                 Directory.Delete(tempDir, recursive: true);
             }
+        });
+
+        test("known-directory-explainer-covers-personal-system-and-dev-folders", () =>
+        {
+            var catalog = new ApplicationCatalog(BuiltInApplicationRules.All, []);
+
+            // 1. Windows 个人 Known Folders（Desktop/Documents/Downloads/Videos/Pictures/Music）
+            var desktop = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Desktop", catalog);
+            var documents = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Documents", catalog);
+            var downloads = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Downloads", catalog);
+            var videos = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Videos", catalog);
+            var pictures = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Pictures", catalog);
+            var music = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Music", catalog);
+
+            Require(desktop is not null && desktop.RoleTitle.Contains("桌面") && desktop.MigrationAdvice.Contains("OneDrive") && desktop.HintLevel == DirectoryHintLevel.Warning, "Desktop explanation/hint mismatch");
+            Require(documents is not null && documents.RoleTitle.Contains("文档") && documents.MigrationAdvice.Contains("位置") && documents.HintLevel == DirectoryHintLevel.Info, "Documents explanation/hint mismatch");
+            Require(downloads is not null && downloads.RoleTitle.Contains("下载") && downloads.Purpose.Contains("安装包") && downloads.HintLevel == DirectoryHintLevel.Info, "Downloads explanation/hint mismatch");
+            Require(videos is not null && videos.RoleTitle.Contains("视频") && videos.HintLevel == DirectoryHintLevel.Info, "Videos explanation/hint mismatch");
+            Require(pictures is not null && pictures.RoleTitle.Contains("图片") && pictures.HintLevel == DirectoryHintLevel.Info, "Pictures explanation/hint mismatch");
+            Require(music is not null && music.RoleTitle.Contains("音乐") && music.HintLevel == DirectoryHintLevel.Info, "Music explanation/hint mismatch");
+
+            // 2. 系统与 AppData 容器（含 Local\Programs、Temp、Packages）及工具自身保护说明
+            var programs = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\Programs", catalog);
+            var temp = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\Temp", catalog);
+            var packages = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\Packages", catalog);
+            var usersRoot = KnownDirectoryExplainer.Explain(@"C:\Users", catalog);
+            var selfProtectDecision = new SafetyPolicyDecision(
+                MigrationAdmissionLevel.HardDenied, false, false, [SafetyReasonCodes.L0SelfOrActiveTransaction], MigrationSafetyPolicy.CurrentPolicyVersion, "self");
+            var selfProtectExplain = KnownDirectoryExplainer.Explain(@"C:\ProjectDev", catalog, selfProtectDecision);
+
+            Require(programs is not null && programs.RoleTitle.Contains("Programs") && programs.HintLevel == DirectoryHintLevel.Warning, "Local\\Programs explanation/hint mismatch");
+            Require(temp is not null && temp.RoleTitle.Contains("临时文件") && temp.HintLevel == DirectoryHintLevel.Info, "Local\\Temp explanation/hint mismatch");
+            Require(packages is not null && packages.RoleTitle.Contains("UWP") && packages.HintLevel == DirectoryHintLevel.None, "Local\\Packages explanation/hint mismatch");
+            Require(usersRoot is not null && usersRoot.HintLevel == DirectoryHintLevel.None, "Users container should stay clean without extra row icon");
+            Require(selfProtectExplain is not null && selfProtectExplain.RoleTitle.Contains("运行中的迁移工具") && selfProtectExplain.HintLevel == DirectoryHintLevel.Warning,
+                "L0SelfOrActiveTransaction must produce Warning explanation");
+
+            // 3. 高频软件/AI/开发/聊天/虚拟磁盘目录，且普通项目名为 Docker 的目录不被误判为 Docker Desktop
+            var jetbrainsLocal = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\JetBrains", catalog);
+            var jetbrainsRoaming = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Roaming\JetBrains", catalog);
+            var npmCache = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\npm-cache", catalog);
+            var lmStudio = KnownDirectoryExplainer.Explain(@"C:\Users\alice\.lmstudio", catalog);
+            var wechat = KnownDirectoryExplainer.Explain(@"C:\Users\alice\Documents\WeChat Files", catalog);
+            var dockerAppData = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\Docker", catalog);
+            var dockerProject = KnownDirectoryExplainer.Explain(@"C:\ProjectDev\Docker\my-app", catalog);
+
+            Require(jetbrainsLocal is not null && jetbrainsLocal.RoleTitle.Contains("本地索引") && jetbrainsLocal.HintLevel == DirectoryHintLevel.Info, "JetBrains Local explanation mismatch");
+            Require(jetbrainsRoaming is not null && jetbrainsRoaming.RoleTitle.Contains("用户配置") && jetbrainsRoaming.HintLevel == DirectoryHintLevel.Warning, "JetBrains Roaming explanation mismatch");
+            Require(npmCache is not null && npmCache.RoleTitle.Contains("包管理器") && npmCache.HintLevel == DirectoryHintLevel.Info, "npm-cache explanation mismatch");
+            Require(lmStudio is not null && lmStudio.RoleTitle.Contains("AI 模型") && lmStudio.HintLevel == DirectoryHintLevel.Info, ".lmstudio explanation mismatch");
+            Require(wechat is not null && wechat.RoleTitle.Contains("微信") && wechat.HintLevel == DirectoryHintLevel.Info, "WeChat Files explanation mismatch");
+            Require(dockerAppData is not null && dockerAppData.RoleTitle.Contains("Docker") && dockerAppData.HintLevel == DirectoryHintLevel.Warning, "AppData Docker explanation mismatch");
+            Require(dockerProject is not null && dockerProject.RoleTitle.Contains("普通本地目录") && dockerProject.HintLevel == DirectoryHintLevel.None, "User project under Docker folder should not be misclassified as Docker Desktop");
         });
     }
 
@@ -392,6 +451,63 @@ internal static class Program
                 "FIND-13: Cyclic subtree must be attached to orphan container and mark Partial");
             Require(snap.Nodes[0].UniqueAllocatedBytes == 4096,
                 $"FIND-13: Trapped file in cycle must remain accounted (expected 4096, got {snap.Nodes[0].UniqueAllocatedBytes})");
+        });
+
+        test("MFT-extend-metafile-children-excluded-from-orphan-container", () =>
+        {
+            var records = new Dictionary<ulong, ParsedMftRecord>
+            {
+                [5] = new ParsedMftRecord { RecordNumber = 5, SequenceNumber = 5, InUse = true, IsDirectory = true },
+                [11] = new ParsedMftRecord { RecordNumber = 11, SequenceNumber = 1, InUse = true, IsDirectory = true },
+                [40] = new ParsedMftRecord { RecordNumber = 40, SequenceNumber = 1, InUse = true, IsDirectory = true },
+                [41] = new ParsedMftRecord { RecordNumber = 41, SequenceNumber = 1, InUse = true, IsDirectory = false, DefaultDataLogicalBytes = 33_000_000, DefaultDataAllocatedBytes = 33_000_000 },
+                [42] = new ParsedMftRecord { RecordNumber = 42, SequenceNumber = 1, InUse = true, IsDirectory = false, DefaultDataLogicalBytes = 12_000_000, DefaultDataAllocatedBytes = 12_000_000 },
+                [50] = new ParsedMftRecord { RecordNumber = 50, SequenceNumber = 1, InUse = true, IsDirectory = true },
+                [51] = new ParsedMftRecord { RecordNumber = 51, SequenceNumber = 1, InUse = true, IsDirectory = false, DefaultDataLogicalBytes = 4096, DefaultDataAllocatedBytes = 4096 }
+            };
+            records[11].FileNames.Add(new ParsedFileNameEntry(5, 5, 1, "$Extend"));
+            records[40].FileNames.Add(new ParsedFileNameEntry(11, 1, 1, "$RmMetadata"));
+            records[41].FileNames.Add(new ParsedFileNameEntry(11, 1, 1, "$UsnJrnl"));
+            records[42].FileNames.Add(new ParsedFileNameEntry(40, 1, 1, "$TxfLog"));
+            records[50].FileNames.Add(new ParsedFileNameEntry(5, 5, 1, "Games"));
+            records[51].FileNames.Add(new ParsedFileNameEntry(50, 1, 1, "game.pak"));
+
+            var vol = new ScanVolumeInfo(@"C:\", "Win", @"\\?\Volume{test}\", 1, "NTFS", 100_000_000, 50_000_000, true, "OK");
+            ScanSnapshot snap = NtfsMftRecordParser.BuildSnapshotFromParsedRecords(
+                vol, records, DateTimeOffset.UtcNow, MigrationSafetyPolicy.CurrentPolicyVersion, 0, null, null, null, false, false);
+
+            Require(snap.OrphanContainerNodeId == -1, "$Extend children must not create '未解析位置' orphan container");
+            Require(snap.Coverage == ScanCoverageStatus.Complete, $"Expected Complete coverage, got {snap.Coverage}");
+            Require(snap.MetadataBytes >= 45_000_000, $"Expected $UsnJrnl+$TxfLog in MetadataBytes, got {snap.MetadataBytes}");
+            Require(snap.Nodes.All(n => !snap.GetNodeName(n.NodeId).StartsWith("$", StringComparison.Ordinal)), "NTFS $Extend metafiles must not appear in user tree");
+        });
+
+        test("MFT-dev-cache-roundtrip-preserves-tree-and-forces-reverify", () =>
+        {
+            string cacheDir = Path.Combine(Path.GetTempPath(), "MoveFolderDevCacheTest_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                ScanSnapshot original = BuildNestedHotspotSnapshot();
+                string file = ScanSnapshotDevCache.Save(original, "模拟系统盘 (C:)", largeDirCount: 3, l1Count: 1, l1Bytes: 200L * 1024 * 1024 * 1024, cacheDir);
+                Require(File.Exists(file), "Dev cache file was not written");
+
+                var headers = ScanSnapshotDevCache.ListValidHeaders(original.PolicyVersion, TimeSpan.FromHours(1), cacheDir);
+                Require(headers.Count == 1 && headers[0].NodeCount == original.Nodes.Length && headers[0].LargeDirCount == 3,
+                    "Dev cache header listing mismatch");
+
+                ScanSnapshot loaded = ScanSnapshotDevCache.Load(file, out DevScanCacheHeader loadedHeader);
+                Require(loadedHeader.ScanId == original.ScanId && loaded.Nodes.Length == original.Nodes.Length, "Loaded node count mismatch");
+                Require(loaded.RequiresLiveReverification, "Loaded dev cache snapshot must enforce RequiresLiveReverification = true");
+                Require(loaded.GetFullPath(10) == original.GetFullPath(10), $"Loaded path mismatch: {loaded.GetFullPath(10)}");
+                Require(loaded.GetChildrenSpan(4).Length == original.GetChildrenSpan(4).Length, "Loaded CSR children mismatch");
+
+                ScanSnapshotDevCache.ClearAll(cacheDir);
+                Require(ScanSnapshotDevCache.ListValidHeaders(original.PolicyVersion, TimeSpan.FromHours(1), cacheDir).Count == 0, "ClearAll did not remove cache");
+            }
+            finally
+            {
+                try { if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, recursive: true); } catch { }
+            }
         });
     }
 
@@ -811,8 +927,10 @@ internal static class Program
                 string tempRoot = Path.Combine(Path.GetTempPath(), "MoveFolderUiSmoke_" + Guid.NewGuid().ToString("N"));
                 try
                 {
-                    Directory.CreateDirectory(Path.Combine(tempRoot, "ComfyUI", "models"));
-                    File.WriteAllBytes(Path.Combine(tempRoot, "ComfyUI", "models", "weights.bin"), new byte[4096]);
+                    Directory.CreateDirectory(Path.Combine(tempRoot, "Programs", "ComfyUI", "models"));
+                    File.WriteAllBytes(Path.Combine(tempRoot, "Programs", "ComfyUI", "models", "weights.bin"), new byte[2 * 1024 * 1024]);
+                    Directory.CreateDirectory(Path.Combine(tempRoot, "Programs", "OtherTool", "data"));
+                    File.WriteAllBytes(Path.Combine(tempRoot, "Programs", "OtherTool", "data", "blob.bin"), new byte[2 * 1024 * 1024]);
 
                     var app = Application.Current as App ?? new App();
                     if (app.Resources.MergedDictionaries.Count == 0)
@@ -856,6 +974,80 @@ internal static class Program
                     Require(firstDir.IsExpanded, "Directory row should expand cleanly");
                     scanVm.SelectedRow = firstDir;
 
+                    // 3. 构造模拟真实 C 盘嵌套结构（Users -> Alice -> AppData -> Local -> Docker / JetBrains / Programs -> NovaStudio -> comfyui -> models），
+                    //    验证点击“大软件目录”默认进入“按路径”且默认收起，再次点击“按路径”可一键展开/收起，且全局占比严格单调
+                    ScanSnapshot nestedSnap = BuildNestedHotspotSnapshot();
+                    scanVm.OpenRecentScanCommand.Execute(new RecentScanItem(nestedSnap.ScanId, "模拟系统盘 (C:)", "12:01", "hotspot-smoke", nestedSnap));
+                    scanVm.SwitchToHotspotViewCommand.Execute(null);
+                    Require(scanVm.BrowseMode == ScanBrowseMode.HotspotPathTree,
+                        $"SwitchToHotspotViewCommand should default to HotspotPathTree, got {scanVm.BrowseMode}");
+                    Require(!scanVm.IsHotspotPathTreeExpanded,
+                        "HotspotPathTree should be collapsed by default");
+                    Require(scanVm.VisibleTreeRows.Count == 1 && scanVm.VisibleTreeRows[0].Name == "Users" && scanVm.VisibleTreeRows[0].Depth == 0 && !scanVm.VisibleTreeRows[0].IsExpanded,
+                        $"Collapsed HotspotPathTree should show only top-level Users row, got {scanVm.VisibleTreeRows.Count}");
+
+                    // 3a. 收起态手动展开单个祖先节点时，仅展开剪枝后的大软件支路（Alice）
+                    scanVm.ToggleExpandCommand.Execute(scanVm.VisibleTreeRows[0]);
+                    Require(scanVm.VisibleTreeRows.Count == 2 && scanVm.VisibleTreeRows[1].Name == "Alice" && scanVm.VisibleTreeRows[1].Depth == 1,
+                        "Manually expanding Users in collapsed HotspotPathTree should reveal pruned child Alice");
+
+                    // 3b. 再次点击“按路径”按钮 -> 一键展开全部大软件支路
+                    scanVm.SwitchToHotspotPathTreeCommand.Execute(null);
+                    Require(scanVm.IsHotspotPathTreeExpanded, "Repeating SwitchToHotspotPathTreeCommand should expand tree");
+                    Require(scanVm.VisibleTreeRows.Count > 3 && scanVm.VisibleTreeRows[0].Name == "Users" && scanVm.VisibleTreeRows[0].Depth == 0,
+                        "Expanded HotspotPathTree should start from top-level Users at depth 0");
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "Docker" && r.Depth == 4 && r.ShowWarningHint && !string.IsNullOrWhiteSpace(r.HintToolTip)),
+                        "HotspotPathTree should indent Docker at depth 4 with amber warning hint tooltip");
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "Programs" && r.AdmissionLevel == MigrationAdmissionLevel.HardDenied && r.ShowWarningHint),
+                        "AppData\\Local\\Programs container root must be L0 HardDenied with amber warning hint");
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "models" && r.ShowInfoHint && !string.IsNullOrWhiteSpace(r.HintToolTip)),
+                        "Verified L1 models dir should show blue info hint tooltip");
+                    Require(scanVm.VisibleTreeRows.All(r => r.IsDirectory),
+                        "Tree/Hotspot views must filter out non-directory files by default");
+                    Require(scanVm.ShareColumnHeader == "全盘占比",
+                        $"HotspotPathTree should label share column as 全盘占比, got '{scanVm.ShareColumnHeader}'");
+                    // 验证“按路径”采用全盘统一标尺：任意子目录占比严格 <= 其父目录占比（杜绝 5GB 子目录 100% 超过父目录的视觉倒挂）
+                    var stack = new Stack<ScanTreeRowItem>();
+                    foreach (ScanTreeRowItem row in scanVm.VisibleTreeRows)
+                    {
+                        while (stack.Count > 0 && stack.Peek().Depth >= row.Depth) stack.Pop();
+                        if (stack.Count > 0)
+                        {
+                            ScanTreeRowItem parentRow = stack.Peek();
+                            Require(row.ParentSharePercent <= parentRow.ParentSharePercent + 0.01,
+                                $"HotspotPathTree share inversion: child '{row.Name}' ({row.ParentSharePercent:F1}%) > parent '{parentRow.Name}' ({parentRow.ParentSharePercent:F1}%)");
+                        }
+                        stack.Push(row);
+                    }
+
+                    // 3c. 第三次点击“按路径”按钮 -> 一键收回到顶层
+                    scanVm.SwitchToHotspotPathTreeCommand.Execute(null);
+                    Require(!scanVm.IsHotspotPathTreeExpanded && scanVm.VisibleTreeRows.Count == 1,
+                        "Third click on SwitchToHotspotPathTreeCommand should collapse back to top-level rows");
+
+                    // 4. 验证切到“直达列表”视图穿透 L0/套壳目录，返回完全互不重叠的真实大目录且总和 <= 根占用
+                    scanVm.SwitchToHotspotFlatCommand.Execute(null);
+                    Require(scanVm.VisibleTreeRows.Count == 3,
+                        $"Expected 3 disjoint hotspot dirs (models, Docker, JetBrains), got {scanVm.VisibleTreeRows.Count}: {string.Join(", ", scanVm.VisibleTreeRows.Select(r => r.FullPath))}");
+                    long hotspotSum = scanVm.VisibleTreeRows.Sum(r => r.UniqueAllocatedBytes);
+                    long rootAlloc = nestedSnap.Nodes[nestedSnap.RootNodeId].UniqueAllocatedBytes;
+                    Require(hotspotSum <= rootAlloc, $"Hotspot sum ({hotspotSum}) exceeded root unique allocated ({rootAlloc})");
+                    for (int a = 0; a < scanVm.VisibleTreeRows.Count; a++)
+                    {
+                        for (int b = a + 1; b < scanVm.VisibleTreeRows.Count; b++)
+                        {
+                            string pa = scanVm.VisibleTreeRows[a].FullPath;
+                            string pb = scanVm.VisibleTreeRows[b].FullPath;
+                            Require(!PathIdentityService.IsWithin(pa, pb) && !PathIdentityService.IsWithin(pb, pa),
+                                $"Hotspot rows overlap parent/child: '{pa}' vs '{pb}'");
+                        }
+                    }
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "Docker" && r.AdmissionLevel == MigrationAdmissionLevel.VendorNativeRecommended),
+                        "AppData\\Local\\Docker should be surfaced as L2 VendorNativeRecommended");
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "models" && r.AdmissionLevel == MigrationAdmissionLevel.VerifiedEligible),
+                        "NovaStudio\\comfyui\\models should be surfaced as L1 VerifiedEligible");
+                    scanVm.SwitchToTreeViewCommand.Execute(null);
+
                     foreach (DiskScanSubView sub in Enum.GetValues<DiskScanSubView>())
                     {
                         scanVm.ActiveSubView = sub;
@@ -880,6 +1072,66 @@ internal static class Program
             Require(staThread.Join(TimeSpan.FromSeconds(30)), "WPF STA smoke test timed out");
             if (captured is not null) throw new InvalidOperationException("WPF STA smoke test failed: " + captured, captured);
         });
+    }
+
+    private static ScanSnapshot BuildNestedHotspotSnapshot()
+    {
+        const long GB = 1024L * 1024 * 1024;
+        var pool = new Utf8NamePool();
+        (byte p, int o, ushort l) Add(string n) => pool.AddName(n);
+
+        // 0: C:\  1: Users  2: Alice  3: AppData  4: Local  5: Docker(100G)  6: JetBrains(60G)
+        // 7: Programs(200G)  8: NovaStudio(200G)  9: comfyui(200G)  10: models(200G)
+        var names = new[] { @"C:\", "Users", "Alice", "AppData", "Local", "Docker", "JetBrains", "Programs", "NovaStudio", "comfyui", "models" };
+        var parents = new[] { -1, 0, 1, 2, 3, 4, 4, 4, 7, 8, 9 };
+        var sizes = new[] { 360 * GB, 360 * GB, 360 * GB, 360 * GB, 360 * GB, 100 * GB, 60 * GB, 200 * GB, 200 * GB, 200 * GB, 200 * GB };
+
+        var nodes = new ScanNodeRecord[names.Length];
+        for (int i = 0; i < names.Length; i++)
+        {
+            var (page, off, len) = Add(names[i]);
+            nodes[i] = new ScanNodeRecord
+            {
+                NodeId = i,
+                ParentNodeId = parents[i],
+                NamePageIndex = page,
+                NameOffset = off,
+                NameLength = len,
+                Flags = ScanNodeFlags.IsDirectory,
+                LogicalBytes = sizes[i],
+                AllocatedBytes = sizes[i],
+                UniqueAllocatedBytes = sizes[i],
+                FileCount = 10
+            };
+        }
+
+        var childrenByParent = new List<int>[names.Length];
+        for (int i = 0; i < names.Length; i++) childrenByParent[i] = [];
+        for (int i = 1; i < names.Length; i++) childrenByParent[parents[i]].Add(i);
+
+        var offsets = new int[names.Length + 1];
+        var csrChildren = new List<int>();
+        for (int i = 0; i < names.Length; i++)
+        {
+            offsets[i] = csrChildren.Count;
+            csrChildren.AddRange(childrenByParent[i]);
+        }
+        offsets[names.Length] = csrChildren.Count;
+
+        return new ScanSnapshot
+        {
+            Volume = new ScanVolumeInfo(@"C:\", "Windows", @"\\?\Volume{sim}\", 1, "NTFS", 1000 * GB, 640 * GB, true, "sim"),
+            Backend = ScanBackendKind.RawNtfsMft,
+            Coverage = ScanCoverageStatus.Complete,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            CompletedAtUtc = DateTimeOffset.UtcNow,
+            PolicyVersion = "test",
+            RootNodeId = 0,
+            Nodes = nodes,
+            CsrOffsets = offsets,
+            CsrChildren = csrChildren.ToArray(),
+            NamePool = pool
+        };
     }
 
     private static void AssertAllButtonsSafeForRenderTransform(DependencyObject root)

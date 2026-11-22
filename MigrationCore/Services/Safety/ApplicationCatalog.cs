@@ -182,7 +182,7 @@ public sealed class ApplicationCatalog : ISafetyApplicationMatcher
         }
         if (longestSoftware is not null)
         {
-            return $"{longestSoftware.DisplayName}（未收录规则）";
+            return longestSoftware.DisplayName;
         }
 
         // 检查 Known Folders（个人数据目录归属）
