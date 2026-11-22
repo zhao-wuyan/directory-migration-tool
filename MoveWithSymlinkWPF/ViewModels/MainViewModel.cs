@@ -15,13 +15,50 @@ namespace MoveWithSymlinkWPF.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ManualNavTag))]
     private bool _isManualMode = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(QuickMigrateNavTag))]
     private bool _isQuickMigrateMode = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DiskScanNavTag))]
+    private bool _isDiskScanMode = false;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BackupCenterNavTag))]
+    private bool _isBackupCenterMode = false;
+
+    [ObservableProperty]
     private object? _quickMigratePage;
+
+    [ObservableProperty]
+    private object? _diskScanPage;
+
+    [ObservableProperty]
+    private object? _globalBackupPage;
+
+    public string ManualNavTag => IsManualMode ? "Active" : string.Empty;
+    public string QuickMigrateNavTag => IsQuickMigrateMode ? "Active" : string.Empty;
+    public string DiskScanNavTag => IsDiskScanMode ? "Active" : string.Empty;
+    public string BackupCenterNavTag => IsBackupCenterMode ? "Active" : string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnverifiedBackups))]
+    [NotifyPropertyChangedFor(nameof(UnverifiedBadgeText))]
+    private int _unverifiedBackupCount = 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRecoveryRequired))]
+    private int _recoveryRequiredCount = 0;
+
+    [ObservableProperty]
+    private string _recoveryBannerMessage = string.Empty;
+
+    public bool HasUnverifiedBackups => UnverifiedBackupCount > 0;
+    public string UnverifiedBadgeText => UnverifiedBackupCount > 0 ? UnverifiedBackupCount.ToString() : string.Empty;
+    public bool HasRecoveryRequired => RecoveryRequiredCount > 0;
 
     [ObservableProperty]
     private MigrationMode _migrationMode = MigrationMode.Migrate;
@@ -89,6 +126,7 @@ public partial class MainViewModel : ObservableObject
     private bool _isScanning = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOperationBusy))]
     private bool _isMigrating = false;
 
     [ObservableProperty]
@@ -122,7 +160,9 @@ public partial class MainViewModel : ObservableObject
     private QuickMigrateTask? _backupTask;
     [ObservableProperty]
     private bool _useContentHash;
-    public bool IsOperationBusy => IsMigrating || (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting);
+    public bool IsOperationBusy => IsMigrating
+        || OperationExecutionGate.Shared.IsBusy
+        || (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting);
 
     public ObservableCollection<string> LogMessages { get; } = new();
 
@@ -135,9 +175,25 @@ public partial class MainViewModel : ObservableObject
     {
         // 从 version.json 或程序集获取版本号
         VersionText = VersionService.GetVersion();
-        
-        // 初始化一键迁移页面
+
+        OperationExecutionGate.Shared.StateChanged += (_, _) =>
+        {
+            Application.Current?.Dispatcher.BeginInvoke(() => OnPropertyChanged(nameof(IsOperationBusy)));
+        };
+
+        // 初始化一键迁移、磁盘扫描与全局备份管理页面（W4 视图落地后自动激活）
         QuickMigratePage = new QuickMigratePage();
+        if (QuickMigratePage is QuickMigratePage qp && qp.DataContext is QuickMigrateViewModel qvm)
+        {
+            qvm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(QuickMigrateViewModel.IsExecuting))
+                    OnPropertyChanged(nameof(IsOperationBusy));
+            };
+        }
+        DiskScanPage = new DiskScanPage();
+        GlobalBackupPage = new GlobalBackupPage();
+
         _ = RestoreLastTransactionAsync();
         
 #if DEBUG
@@ -150,22 +206,64 @@ public partial class MainViewModel : ObservableObject
     private void ShowManualMode()
     {
         if (IsOperationBusy) return;
-        IsManualMode = true;
-        IsQuickMigrateMode = false;
-#if DEBUG
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Switched to Manual Mode");
-#endif
+        SetActiveMode(manual: true);
     }
 
     [RelayCommand]
     private void ShowQuickMigrate()
     {
         if (IsOperationBusy) return;
-        IsManualMode = false;
-        IsQuickMigrateMode = true;
-#if DEBUG
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Switched to Quick Migrate Mode");
-#endif
+        SetActiveMode(quick: true);
+    }
+
+    [RelayCommand]
+    private void ShowDiskScan()
+    {
+        if (IsOperationBusy) return;
+        SetActiveMode(diskScan: true);
+    }
+
+    [RelayCommand]
+    private void ShowBackupCenter()
+    {
+        if (IsOperationBusy) return;
+        SetActiveMode(backupCenter: true);
+        _ = RefreshGlobalStatusAsync();
+        if (GlobalBackupPage is GlobalBackupPage bp && bp.DataContext is GlobalBackupViewModel bvm)
+            _ = bvm.RefreshAsync();
+    }
+
+    [RelayCommand]
+    private void OpenRecoveryCenter()
+    {
+        if (IsOperationBusy) return;
+        SetActiveMode(backupCenter: true);
+        _ = RefreshGlobalStatusAsync();
+        if (GlobalBackupPage is GlobalBackupPage bp && bp.DataContext is GlobalBackupViewModel bvm)
+            _ = bvm.RefreshAsync();
+    }
+
+    /// <summary>
+    /// 从全局备份管理页快捷跳转到手动模式并自动填入源链接路径（触发还原检测）。
+    /// </summary>
+    public void OpenRestoreInManualMode(string sourcePath)
+    {
+        if (IsOperationBusy || string.IsNullOrWhiteSpace(sourcePath)) return;
+        SetActiveMode(manual: true);
+        CurrentStep = 1;
+        SourcePath = sourcePath;
+    }
+
+    private void SetActiveMode(bool manual = false, bool quick = false, bool diskScan = false, bool backupCenter = false)
+    {
+        IsManualMode = manual;
+        IsQuickMigrateMode = quick;
+        IsDiskScanMode = diskScan;
+        IsBackupCenterMode = backupCenter;
+        if (diskScan && DiskScanPage is DiskScanPage dp && dp.DataContext is DiskScanViewModel dvm)
+        {
+            dvm.SyncUnverifiedBackupCount(UnverifiedBackupCount);
+        }
     }
 
     [RelayCommand]
@@ -503,16 +601,8 @@ public partial class MainViewModel : ObservableObject
                             targetLeafName = new DirectoryInfo(TargetPath).Name;
                         }
                         
-                        // 检查目标目录是否非空
-                        bool isNonEmpty = false;
-                        try
-                        {
-                            isNonEmpty = Directory.EnumerateFileSystemEntries(TargetPath).Any();
-                        }
-                        catch
-                        {
-                            // 忽略错误，继续处理
-                        }
+                        // 检查目标目录是否非空（失败封闭：权限/枚举异常视为非空，避免误判为空目录）
+                        bool isNonEmpty = PathValidator.HasUserContent(TargetPath);
                         
                         // 如果目标目录非空，且目标目录名不等于源目录名，则自动拼接
                         if (isNonEmpty && !string.Equals(targetLeafName, sourceLeafForTarget, StringComparison.OrdinalIgnoreCase))
@@ -632,6 +722,15 @@ public partial class MainViewModel : ObservableObject
     private async Task StartMigrationAsync()
     {
         if (IsOperationBusy) return;
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire(
+            MigrationMode.ToString(),
+            $"手动{CurrentModeDisplay}：{SourcePath}",
+            [SourcePath, TargetPath]);
+        if (gateLease is null)
+        {
+            CustomMessageBox.ShowWarning("当前已有其他迁移或备份任务正在运行，请等待其完成后重试。", "操作互斥");
+            return;
+        }
         BackupTask = null;
         IsMigrating = true;
         MigrationCompleted = false;
@@ -759,6 +858,7 @@ public partial class MainViewModel : ObservableObject
             IsMigrating = false;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+            _ = RefreshGlobalStatusAsync();
         }
     }
 
@@ -1177,6 +1277,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm) await vm.Initialization;
             var records = await new MigrationTransactionStore().ReadAllAsync();
+            UpdateGlobalStatusFromRecords(records);
             var record = records.OrderByDescending(r => r.UpdatedAtUtc).FirstOrDefault();
             if (record is null) return;
             _suppressPathDetection = true;
@@ -1217,11 +1318,14 @@ public partial class MainViewModel : ObservableObject
     private async Task VerifyDataAsync()
     {
         if (IsOperationBusy || BackupTask?.TransactionId is not Guid id) return;
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire("ManualBackupVerify", $"手动验证并处理备份：{BackupTask.SourcePath}", [BackupTask.SourcePath, BackupTask.TargetPath]);
+        if (gateLease is null) return;
         IsMigrating = true;
         try
         {
             await MigrationVerificationWindow.ShowForTransactionAsync(id);
             await RefreshBackupTaskAsync(id);
+            await RefreshGlobalStatusAsync();
             if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm)
                 vm.RefreshTransactionState();
         }
@@ -1229,9 +1333,46 @@ public partial class MainViewModel : ObservableObject
         finally { IsMigrating = false; }
     }
 
+    public async Task RefreshGlobalStatusAsync()
+    {
+        try
+        {
+            var records = await new MigrationTransactionStore().ReadAllAsync().ConfigureAwait(false);
+            int unverifiedCount = await Task.Run(() => UnverifiedExitConfirmation.SelectPendingUnverified(records).Length).ConfigureAwait(false);
+            var recoveryCount = records.DistinctBy(r => r.TransactionId).Count(r => r.Stage == MigrationStage.RecoveryRequired);
+            await Application.Current.Dispatcher.InvokeAsync(() => ApplyGlobalStatusCounts(unverifiedCount, recoveryCount));
+        }
+        catch
+        {
+            // 事务库不可读时保持现有状态，不静默清空警示
+        }
+    }
+
+    private void UpdateGlobalStatusFromRecords(IEnumerable<MigrationTransactionRecord> records)
+    {
+        var distinct = records.DistinctBy(r => r.TransactionId).ToArray();
+        int unverified = UnverifiedExitConfirmation.SelectPendingUnverified(distinct).Length;
+        int recoveryCount = distinct.Count(r => r.Stage == MigrationStage.RecoveryRequired);
+        ApplyGlobalStatusCounts(unverified, recoveryCount);
+    }
+
+    private void ApplyGlobalStatusCounts(int unverified, int recoveryCount)
+    {
+        UnverifiedBackupCount = unverified;
+        RecoveryRequiredCount = recoveryCount;
+        RecoveryBannerMessage = recoveryCount == 0
+            ? string.Empty
+            : $"检测到 {recoveryCount} 个上次异常中断的迁移事务（RecoveryRequired）";
+        if (DiskScanPage is DiskScanPage dp && dp.DataContext is DiskScanViewModel dvm)
+        {
+            dvm.SyncUnverifiedBackupCount(unverified);
+        }
+    }
+
     public async Task RefreshDisplayedTransactionAsync(Guid transactionId)
     {
         if (BackupTask?.TransactionId == transactionId) await RefreshBackupTaskAsync(transactionId);
+        await RefreshGlobalStatusAsync();
     }
 
     public async Task<bool> ConfirmCloseAsync()
@@ -1256,6 +1397,11 @@ public partial class MainViewModel : ObservableObject
         if (IsMigrating) CancelMigration();
         if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm && vm.IsExecuting)
             vm.CancelExecutionCommand.Execute(null);
+        if (DiskScanPage is DiskScanPage dsp && dsp.DataContext is DiskScanViewModel dvm)
+        {
+            if (dvm.IsBatchExecuting) dvm.CancelBatchCommand.Execute(null);
+            if (dvm.IsScanning) dvm.CancelScanCommand.Execute(null);
+        }
     }
 
     private void AddLog(string message)

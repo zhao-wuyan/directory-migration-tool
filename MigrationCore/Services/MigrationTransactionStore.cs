@@ -34,7 +34,7 @@ public sealed class MigrationTransactionStore
     {
         Validate(record);
         if (record.Revision != 0) throw new InvalidOperationException("新事务 revision 必须为 0。");
-        using FileStream guard = Lock();
+        using FileStream guard = await LockAsync(ct).ConfigureAwait(false);
         _identity.RequireMissing(RecordPath(record.TransactionId));
         _identity.RequireSame(record.SourcePath, record.SourceIdentity);
         _identity.RequireSame(Path.GetDirectoryName(record.TargetPath)!, record.TargetParentIdentity);
@@ -50,20 +50,20 @@ public sealed class MigrationTransactionStore
 
     public async Task<MigrationTransactionRecord?> LoadAsync(Guid transactionId, CancellationToken ct = default)
     {
-        using FileStream guard = Lock();
+        using FileStream guard = await LockAsync(ct).ConfigureAwait(false);
         return await ReadUnlocked(transactionId, ct).ConfigureAwait(false);
     }
 
     public async Task<MigrationTransactionRecord[]> ReadAllAsync(CancellationToken ct = default)
     {
-        using FileStream guard = Lock();
+        using FileStream guard = await LockAsync(ct).ConfigureAwait(false);
         return await ReadAllUnlocked(ct).ConfigureAwait(false);
     }
 
     public async Task<MigrationTransactionRecord> SaveAsync(MigrationTransactionRecord record, long expectedRevision, CancellationToken ct = default)
     {
         Validate(record);
-        using FileStream guard = Lock();
+        using FileStream guard = await LockAsync(ct).ConfigureAwait(false);
         MigrationTransactionRecord current = await ReadUnlocked(record.TransactionId, ct).ConfigureAwait(false)
             ?? throw new IOException("事务记录缺失，不能重建或认领备份。");
         if (current.Revision != expectedRevision || record.Revision != expectedRevision)
@@ -86,14 +86,29 @@ public sealed class MigrationTransactionStore
         return saved;
     }
 
-    private FileStream Lock()
+    private async Task<FileStream> LockAsync(CancellationToken ct = default)
     {
         MigrationRuntime.AssertStatePath(DirectoryPath);
         _identity.RequireSame(DirectoryPath, _rootIdentity);
         string path = Path.Combine(DirectoryPath, ".transactions.lock");
-        DirectoryIdentity? existing = _identity.ReadIfExists(path);
-        if (existing is { IsReparsePoint: true } or { IsDirectory: true }) throw new IOException("事务锁不是普通文件。");
-        return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        const int maxAttempts = 20;
+        for (int attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            DirectoryIdentity? existing = _identity.ReadIfExists(path);
+            if (existing is { IsReparsePoint: true } or { IsDirectory: true }) throw new IOException("事务锁不是普通文件。");
+            try
+            {
+                return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex) when (attempt + 1 < maxAttempts
+                && (ex.HResult == unchecked((int)0x80070020) || ex.HResult == unchecked((int)0x80070021)))
+            {
+                // 异步有界短退避重试，避免阻塞 WPF UI 线程同时缓解读写并发锁争用
+                int delayMs = Math.Min(15 + attempt * 5, 80);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private string RecordPath(Guid id)

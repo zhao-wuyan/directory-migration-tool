@@ -13,7 +13,9 @@ internal static partial class Program
     private static string[] CaseNames(string suite) => suite switch
     {
         "Identity" => IdentityCaseNames, "Probe" => ProbeCaseNames, "Copy" => CopyCaseNames,
-        "Switch" => SwitchCaseNames, "Backup" => BackupCaseNames, "Regression" => RegressionCaseNames, _ => BoundaryCaseNames
+        "Switch" => SwitchCaseNames, "Backup" => BackupCaseNames, "Regression" => RegressionCaseNames,
+        "Policy" => PolicyCaseNames, "MftScan" => MftScanCaseNames, "Batch" => BatchCaseNames,
+        _ => BoundaryCaseNames
     };
 
     private sealed record AcceptanceEvidence(string Id, string Status, string[] CaseRefs, Dictionary<string, object?>[] Inputs, string[] Errors);

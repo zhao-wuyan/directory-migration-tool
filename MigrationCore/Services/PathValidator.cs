@@ -1,40 +1,20 @@
+using MigrationCore.Models.Safety;
+using MigrationCore.Services.Safety;
+
 namespace MigrationCore.Services;
 
 /// <summary>
-/// 路径验证服务
+/// 路径验证服务（已收敛委托至统一 4 级安全策略 MigrationSafetyPolicy，消除手动/一键/扫描入口双标）。
 /// </summary>
 public static class PathValidator
 {
-    private static readonly string[] BlockedPaths = new[]
+    private static string? GetMutationPathError(string path, bool allowLeafReparseForRestore)
     {
-        Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Microsoft")
-    };
-
-    private static readonly string[] WarningPaths = new[]
-    {
-        @"OneDrive",
-        @"Dropbox",
-        @"Google Drive",
-        @"iCloudDrive"
-    };
-
-    private static string? GetMutationPathError(string path)
-    {
-        try
-        {
-            string full = PathIdentityService.Normalize(path);
-            if (full.Length == 3) return "不允许操作驱动器根目录。";
-            foreach (string blocked in BlockedPaths)
-                if (Path.IsPathFullyQualified(blocked) && PathIdentityService.IsWithin(full, blocked))
-                    return $"不允许操作系统关键目录：{blocked}";
-            if (PathIdentityService.IsWithin(full, Path.Combine(full[..3], "System Volume Information")))
-                return "不允许操作卷系统信息目录。";
-            return null;
-        }
-        catch (Exception ex) { return $"路径无效：{ex.Message}"; }
+        SafetyPolicyDecision decision = MigrationSafetyPolicy.EvaluateL0HardDeny(
+            path,
+            allowLeafReparseForRestore: allowLeafReparseForRestore,
+            checkFilesystem: false);
+        return decision.IsHardDenied ? decision.Summary : null;
     }
 
     /// <summary>
@@ -47,7 +27,8 @@ public static class PathValidator
     }
 
     /// <summary>
-    /// 检查目录是否包含用户数据（忽略标记文件）
+    /// 检查目录是否包含用户数据（忽略标记文件）。
+    /// 失败封闭：当目录无权访问或枚举异常时按“存在不可核实内容”返回 true，禁止把异常目录误判为空目标。
     /// </summary>
     public static bool HasUserContent(string directoryPath)
     {
@@ -58,39 +39,53 @@ public static class PathValidator
         }
         catch
         {
-            return false;
+            return true;
         }
     }
 
     /// <summary>
-    /// 验证源路径是否合法
+    /// 验证源路径是否合法（委托给 MigrationSafetyPolicy：L0 硬拒绝一律拦截，L1 放行，L2/L3 附带明确风险/引导提示）。
     /// </summary>
     public static (bool IsValid, string? Error, string? Warning) ValidateSourcePath(string sourcePath)
     {
         if (string.IsNullOrWhiteSpace(sourcePath))
             return (false, "源路径不能为空", null);
 
-        string? pathError = GetMutationPathError(sourcePath);
+        string? pathError = GetMutationPathError(sourcePath, allowLeafReparseForRestore: false);
         if (pathError is not null) return (false, pathError, null);
+
         string fullPath = PathIdentityService.Normalize(sourcePath);
         if (!Directory.Exists(fullPath)) return (false, "源目录不存在", null);
 
-        // 检查是否为云盘同步目录
-        string? warning = null;
-        foreach (var warningPath in WarningPaths)
+        SafetyPolicyDecision decision = MigrationSafetyPolicy.EvaluateSource(
+            fullPath,
+            matcher: null,
+            context: SafetyEvaluationContext.NewMigration,
+            checkFilesystem: true);
+
+        if (decision.IsHardDenied)
         {
-            if (fullPath.Contains(warningPath, StringComparison.OrdinalIgnoreCase))
-            {
-                warning = $"警告: 该目录可能位于云盘同步文件夹（{warningPath}），迁移可能导致同步冲突";
-                break;
-            }
+            return (false, decision.Summary, null);
+        }
+
+        string? warning = null;
+        if (decision.Level == MigrationAdmissionLevel.VendorNativeRecommended)
+        {
+            warning = decision.Warnings is { Length: > 0 }
+                ? string.Join(Environment.NewLine, decision.Warnings)
+                : decision.NativeGuidance ?? decision.Summary;
+        }
+        else if (decision.Warnings is { Length: > 0 } && decision.Level == MigrationAdmissionLevel.ManualRiskConfirm)
+        {
+            // 手动模式与一键模式保留清晰非阻塞风险提示，L0 已在上方强制拦截
+            warning = decision.Warnings.FirstOrDefault(w => w.Contains("Program Files", StringComparison.OrdinalIgnoreCase));
         }
 
         return (true, null, warning);
     }
 
     /// <summary>
-    /// 验证目标路径是否合法
+    /// 验证目标路径是否合法（委托给 MigrationSafetyPolicy.EvaluateTarget，禁止落入 L0 硬禁区或经重解析祖先绕过）。
     /// </summary>
     public static (bool IsValid, string? Error) ValidateTargetPath(string targetPath)
     {
@@ -99,21 +94,18 @@ public static class PathValidator
 
         try
         {
-            string? pathError = GetMutationPathError(targetPath);
+            string? pathError = GetMutationPathError(targetPath, allowLeafReparseForRestore: true);
             if (pathError is not null) return (false, pathError);
+
             string fullPath = PathIdentityService.Normalize(targetPath);
             string? parentDir = Path.GetDirectoryName(fullPath);
-            
+
             if (string.IsNullOrEmpty(parentDir))
                 return (false, "无法解析目标路径的父目录");
 
-            // 检查父目录是否存在或可创建
-            if (!Directory.Exists(parentDir))
-            {
-                DriveInfo? drive = new DriveInfo(Path.GetPathRoot(parentDir) ?? "C:\\");
-                if (!drive.IsReady)
-                    return (false, "目标驱动器不可用");
-            }
+            SafetyPolicyDecision targetDecision = MigrationSafetyPolicy.EvaluateTarget(fullPath, checkFilesystem: true);
+            if (targetDecision.IsHardDenied)
+                return (false, targetDecision.Summary);
 
             return (true, null);
         }
@@ -124,21 +116,29 @@ public static class PathValidator
     }
 
     /// <summary>
-    /// 检查目标目录是否为空
+    /// 检查目标目录是否为空（严格失败封闭：文件占位、重解析点、权限拒绝或任意异常一律返回 false）。
     /// </summary>
     public static (bool IsEmpty, string? Error) IsTargetDirectoryEmpty(string targetPath)
     {
         try
         {
-            if (!Directory.Exists(targetPath))
+            var identity = new PathIdentityService();
+            var existing = identity.ReadIfExists(targetPath);
+            if (existing is null)
             {
-                // 目录不存在，视为空目录（可以创建）
+                // 经 Win32 句柄确认目录确实不存在，视为空目录（可以创建）
                 return (true, null);
             }
 
-            // 检查目录是否包含用户数据（忽略标记文件）
-            bool hasAnyContent = HasUserContent(targetPath);
-            
+            if (existing.IsReparsePoint || !existing.IsDirectory)
+            {
+                return (false, "目标路径已被文件或重解析点占用，禁止迁移");
+            }
+
+            // 直接枚举，避免被内部吞异常掩盖真实访问拒绝原因
+            bool hasAnyContent = Directory.EnumerateFileSystemEntries(targetPath)
+                .Any(entry => !IsMarkerFile(Path.GetFileName(entry)));
+
             if (hasAnyContent)
             {
                 return (false, "目标目录已存在且不为空，禁止迁移");

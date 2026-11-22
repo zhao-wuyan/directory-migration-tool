@@ -86,6 +86,9 @@ internal static partial class Program
                 else if (current == "Copy") await RunCopyCases(lab, attemptId.Value, selected);
                 else if (current == "Switch") await RunSwitchCases(lab, attemptId.Value, selected);
                 else if (current == "Regression") await RunRegressionCases(lab, attemptId.Value, selected);
+                else if (current == "Policy") await RunPolicyCases(lab, attemptId.Value, selected);
+                else if (current == "MftScan") await RunMftScanCases(lab, attemptId.Value, selected);
+                else if (current == "Batch") await RunBatchCases(lab, attemptId.Value, selected);
                 else if (current is "Backup" or "Recycle" or "Verification") await RunBackupCases(lab, attemptId.Value, selected);
                 else await RunCases(lab, attemptId.Value, selected);
             }
@@ -114,8 +117,8 @@ internal static partial class Program
 
     private static Lab LoadLab(string[] args)
     {
-        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup" or "Recycle" or "Verification" or "All"],
-            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup|Recycle|Verification|All.");
+        Require(args is ["--lab", _, "--run-id", _, "--suite", "Boundary" or "Identity" or "Probe" or "Copy" or "Switch" or "Backup" or "Recycle" or "Verification" or "Policy" or "MftScan" or "Batch" or "All"],
+            "Expected --lab <registered lab.json> --run-id <GUID D> --suite Boundary|Identity|Probe|Copy|Switch|Backup|Recycle|Verification|Policy|MftScan|Batch|All.");
         Require(OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) && PathValidator.IsAdministrator(),
             "The Windows lab requires an elevated process on Windows 10 build 19041 or later.");
         Guid runId = ParseGuid(args[3], "launch run ID");

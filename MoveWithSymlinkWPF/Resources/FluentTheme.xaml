@@ -1,0 +1,431 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 统一轻量 Fluent 视觉令牌（严格对齐 docs/untitled.pen variables） -->
+    <SolidColorBrush x:Key="FluentCanvasBrush" Color="#F4F6F9"/>
+    <SolidColorBrush x:Key="FluentSurfaceBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="FluentSubtleBrush" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="FluentTrackBrush" Color="#EEF2F6"/>
+    <SolidColorBrush x:Key="FluentBorderBrush" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="FluentBorderStrongBrush" Color="#CBD5E1"/>
+
+    <SolidColorBrush x:Key="FluentInkBrush" Color="#0F172A"/>
+    <SolidColorBrush x:Key="FluentBodyBrush" Color="#334155"/>
+    <SolidColorBrush x:Key="FluentMutedBrush" Color="#64748B"/>
+
+    <SolidColorBrush x:Key="FluentPrimaryBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="FluentPrimaryHoverBrush" Color="#005A9E"/>
+    <SolidColorBrush x:Key="FluentPrimaryPressBrush" Color="#004578"/>
+    <SolidColorBrush x:Key="FluentPrimarySoftBrush" Color="#EBF5FF"/>
+    <SolidColorBrush x:Key="FluentPrimaryBorderBrush" Color="#BFDBFE"/>
+    <SolidColorBrush x:Key="FluentCyanBrush" Color="#0EA5E9"/>
+    <SolidColorBrush x:Key="FluentOrangeWarnBrush" Color="#E67E22"/>
+
+    <!-- L0 / L1 / L2 / L3 语义色板 -->
+    <SolidColorBrush x:Key="FluentGreenBrush" Color="#0F7B4B"/>
+    <SolidColorBrush x:Key="FluentGreenAccentBrush" Color="#10B981"/>
+    <SolidColorBrush x:Key="FluentGreenSoftBrush" Color="#ECFDF5"/>
+    <SolidColorBrush x:Key="FluentGreenBorderBrush" Color="#A7F3D0"/>
+
+    <SolidColorBrush x:Key="FluentAmberBrush" Color="#B45309"/>
+    <SolidColorBrush x:Key="FluentAmberSoftBrush" Color="#FFFBEB"/>
+    <SolidColorBrush x:Key="FluentAmberBorderBrush" Color="#FDE68A"/>
+
+    <SolidColorBrush x:Key="FluentRedBrush" Color="#C42B1C"/>
+    <SolidColorBrush x:Key="FluentRedSoftBrush" Color="#FEF2F2"/>
+    <SolidColorBrush x:Key="FluentRedBorderBrush" Color="#FECACA"/>
+
+    <!-- 24x24 Lucide 风格线性矢量图标几何定义（高 DPI 锐利清晰，无外置字体依赖） -->
+    <Geometry x:Key="IconFolderInput">M2 9V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1 M2 13h10 M9 10l3 3-3 3</Geometry>
+    <Geometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</Geometry>
+    <Geometry x:Key="IconRadar">M19.07 4.93A10 10 0 0 0 6.99 3.34 M4 6h.01 M2.29 9.62A10 10 0 1 0 21.31 8.35 M16.24 7.76A6 6 0 1 0 8.23 16.67 M12 18h.01 M17.99 11.66A6 6 0 0 1 15.77 16.67 M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M13.41 10.59l5.66-5.66</Geometry>
+    <Geometry x:Key="IconArchive">M21 8v13H3V8 M1 3h22v5H1z M10 12h4</Geometry>
+    <Geometry x:Key="IconBookOpen">M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z</Geometry>
+    <Geometry x:Key="IconHardDrive">M22 12H2 M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z M6 16h.01 M10 16h.01</Geometry>
+    <Geometry x:Key="IconRefreshCw">M21 2v6h-6 M3 12a9 9 0 0 1 15-6.7L21 8 M3 22v-6h6 M21 12a9 9 0 0 1-15 6.7L3 16</Geometry>
+    <Geometry x:Key="IconPlay">M5 3l14 9-14 9V3z</Geometry>
+    <Geometry x:Key="IconX">M18 6L6 18 M6 6l12 12</Geometry>
+    <Geometry x:Key="IconSearch">M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M21 21l-4.35-4.35</Geometry>
+    <Geometry x:Key="IconFolder">M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z</Geometry>
+    <Geometry x:Key="IconFolderOpen">M6 14l1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2</Geometry>
+    <Geometry x:Key="IconShieldCheck">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4</Geometry>
+    <Geometry x:Key="IconShieldBan">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M4.2 19.8L19.8 4.2</Geometry>
+    <Geometry x:Key="IconTriangleAlert">M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01</Geometry>
+    <Geometry x:Key="IconArrowRight">M5 12h14 M12 5l7 7-7 7</Geometry>
+    <Geometry x:Key="IconArrowLeft">M19 12H5 M12 19l-7-7 7-7</Geometry>
+    <Geometry x:Key="IconRotateCcw">M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5</Geometry>
+    <Geometry x:Key="IconCheckCircle">M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3</Geometry>
+    <Geometry x:Key="IconCheck">M20 6L9 17l-5-5</Geometry>
+    <Geometry x:Key="IconExternalLink">M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3</Geometry>
+    <Geometry x:Key="IconLock">M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4</Geometry>
+    <Geometry x:Key="IconListChecks">M3 17l2 2 4-4 M3 7l2 2 4-4 M13 6h8 M13 12h8 M13 18h8</Geometry>
+    <Geometry x:Key="IconTerminal">M4 17l6-6-6-6 M12 19h8</Geometry>
+    <Geometry x:Key="IconCopy">M9 9h13v13H9z M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1</Geometry>
+    <Geometry x:Key="IconClock">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2</Geometry>
+    <Geometry x:Key="IconInfo">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 16v-4 M12 8h.01</Geometry>
+    <Geometry x:Key="IconSquare">M4 4h16v16H4z</Geometry>
+
+    <!-- 轻量卡片容器样式 -->
+    <Style x:Key="FluentCardBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource FluentSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource FluentBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <!-- 顶栏分段胶囊导航按钮（支持 Tag="Active" 选中态；不继承 App.xaml RenderTransform 动画） -->
+    <Style x:Key="FluentNavPillButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#334155"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Padding" Value="13,0"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="MinWidth" Value="74"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="pill"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="pill" Property="Background" Value="#E2E8F0"/>
+                            <Setter Property="Foreground" Value="#0F172A"/>
+                        </Trigger>
+                        <Trigger Property="Tag" Value="Active">
+                            <Setter TargetName="pill" Property="Background" Value="#FFFFFF"/>
+                            <Setter TargetName="pill" Property="BorderBrush" Value="#E2E8F0"/>
+                            <Setter TargetName="pill" Property="BorderThickness" Value="1"/>
+                            <Setter Property="Foreground" Value="#0078D4"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter TargetName="pill" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="#0F172A" Opacity="0.07" BlurRadius="5" ShadowDepth="1" Direction="270"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 轻量主操作按钮 -->
+    <Style x:Key="FluentPrimaryButtonStyle" TargetType="Button">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#0078D4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="14,0"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="MinWidth" Value="80"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#004578"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Background" Value="#E2E8F0"/>
+                            <Setter Property="Foreground" Value="#94A3B8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 轻量次要/轮廓按钮 -->
+    <Style x:Key="FluentSecondaryButtonStyle" TargetType="Button">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="#0F172A"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,0"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="MinWidth" Value="64"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="7"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#F8FAFC"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#EEF2F6"/>
+                        </Trigger>
+                        <Trigger Property="Tag" Value="Active">
+                            <Setter TargetName="border" Property="Background" Value="#EBF5FF"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="#0078D4"/>
+                            <Setter Property="Foreground" Value="#0078D4"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Background" Value="#F8FAFC"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="#E2E8F0"/>
+                            <Setter Property="Foreground" Value="#94A3B8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 浅蓝状态操作按钮（如「正在扫描…」「AI 建议」） -->
+    <Style x:Key="FluentSoftPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentSecondaryButtonStyle}">
+        <Setter Property="Background" Value="#EBF5FF"/>
+        <Setter Property="BorderBrush" Value="#BFDBFE"/>
+        <Setter Property="Foreground" Value="#0078D4"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- 危险/警示按钮 -->
+    <Style x:Key="FluentDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentSecondaryButtonStyle}">
+        <Setter Property="Background" Value="#FEF2F2"/>
+        <Setter Property="BorderBrush" Value="#FECACA"/>
+        <Setter Property="Foreground" Value="#C42B1C"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- 纯图标紧凑按钮（用于目录树展开/收起 ▸▾、打开文件夹图标按钮等；不继承全局 ScaleTransform 动画，根治 RenderTransform 异常） -->
+    <Style x:Key="FluentIconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#64748B"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="MinWidth" Value="18"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="5"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="#E2E8F0"/>
+                            <Setter Property="Foreground" Value="#0F172A"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="#CBD5E1"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 文本链接风格轻量按钮（用于清单页「修改目标」「移除」「重新检测进程」） -->
+    <Style x:Key="FluentLinkButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#0078D4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Height" Value="Auto"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background" Value="#EBF5FF"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 圆角胶囊进度条样式（用于磁盘容量条、扫描进度条、WizTree 行内占比条） -->
+    <Style x:Key="FluentProgressBarStyle" TargetType="ProgressBar">
+        <Setter Property="Background" Value="#EEF2F6"/>
+        <Setter Property="Foreground" Value="#0078D4"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Height" Value="6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid x:Name="TemplateRoot" SnapsToDevicePixels="True">
+                        <Border x:Name="PART_Track"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="3"/>
+                        <Border x:Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="3"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 紧凑 Fluent 输入/搜索框样式（通过 Tag 展示占位提示） -->
+    <Style x:Key="FluentCompactTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="Background" Value="#FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="#0F172A"/>
+        <Setter Property="CaretBrush" Value="#0078D4"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="7"
+                            SnapsToDevicePixels="True">
+                        <Grid Margin="{TemplateBinding Padding}">
+                            <TextBlock x:Name="placeholder"
+                                       Text="{TemplateBinding Tag}"
+                                       Foreground="#94A3B8"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False"
+                                       Visibility="Collapsed"/>
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="placeholder" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="Text" Value="{x:Null}">
+                            <Setter TargetName="placeholder" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="#94A3B8"/>
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="#0078D4"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Background" Value="#F8FAFC"/>
+                            <Setter Property="Foreground" Value="#94A3B8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 支持虚拟化的轻量 Fluent ScrollViewer 样式（显式透传 CanContentScroll） -->
+    <Style x:Key="FluentScrollViewerStyle" TargetType="{x:Type ScrollViewer}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ScrollContentPresenter Grid.Column="0" Grid.Row="0"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"/>
+
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   Grid.Column="1"
+                                   Grid.Row="0"
+                                   Width="10"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   Grid.Column="0"
+                                   Grid.Row="1"
+                                   Height="10"
+                                   Orientation="Horizontal"
+                                   Value="{TemplateBinding HorizontalOffset}"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

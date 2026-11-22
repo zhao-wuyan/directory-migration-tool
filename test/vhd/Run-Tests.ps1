@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][guid]$RunId,
     [Parameter(Mandatory = $true)]
-    [ValidateSet('Boundary', 'Identity', 'Probe', 'Copy', 'Switch', 'Backup', 'Recycle', 'Verification', 'All')]
+    [ValidateSet('Boundary', 'Identity', 'Probe', 'Copy', 'Switch', 'Backup', 'Recycle', 'Verification', 'Policy', 'MftScan', 'Batch', 'All')]
     [string]$Suite,
     [switch]$LaunchUi
 )

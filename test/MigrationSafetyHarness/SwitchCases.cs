@@ -117,7 +117,12 @@ internal static partial class Program
         await Case("A20-data-repair", async o =>
         {
             var f = NewSwitchFixture(lab, attempt, "data-repair");
-            await CopyFixtureData(lab, f);
+            var copy = await CopyFixtureData(lab, f);
+            // 前置复制夹具会留下活动态 CopyVerified 事务；将其显式标记为非活动失败态，
+            // 既保留生产代码对活动事务禁止修复的安全护栏，也覆盖"源/目标已有完整数据"的修复验收场景。
+            await new MigrationTransactionStore().SaveAsync(
+                copy.Transaction with { Stage = MigrationStage.Failed, LastError = "simulated prior stop" },
+                copy.Transaction.Revision);
             var repaired = await new RepairService(SwitchConfig(f)).ExecuteAsync();
             AssertSwitched(f, repaired, o);
         });

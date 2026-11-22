@@ -5,6 +5,8 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- 统一轻量 Fluent 主题资源 -->
+                <ResourceDictionary Source="Resources/FluentTheme.xaml"/>
                 <!-- 应用矢量图标资源 -->
                 <ResourceDictionary Source="Resources/AppIcon.xaml"/>
                 <!-- 使用说明文字资源 -->
@@ -342,7 +344,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <ScrollContentPresenter Grid.Column="0" Grid.Row="0"/>
+                                <ScrollContentPresenter Grid.Column="0" Grid.Row="0" CanContentScroll="{TemplateBinding CanContentScroll}"/>
 
                                 <ScrollBar x:Name="PART_VerticalScrollBar"
                                           Grid.Column="1"

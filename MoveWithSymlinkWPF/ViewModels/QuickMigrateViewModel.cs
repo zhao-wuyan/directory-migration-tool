@@ -185,7 +185,8 @@ public partial class QuickMigrateViewModel : ObservableObject
     [ObservableProperty]
     private bool _useContentHash;
     public Task Initialization { get; }
-    private bool OtherEntryBusy => Application.Current.MainWindow?.DataContext is MainViewModel main && main.IsMigrating;
+    private bool OtherEntryBusy => OperationExecutionGate.Shared.IsBusy
+        || (Application.Current.MainWindow?.DataContext is MainViewModel main && main.IsMigrating);
 
     public QuickMigrateViewModel()
     {
@@ -651,6 +652,16 @@ public partial class QuickMigrateViewModel : ObservableObject
             return;
         }
 
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire(
+            "QuickMigrateBatch",
+            $"一键迁移（共 {tasks.Count} 项）",
+            tasks.SelectMany(t => new[] { t.SourcePath, t.TargetPath }).ToArray());
+        if (gateLease is null)
+        {
+            CustomMessageBox.ShowWarning("当前已有其他迁移或备份任务正在运行，请等待完成后重试。", "操作互斥");
+            return;
+        }
+
         IsExecuting = true;
         CompletedCount = 0;
         FailedCount = 0;
@@ -816,6 +827,8 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         // 刷新任务列表（_lastTaskErrors 会保留未入事务的失败状态供卡片展示）
         ScanAndBuildTasks();
+        if (Application.Current.MainWindow?.DataContext is MainViewModel main)
+            _ = main.RefreshGlobalStatusAsync();
 
         if (!wasCancelled && FailedCount > 0)
         {
@@ -855,6 +868,16 @@ public partial class QuickMigrateViewModel : ObservableObject
         if (!result)
             return;
 
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire(
+            "QuickMigrateSingle",
+            $"一键迁移单项：{task.DisplayName}",
+            [task.SourcePath, task.TargetPath]);
+        if (gateLease is null)
+        {
+            CustomMessageBox.ShowWarning("当前已有其他迁移或备份任务正在运行，请等待完成后重试。", "操作互斥");
+            return;
+        }
+
         IsExecuting = true;
         CompletedCount = 0;
         FailedCount = 0;
@@ -886,6 +909,8 @@ public partial class QuickMigrateViewModel : ObservableObject
             _cancellationTokenSource = null;
             IsExecuting = false;
             ScanAndBuildTasks();
+            if (Application.Current.MainWindow?.DataContext is MainViewModel main)
+                _ = main.RefreshGlobalStatusAsync();
         }
 
         if (!wasCancelled && failureDetail is not null)
@@ -909,6 +934,16 @@ public partial class QuickMigrateViewModel : ObservableObject
 
         if (!result)
             return;
+
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire(
+            "QuickMigrateRestore",
+            $"一键还原：{task.DisplayName}",
+            [task.SourcePath, task.TargetPath]);
+        if (gateLease is null)
+        {
+            CustomMessageBox.ShowWarning("当前已有其他迁移或备份任务正在运行，请等待完成后重试。", "操作互斥");
+            return;
+        }
 
         IsExecuting = true;
         CompletedCount = 0;
@@ -935,6 +970,8 @@ public partial class QuickMigrateViewModel : ObservableObject
             _cancellationTokenSource.Dispose(); _cancellationTokenSource = null;
             IsExecuting = false;
             ScanAndBuildTasks();
+            if (Application.Current.MainWindow?.DataContext is MainViewModel main)
+                _ = main.RefreshGlobalStatusAsync();
         }
 
         if (succeeded)
@@ -956,6 +993,11 @@ public partial class QuickMigrateViewModel : ObservableObject
     private async Task VerifyTaskDataAsync(QuickMigrateTask task)
     {
         if (IsExecuting || OtherEntryBusy || task.TransactionId is not Guid id) return;
+        using var gateLease = OperationExecutionGate.Shared.TryAcquire(
+            "QuickMigrateBackupVerify",
+            $"验证并处理备份：{task.DisplayName}",
+            [task.SourcePath, task.TargetPath]);
+        if (gateLease is null) return;
         IsExecuting = true;
         try
         {
@@ -968,6 +1010,8 @@ public partial class QuickMigrateViewModel : ObservableObject
         {
             IsExecuting = false;
             ScanAndBuildTasks();
+            if (Application.Current.MainWindow?.DataContext is MainViewModel main)
+                _ = main.RefreshGlobalStatusAsync();
         }
     }
 
