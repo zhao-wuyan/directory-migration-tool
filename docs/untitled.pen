@@ -418,7 +418,7 @@
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "受审缓存/日志规则、同卷长路径隔离区（可选回收站）、冲突保留双方与人工删除。",
+                  "content": "对标 DISM++ 系统缓存与官方组件回收；建议清理 / 按需清理 / 谨慎清理三档分级 + 三层「为什么谨慎」提示与同卷隔离区。",
                   "lineHeight": 1.45,
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11.5,
@@ -14759,2044 +14759,6 @@
     },
     {
       "type": "frame",
-      "id": "Pp2qY",
-      "x": 0,
-      "y": 1560,
-      "name": "07 垃圾清理 · 分类、规则与明细抽屉",
-      "clip": true,
-      "width": 1000,
-      "height": 700,
-      "fill": "$bg",
-      "cornerRadius": 12,
-      "stroke": "$line-strong",
-      "strokeWidth": 1,
-      "layout": "vertical",
-      "children": [
-        {
-          "type": "frame",
-          "id": "WLWMg",
-          "name": "WinTitleBar",
-          "width": "fill_container",
-          "height": 28,
-          "fill": "$surface",
-          "padding": [
-            0,
-            14
-          ],
-          "justifyContent": "space_between",
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "frame",
-              "id": "e8dGD",
-              "name": "TBLeft",
-              "gap": 6,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "L9QWCb",
-                  "name": "ico-hard-drive",
-                  "width": 12,
-                  "height": 12,
-                  "icon": "hard-drive",
-                  "library": "lucide",
-                  "fill": "$blue"
-                },
-                {
-                  "type": "text",
-                  "id": "Vem0m",
-                  "name": "目录迁移工具 · Directory Mig",
-                  "fill": "$muted",
-                  "content": "目录迁移工具 · Directory Migration Tool",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 11.5,
-                  "fontWeight": "normal"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "KX30W",
-              "name": "TBRight",
-              "gap": 14,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "pa2nh",
-                  "name": "ico-minus",
-                  "width": 13,
-                  "height": 13,
-                  "icon": "minus",
-                  "library": "lucide",
-                  "fill": "$muted"
-                },
-                {
-                  "type": "icon",
-                  "id": "PyabM",
-                  "name": "ico-square",
-                  "width": 11,
-                  "height": 11,
-                  "icon": "square",
-                  "library": "lucide",
-                  "fill": "$muted"
-                },
-                {
-                  "type": "icon",
-                  "id": "xGiyi",
-                  "name": "ico-x",
-                  "width": 13,
-                  "height": 13,
-                  "icon": "x",
-                  "library": "lucide",
-                  "fill": "$muted"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "O1nWzq",
-          "name": "TopNavBar",
-          "width": "fill_container",
-          "height": 58,
-          "fill": "$surface",
-          "stroke": "$line",
-          "strokeWidth": {
-            "bottom": 1
-          },
-          "effect": {
-            "type": "shadow",
-            "shadowType": "outer",
-            "color": "#0F172A08",
-            "offset": {
-              "x": 0,
-              "y": 1
-            },
-            "blur": 3
-          },
-          "padding": [
-            0,
-            18
-          ],
-          "justifyContent": "space_between",
-          "alignItems": "center",
-          "children": [
-            {
-              "type": "frame",
-              "id": "J1cS1",
-              "name": "Brand",
-              "gap": 10,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "zLjAz",
-                  "name": "AppLogo",
-                  "width": 32,
-                  "height": 32,
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 135,
-                    "size": {
-                      "height": 1
-                    },
-                    "colors": [
-                      {
-                        "color": "#1492EB",
-                        "position": 0
-                      },
-                      {
-                        "color": "#006CC8",
-                        "position": 0.55
-                      },
-                      {
-                        "color": "#003E7E",
-                        "position": 1
-                      }
-                    ]
-                  },
-                  "cornerRadius": 8,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A18",
-                    "offset": {
-                      "x": 0,
-                      "y": 1
-                    },
-                    "blur": 4
-                  },
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "CgNhR",
-                      "name": "ico-folder-symlink",
-                      "width": 18,
-                      "height": 18,
-                      "icon": "folder-symlink",
-                      "library": "lucide",
-                      "fill": "#FFFFFF"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "TEUQ2",
-                  "name": "BrandText",
-                  "layout": "vertical",
-                  "gap": 1,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "KyuWJ",
-                      "name": "目录迁移",
-                      "fill": "$ink",
-                      "content": "目录迁移",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 14.5,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "IErdd",
-                      "name": "v2.0 Fluent",
-                      "fill": "$muted",
-                      "content": "v2.0 Fluent",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 10.5,
-                      "fontWeight": "500"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "ZCX1G",
-              "name": "ModeSegmented",
-              "fill": "$track",
-              "cornerRadius": 10,
-              "stroke": "$line",
-              "strokeWidth": 1,
-              "gap": 4,
-              "padding": 4,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "ZyiEX",
-                  "name": "Tab-手动模式",
-                  "fill": "#00000000",
-                  "cornerRadius": 7,
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    13
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "yCahA",
-                      "name": "ico-folder-input",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "folder-input",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "pk1xr",
-                      "name": "手动模式",
-                      "fill": "$body",
-                      "content": "手动模式",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.5,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "hNHuC",
-                  "name": "Tab-一键迁移",
-                  "fill": "#00000000",
-                  "cornerRadius": 7,
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    13
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "Bk9Sg",
-                      "name": "ico-zap",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "zap",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "KOoFJ",
-                      "name": "一键迁移",
-                      "fill": "$body",
-                      "content": "一键迁移",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.5,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "G4r6MI",
-                  "name": "Tab-磁盘扫描",
-                  "fill": "#00000000",
-                  "cornerRadius": 7,
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    13
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "AoGNs",
-                      "name": "ico-radar",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "radar",
-                      "library": "lucide",
-                      "fill": "$muted"
-                    },
-                    {
-                      "type": "text",
-                      "id": "HI0tv",
-                      "name": "磁盘扫描",
-                      "fill": "$body",
-                      "content": "磁盘扫描",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.5,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "zIhs9",
-                  "name": "Tab-垃圾清理",
-                  "fill": "$surface",
-                  "cornerRadius": 7,
-                  "stroke": "$line",
-                  "strokeWidth": 1,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A18",
-                    "offset": {
-                      "x": 0,
-                      "y": 1
-                    },
-                    "blur": 4
-                  },
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    13
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "sjoU4",
-                      "name": "ico-sparkles",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "sparkles",
-                      "library": "lucide",
-                      "fill": "$blue"
-                    },
-                    {
-                      "type": "text",
-                      "id": "jdgqf",
-                      "name": "垃圾清理",
-                      "fill": "$blue",
-                      "content": "垃圾清理",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.5,
-                      "fontWeight": "600"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "HQFXB",
-              "name": "NavTools",
-              "gap": 8,
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "o1Jq1J",
-                  "name": "GlobalBackupBtn",
-                  "fill": "$surface",
-                  "cornerRadius": 8,
-                  "stroke": "$line-strong",
-                  "strokeWidth": 1,
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    11
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "ZzlMC",
-                      "name": "ico-archive",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "archive",
-                      "library": "lucide",
-                      "fill": "$body"
-                    },
-                    {
-                      "type": "text",
-                      "id": "BNEh5",
-                      "name": "备份管理",
-                      "fill": "$ink",
-                      "content": "备份管理",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12,
-                      "fontWeight": "500"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "r8YsuK",
-                      "name": "BackupBadge",
-                      "fill": "$amber",
-                      "cornerRadius": 99,
-                      "padding": [
-                        1,
-                        6
-                      ],
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "i6id0",
-                          "name": "2",
-                          "fill": "#FFFFFF",
-                          "content": "2",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 10.5,
-                          "fontWeight": "700"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "BPMvP",
-                  "name": "HelpBtn",
-                  "width": 32,
-                  "height": 32,
-                  "fill": "$surface",
-                  "cornerRadius": 8,
-                  "stroke": "$line-strong",
-                  "strokeWidth": 1,
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "SB4W6",
-                      "name": "ico-circle-help",
-                      "width": 15,
-                      "height": 15,
-                      "icon": "book-open",
-                      "library": "lucide",
-                      "fill": "$body"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "VIIhP",
-          "name": "PageBody",
-          "width": "fill_container",
-          "height": "fill_container",
-          "layout": "vertical",
-          "gap": 10,
-          "padding": [
-            12,
-            18
-          ],
-          "children": [
-            {
-              "type": "frame",
-              "id": "xQU79",
-              "name": "S07Head",
-              "width": "fill_container",
-              "justifyContent": "space_between",
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "iqskR",
-                  "name": "S07HL",
-                  "layout": "vertical",
-                  "gap": 2,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "GeR1M",
-                      "name": "S07T",
-                      "gap": 8,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "nVM0G",
-                          "name": "独立垃圾清理",
-                          "fill": "$ink",
-                          "content": "独立垃圾清理",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 19,
-                          "fontWeight": "700"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "TwaeS",
-                          "name": "badge-三期功能 · 仅限受审可重建缓存与过期日志",
-                          "fill": "$amber-soft",
-                          "cornerRadius": 99,
-                          "stroke": "$amber-border",
-                          "strokeWidth": 1,
-                          "gap": 5,
-                          "padding": [
-                            3,
-                            9
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "icon",
-                              "id": "l2Pk1",
-                              "name": "ico-sparkles",
-                              "width": 12,
-                              "height": 12,
-                              "icon": "sparkles",
-                              "library": "lucide",
-                              "fill": "$amber"
-                            },
-                            {
-                              "type": "text",
-                              "id": "tLzPb",
-                              "name": "三期功能 · 仅限受审可重建缓存与过期日志",
-                              "fill": "$amber",
-                              "content": "三期功能 · 仅限受审可重建缓存与过期日志",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "PR4Rm",
-                      "name": "默认全部不勾选；永久排除迁移备份、系统组件、",
-                      "fill": "$muted",
-                      "content": "默认全部不勾选；永久排除迁移备份、系统组件、登录凭据与用户数据。先冻结预览，再安全隔离。",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "bAMLZ",
-                  "name": "S07HR",
-                  "gap": 8,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "DyDfJ",
-                      "name": "btn-隔离区 · 3",
-                      "fill": "$blue-soft",
-                      "cornerRadius": 7,
-                      "stroke": "$blue-border",
-                      "strokeWidth": 1,
-                      "gap": 6,
-                      "padding": [
-                        7,
-                        14
-                      ],
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "h8tvs",
-                          "name": "ico-shield",
-                          "width": 14,
-                          "height": 14,
-                          "icon": "shield",
-                          "library": "lucide",
-                          "fill": "$blue"
-                        },
-                        {
-                          "type": "text",
-                          "id": "J3fmi",
-                          "name": "隔离区 · 3",
-                          "fill": "$blue",
-                          "content": "隔离区 · 3",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.5,
-                          "fontWeight": "500"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "BfurY",
-                      "name": "btn-重新扫描",
-                      "fill": "$surface",
-                      "cornerRadius": 7,
-                      "stroke": "$line-strong",
-                      "strokeWidth": 1,
-                      "gap": 6,
-                      "padding": [
-                        7,
-                        14
-                      ],
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "q9JK54",
-                          "name": "ico-refresh-cw",
-                          "width": 14,
-                          "height": 14,
-                          "icon": "refresh-cw",
-                          "library": "lucide",
-                          "fill": "$ink"
-                        },
-                        {
-                          "type": "text",
-                          "id": "V7xMa",
-                          "name": "重新扫描",
-                          "fill": "$ink",
-                          "content": "重新扫描",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.5,
-                          "fontWeight": "500"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "DsquP",
-              "name": "S07Main",
-              "width": "fill_container",
-              "height": "fill_container",
-              "gap": 10,
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "Q7zJL",
-                  "name": "Categories",
-                  "width": 188,
-                  "height": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": 10,
-                  "stroke": "$line",
-                  "strokeWidth": 1,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A0F",
-                    "offset": {
-                      "x": 0,
-                      "y": 2
-                    },
-                    "blur": 8
-                  },
-                  "layout": "vertical",
-                  "gap": 6,
-                  "padding": 10,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "xG8xg",
-                      "name": "清理分类",
-                      "fill": "$muted",
-                      "content": "清理分类",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12,
-                      "fontWeight": "600"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "IHBmJ",
-                      "name": "软件可重建缓存",
-                      "width": "fill_container",
-                      "fill": "$blue-soft",
-                      "cornerRadius": 8,
-                      "stroke": "$blue-border",
-                      "strokeWidth": 1,
-                      "gap": 8,
-                      "padding": [
-                        9,
-                        10
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "ShQAI",
-                          "name": "ico-layers",
-                          "width": 15,
-                          "height": 15,
-                          "icon": "layers",
-                          "library": "lucide",
-                          "fill": "$blue"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "tKDlI",
-                          "name": "CT",
-                          "layout": "vertical",
-                          "gap": 1,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "jGvuW",
-                              "name": "软件可重建缓存",
-                              "fill": "$blue",
-                              "content": "软件可重建缓存",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12,
-                              "fontWeight": "600"
-                            },
-                            {
-                              "type": "text",
-                              "id": "O6e5U",
-                              "name": "4.2 GB · 3 项",
-                              "fill": "$muted",
-                              "content": "4.2 GB · 3 项",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "JFu8d",
-                      "name": "过期诊断日志",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 8,
-                      "stroke": "$line",
-                      "strokeWidth": 1,
-                      "gap": 8,
-                      "padding": [
-                        9,
-                        10
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "y1wTta",
-                          "name": "ico-file-text",
-                          "width": 15,
-                          "height": 15,
-                          "icon": "file-text",
-                          "library": "lucide",
-                          "fill": "$body"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "h7pxA",
-                          "name": "CT",
-                          "layout": "vertical",
-                          "gap": 1,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "P5dHq",
-                              "name": "过期诊断日志",
-                              "fill": "$ink",
-                              "content": "过期诊断日志",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 12,
-                              "fontWeight": "500"
-                            },
-                            {
-                              "type": "text",
-                              "id": "EoMpb",
-                              "name": "1.6 GB · 2 项",
-                              "fill": "$muted",
-                              "content": "1.6 GB · 2 项",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "rectangle",
-                      "id": "AcVPI",
-                      "name": "Div",
-                      "fill": "$line",
-                      "width": "fill_container",
-                      "height": 1
-                    },
-                    {
-                      "type": "text",
-                      "id": "yeRiY",
-                      "name": "永久排除保护区",
-                      "fill": "$muted",
-                      "content": "永久排除保护区",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 11.5,
-                      "fontWeight": "600"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "u8fA2B",
-                      "name": "迁移原始备份",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 7,
-                      "gap": 7,
-                      "padding": [
-                        7,
-                        9
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "T8DKuR",
-                          "name": "ico-archive",
-                          "width": 13,
-                          "height": 13,
-                          "icon": "archive",
-                          "library": "lucide",
-                          "fill": "$red"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "mKWtR",
-                          "name": "PT",
-                          "layout": "vertical",
-                          "gap": 1,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "Re6Ki",
-                              "name": "迁移原始备份",
-                              "fill": "$body",
-                              "content": "迁移原始备份",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "500"
-                            },
-                            {
-                              "type": "text",
-                              "id": "MLF7T",
-                              "name": "始终排除",
-                              "fill": "$muted",
-                              "content": "始终排除",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 10.5,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "G7oQT",
-                      "name": "系统与注册表",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 7,
-                      "gap": 7,
-                      "padding": [
-                        7,
-                        9
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "kac7o",
-                          "name": "ico-shield-ban",
-                          "width": 13,
-                          "height": 13,
-                          "icon": "shield-ban",
-                          "library": "lucide",
-                          "fill": "$red"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Nk6yS",
-                          "name": "PT",
-                          "layout": "vertical",
-                          "gap": 1,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "v5wYC",
-                              "name": "系统与注册表",
-                              "fill": "$body",
-                              "content": "系统与注册表",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "500"
-                            },
-                            {
-                              "type": "text",
-                              "id": "IZ4Hm",
-                              "name": "永不触碰",
-                              "fill": "$muted",
-                              "content": "永不触碰",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 10.5,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "i6XMAI",
-                      "name": "凭据与用户文档",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 7,
-                      "gap": 7,
-                      "padding": [
-                        7,
-                        9
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "icon",
-                          "id": "OSHoq",
-                          "name": "ico-key-round",
-                          "width": 13,
-                          "height": 13,
-                          "icon": "key-round",
-                          "library": "lucide",
-                          "fill": "$red"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "t6cIo9",
-                          "name": "PT",
-                          "layout": "vertical",
-                          "gap": 1,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "R7RR14",
-                              "name": "凭据与用户文档",
-                              "fill": "$body",
-                              "content": "凭据与用户文档",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "500"
-                            },
-                            {
-                              "type": "text",
-                              "id": "qRPkr",
-                              "name": "永不触碰",
-                              "fill": "$muted",
-                              "content": "永不触碰",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 10.5,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "d2iJid",
-                  "name": "RulesList",
-                  "width": 422,
-                  "height": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": 10,
-                  "stroke": "$line",
-                  "strokeWidth": 1,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A0F",
-                    "offset": {
-                      "x": 0,
-                      "y": 2
-                    },
-                    "blur": 8
-                  },
-                  "layout": "vertical",
-                  "gap": 8,
-                  "padding": 12,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "t6RcFc",
-                      "name": "RCH",
-                      "width": "fill_container",
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "S0TAl",
-                          "name": "软件可重建缓存（点击条目在右侧预览明细）",
-                          "fill": "$ink",
-                          "content": "软件可重建缓存（点击条目在右侧预览明细）",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 12.5,
-                          "fontWeight": "600"
-                        },
-                        {
-                          "type": "text",
-                          "id": "TZn2U",
-                          "name": "已选 1 项 · 1.2 GB",
-                          "fill": "$blue",
-                          "content": "已选 1 项 · 1.2 GB",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 11.5,
-                          "fontWeight": "600"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "FSNfZ",
-                      "name": "Blender 缩略图与渲染缓存",
-                      "width": "fill_container",
-                      "fill": "$blue-soft",
-                      "cornerRadius": 9,
-                      "stroke": "$blue",
-                      "strokeWidth": 1,
-                      "layout": "vertical",
-                      "gap": 5,
-                      "padding": 11,
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "vM7Kv",
-                          "name": "RT",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "hWNEP",
-                              "name": "RTL",
-                              "gap": 7,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "N9zbb",
-                                  "name": "ico-square-check",
-                                  "width": 15,
-                                  "height": 15,
-                                  "icon": "square-check",
-                                  "library": "lucide",
-                                  "fill": "$blue"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "cAJsH",
-                                  "name": "Blender 缩略图与渲染缓存",
-                                  "fill": "$blue",
-                                  "content": "Blender 缩略图与渲染缓存",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.5,
-                                  "fontWeight": "600"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "w6E8V",
-                              "name": "1.2 GB",
-                              "fill": "$ink",
-                              "content": "1.2 GB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 13,
-                              "fontWeight": "700"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "RqUyD",
-                          "name": "超过 14 天未访问的缩略图缓存；删除后下次",
-                          "fill": "$body",
-                          "textGrowth": "fixed-width",
-                          "width": "fill_container",
-                          "content": "超过 14 天未访问的缩略图缓存；删除后下次打开项目可自动重建。",
-                          "lineHeight": 1.4,
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 11.5,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "nheDx",
-                          "name": "RF",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "GMJtS",
-                              "name": "badge-已审查 · 可重建",
-                              "fill": "$green-soft",
-                              "cornerRadius": 99,
-                              "stroke": "$green-border",
-                              "strokeWidth": 1,
-                              "gap": 5,
-                              "padding": [
-                                3,
-                                9
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "DZdB1",
-                                  "name": "已审查 · 可重建",
-                                  "fill": "$green",
-                                  "content": "已审查 · 可重建",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "tIsks",
-                              "name": "2,438 个文件",
-                              "fill": "$muted",
-                              "content": "2,438 个文件",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "GChkb",
-                      "name": "VS Code 扩展缓存与旧日志",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 9,
-                      "stroke": "$line",
-                      "strokeWidth": 1,
-                      "layout": "vertical",
-                      "gap": 5,
-                      "padding": 11,
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "HUdsr",
-                          "name": "RT",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "uEJw4",
-                              "name": "RTL",
-                              "gap": 7,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "Mq5aa",
-                                  "name": "ico-square",
-                                  "width": 15,
-                                  "height": 15,
-                                  "icon": "square",
-                                  "library": "lucide",
-                                  "fill": "$line-strong"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "GILwR",
-                                  "name": "VS Code 扩展缓存与旧日志",
-                                  "fill": "$ink",
-                                  "content": "VS Code 扩展缓存与旧日志",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.5,
-                                  "fontWeight": "600"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "Vba0P",
-                              "name": "0.8 GB",
-                              "fill": "$ink",
-                              "content": "0.8 GB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 13,
-                              "fontWeight": "700"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "s97AZY",
-                          "name": "已卸载扩展的残留缓存包与 30 天前的诊断日",
-                          "fill": "$body",
-                          "textGrowth": "fixed-width",
-                          "width": "fill_container",
-                          "content": "已卸载扩展的残留缓存包与 30 天前的诊断日志，不影响设置与登录。",
-                          "lineHeight": 1.4,
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 11.5,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "COyw9",
-                          "name": "RF",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "utOa6",
-                              "name": "badge-已审查 · 可重建",
-                              "fill": "$green-soft",
-                              "cornerRadius": 99,
-                              "stroke": "$green-border",
-                              "strokeWidth": 1,
-                              "gap": 5,
-                              "padding": [
-                                3,
-                                9
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "dy7YB",
-                                  "name": "已审查 · 可重建",
-                                  "fill": "$green",
-                                  "content": "已审查 · 可重建",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "rMcBE",
-                              "name": "612 个文件",
-                              "fill": "$muted",
-                              "content": "612 个文件",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "pAfUC",
-                      "name": "Chromium / Edge GPU 着色器缓存",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 9,
-                      "stroke": "$amber-border",
-                      "strokeWidth": 1,
-                      "layout": "vertical",
-                      "gap": 5,
-                      "padding": 11,
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "G9y7Ac",
-                          "name": "RT",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "AzumV",
-                              "name": "RTL",
-                              "gap": 7,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "ta9ty",
-                                  "name": "ico-lock",
-                                  "width": 15,
-                                  "height": 15,
-                                  "icon": "lock",
-                                  "library": "lucide",
-                                  "fill": "$amber"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "V8hE7F",
-                                  "name": "Chromium / Edge GPU 着色",
-                                  "fill": "$ink",
-                                  "content": "Chromium / Edge GPU 着色器缓存",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 12.5,
-                                  "fontWeight": "600"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "M9ilmG",
-                              "name": "2.2 GB",
-                              "fill": "$ink",
-                              "content": "2.2 GB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 13,
-                              "fontWeight": "700"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "f96XJ8",
-                          "name": "检测到 msedge.exe 正在运行；请自",
-                          "fill": "$body",
-                          "textGrowth": "fixed-width",
-                          "width": "fill_container",
-                          "content": "检测到 msedge.exe 正在运行；请自行退出浏览器后刷新再勾选。",
-                          "lineHeight": 1.4,
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 11.5,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Ae7bO",
-                          "name": "RF",
-                          "width": "fill_container",
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "bupTa",
-                              "name": "badge-程序运行中 · 阻断",
-                              "fill": "$amber-soft",
-                              "cornerRadius": 99,
-                              "stroke": "$amber-border",
-                              "strokeWidth": 1,
-                              "gap": 5,
-                              "padding": [
-                                3,
-                                9
-                              ],
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "text",
-                                  "id": "ThRpw",
-                                  "name": "程序运行中 · 阻断",
-                                  "fill": "$amber",
-                                  "content": "程序运行中 · 阻断",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "500"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "j0ARW",
-                              "name": "1,180 个文件",
-                              "fill": "$muted",
-                              "content": "1,180 个文件",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "qXS4l",
-                  "name": "FilePreviewDrawer",
-                  "clip": true,
-                  "width": "fill_container",
-                  "height": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": 10,
-                  "stroke": "$line",
-                  "strokeWidth": 1,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A0F",
-                    "offset": {
-                      "x": 0,
-                      "y": 2
-                    },
-                    "blur": 8
-                  },
-                  "layout": "vertical",
-                  "gap": 8,
-                  "padding": 12,
-                  "children": [
-                    {
-                      "type": "frame",
-                      "id": "xaKab",
-                      "name": "PVH",
-                      "width": "fill_container",
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "ZAkHn",
-                          "name": "文件明细预览（冻结清单）",
-                          "fill": "$ink",
-                          "content": "文件明细预览（冻结清单）",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 13,
-                          "fontWeight": "700"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "qO5Ld",
-                          "name": "badge-Blender 缓存",
-                          "fill": "$blue-soft",
-                          "cornerRadius": 99,
-                          "stroke": "$blue-border",
-                          "strokeWidth": 1,
-                          "gap": 5,
-                          "padding": [
-                            3,
-                            9
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "uLFo7",
-                              "name": "Blender 缓存",
-                              "fill": "$blue",
-                              "content": "Blender 缓存",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "SfSHt",
-                      "name": "%LocalAppData%\\Blender",
-                      "fill": "$muted",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "%LocalAppData%\\Blender Foundation\\Cache",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 11,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "eFBIs",
-                      "name": "FileTbl",
-                      "clip": true,
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 8,
-                      "stroke": "$line",
-                      "strokeWidth": 1,
-                      "layout": "vertical",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "okXq3",
-                          "name": "FH",
-                          "width": "fill_container",
-                          "fill": "$track",
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "Bs2QH",
-                              "name": "文件名（共 2,438 项）",
-                              "fill": "$muted",
-                              "content": "文件名（共 2,438 项）",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "600"
-                            },
-                            {
-                              "type": "text",
-                              "id": "E5zDGV",
-                              "name": "大小",
-                              "fill": "$muted",
-                              "content": "大小",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "600"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "LbxfQ",
-                          "name": "thumb_008241.dat",
-                          "width": "fill_container",
-                          "stroke": "$line",
-                          "strokeWidth": {
-                            "top": 1
-                          },
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "cY9lP",
-                              "name": "FRL",
-                              "gap": 6,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "bcbbA",
-                                  "name": "ico-file",
-                                  "width": 12,
-                                  "height": 12,
-                                  "icon": "file",
-                                  "library": "lucide",
-                                  "fill": "$muted"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "s3SCD",
-                                  "name": "thumb_008241.dat",
-                                  "fill": "$ink",
-                                  "content": "thumb_008241.dat",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "T2Keb",
-                              "name": "2026-08-12 · 24.6 MB",
-                              "fill": "$body",
-                              "content": "2026-08-12 · 24.6 MB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "GnRmS",
-                          "name": "thumb_008242.dat",
-                          "width": "fill_container",
-                          "stroke": "$line",
-                          "strokeWidth": {
-                            "top": 1
-                          },
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "GFhcM",
-                              "name": "FRL",
-                              "gap": 6,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "ELaKS",
-                                  "name": "ico-file",
-                                  "width": 12,
-                                  "height": 12,
-                                  "icon": "file",
-                                  "library": "lucide",
-                                  "fill": "$muted"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "LTWhQ",
-                                  "name": "thumb_008242.dat",
-                                  "fill": "$ink",
-                                  "content": "thumb_008242.dat",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "BrQ7l",
-                              "name": "2026-08-12 · 18.2 MB",
-                              "fill": "$body",
-                              "content": "2026-08-12 · 18.2 MB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "BCmUi",
-                          "name": "thumb_009501.dat",
-                          "width": "fill_container",
-                          "stroke": "$line",
-                          "strokeWidth": {
-                            "top": 1
-                          },
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "f2mb2",
-                              "name": "FRL",
-                              "gap": 6,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "UIGqP",
-                                  "name": "ico-file",
-                                  "width": 12,
-                                  "height": 12,
-                                  "icon": "file",
-                                  "library": "lucide",
-                                  "fill": "$muted"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "iQunN",
-                                  "name": "thumb_009501.dat",
-                                  "fill": "$ink",
-                                  "content": "thumb_009501.dat",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "A0UcVY",
-                              "name": "2026-09-03 · 32.1 MB",
-                              "fill": "$body",
-                              "content": "2026-09-03 · 32.1 MB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "stbGW",
-                          "name": "thumb_009502.dat",
-                          "width": "fill_container",
-                          "stroke": "$line",
-                          "strokeWidth": {
-                            "top": 1
-                          },
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "T5lrb",
-                              "name": "FRL",
-                              "gap": 6,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "W1LiFE",
-                                  "name": "ico-file",
-                                  "width": 12,
-                                  "height": 12,
-                                  "icon": "file",
-                                  "library": "lucide",
-                                  "fill": "$muted"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "gcqhn",
-                                  "name": "thumb_009502.dat",
-                                  "fill": "$ink",
-                                  "content": "thumb_009502.dat",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "lpTFz",
-                              "name": "2026-09-04 · 16.8 MB",
-                              "fill": "$body",
-                              "content": "2026-09-04 · 16.8 MB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "bcbJB",
-                          "name": "thumb_009503.dat",
-                          "width": "fill_container",
-                          "stroke": "$line",
-                          "strokeWidth": {
-                            "top": 1
-                          },
-                          "padding": [
-                            6,
-                            10
-                          ],
-                          "justifyContent": "space_between",
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "frame",
-                              "id": "VRuY2",
-                              "name": "FRL",
-                              "gap": 6,
-                              "alignItems": "center",
-                              "children": [
-                                {
-                                  "type": "icon",
-                                  "id": "h7kvn",
-                                  "name": "ico-file",
-                                  "width": 12,
-                                  "height": 12,
-                                  "icon": "file",
-                                  "library": "lucide",
-                                  "fill": "$muted"
-                                },
-                                {
-                                  "type": "text",
-                                  "id": "epgRO",
-                                  "name": "thumb_009503.dat",
-                                  "fill": "$ink",
-                                  "content": "thumb_009503.dat",
-                                  "fontFamily": "Noto Sans SC",
-                                  "fontSize": 11.5,
-                                  "fontWeight": "normal"
-                                }
-                              ]
-                            },
-                            {
-                              "type": "text",
-                              "id": "p4W8E",
-                              "name": "2026-09-04 · 12.4 MB",
-                              "fill": "$body",
-                              "content": "2026-09-04 · 12.4 MB",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "fVPSQ",
-                      "name": "CleanupActionChoice",
-                      "width": "fill_container",
-                      "fill": "$subtle",
-                      "cornerRadius": 8,
-                      "stroke": "$line",
-                      "strokeWidth": 1,
-                      "layout": "vertical",
-                      "gap": 5,
-                      "padding": 9,
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "rScVF",
-                          "name": "处理方式（不自动降级为永久删除）：",
-                          "fill": "$ink",
-                          "content": "处理方式（不自动降级为永久删除）：",
-                          "fontFamily": "Noto Sans SC",
-                          "fontSize": 11.5,
-                          "fontWeight": "600"
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Y3FFs",
-                          "name": "AC1",
-                          "width": "fill_container",
-                          "gap": 6,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "icon",
-                              "id": "Sngxf",
-                              "name": "ico-circle-dot",
-                              "width": 13,
-                              "height": 13,
-                              "icon": "circle-dot",
-                              "library": "lucide",
-                              "fill": "$blue"
-                            },
-                            {
-                              "type": "text",
-                              "id": "bA8XP",
-                              "name": "移入同卷受保护隔离区（默认推荐 · 一键恢复",
-                              "fill": "$blue",
-                              "content": "移入同卷受保护隔离区（默认推荐 · 一键恢复）",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "600"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "ed6zW",
-                          "name": "AC2",
-                          "width": "fill_container",
-                          "gap": 6,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "icon",
-                              "id": "M1IRhT",
-                              "name": "ico-circle",
-                              "width": 13,
-                              "height": 13,
-                              "icon": "circle",
-                              "library": "lucide",
-                              "fill": "$muted"
-                            },
-                            {
-                              "type": "text",
-                              "id": "CCa4k",
-                              "name": "移入 Windows 回收站（可找回）",
-                              "fill": "$body",
-                              "content": "移入 Windows 回收站（可找回）",
-                              "fontFamily": "Noto Sans SC",
-                              "fontSize": 11.5,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "qOQJE",
-              "name": "S07Foot",
-              "width": "fill_container",
-              "fill": "$surface",
-              "cornerRadius": 9,
-              "stroke": "$line",
-              "strokeWidth": 1,
-              "padding": [
-                8,
-                14
-              ],
-              "justifyContent": "space_between",
-              "alignItems": "center",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "Tno1t",
-                  "name": "S07FL",
-                  "gap": 8,
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "AiKBF",
-                      "name": "ico-shield-check",
-                      "width": 15,
-                      "height": 15,
-                      "icon": "shield-check",
-                      "library": "lucide",
-                      "fill": "$green"
-                    },
-                    {
-                      "type": "text",
-                      "id": "Ke6XG",
-                      "name": "已勾选 1 个规则（2,438 个文件 · ",
-                      "fill": "$body",
-                      "content": "已勾选 1 个规则（2,438 个文件 · 1.2 GB）；执行前复核文件身份，变动文件自动跳过。",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "uP98N",
-                  "name": "btn-移入同卷隔离区（1.2 GB）",
-                  "fill": "$blue",
-                  "cornerRadius": 7,
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#0F172A18",
-                    "offset": {
-                      "x": 0,
-                      "y": 1
-                    },
-                    "blur": 4
-                  },
-                  "gap": 6,
-                  "padding": [
-                    7,
-                    14
-                  ],
-                  "justifyContent": "center",
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "memzU",
-                      "name": "ico-shield",
-                      "width": 14,
-                      "height": 14,
-                      "icon": "shield",
-                      "library": "lucide",
-                      "fill": "#FFFFFF"
-                    },
-                    {
-                      "type": "text",
-                      "id": "LOoxs",
-                      "name": "移入同卷隔离区（1.2 GB）",
-                      "fill": "#FFFFFF",
-                      "content": "移入同卷隔离区（1.2 GB）",
-                      "fontFamily": "Noto Sans SC",
-                      "fontSize": 12.5,
-                      "fontWeight": "600"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "frame",
       "id": "MNioi",
       "x": 1080,
       "y": 1560,
@@ -18195,6 +16157,2392 @@
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11.5,
                   "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "GCtOs",
+      "x": 0,
+      "y": 1560,
+      "name": "07 垃圾清理 · 三档建议度与谨慎原因提示",
+      "clip": true,
+      "width": 1000,
+      "height": 700,
+      "fill": "$bg",
+      "cornerRadius": 12,
+      "stroke": "$line-strong",
+      "strokeWidth": 1,
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "xkewK",
+          "name": "WinTitleBar",
+          "width": "fill_container",
+          "height": 28,
+          "fill": "$surface",
+          "padding": [
+            0,
+            14
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "zUgAL",
+              "name": "TBLeft",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "Sjxia",
+                  "name": "ico-hard-drive",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "hard-drive",
+                  "library": "lucide",
+                  "fill": "$blue"
+                },
+                {
+                  "type": "text",
+                  "id": "sOROO",
+                  "name": "目录迁移工具 · Directory Mig",
+                  "fill": "$muted",
+                  "content": "目录迁移工具 · Directory Migration Tool",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11.5,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ke1tB",
+              "name": "TBRight",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "E3Fr1",
+                  "name": "ico-minus",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "minus",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "hLuoR",
+                  "name": "ico-square",
+                  "width": 11,
+                  "height": 11,
+                  "icon": "square",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "sHTPC",
+                  "name": "ico-x",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$muted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "T6mel",
+          "name": "TopNavBar",
+          "width": "fill_container",
+          "height": 58,
+          "fill": "$surface",
+          "stroke": "$line",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#0F172A08",
+            "offset": {
+              "x": 0,
+              "y": 1
+            },
+            "blur": 3
+          },
+          "padding": [
+            0,
+            18
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "piXcE",
+              "name": "Brand",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "mif3u",
+                  "name": "AppLogo",
+                  "width": 32,
+                  "height": 32,
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 135,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#1492EB",
+                        "position": 0
+                      },
+                      {
+                        "color": "#006CC8",
+                        "position": 0.55
+                      },
+                      {
+                        "color": "#003E7E",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "cornerRadius": 8,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "orWBW",
+                      "name": "ico-folder-symlink",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "folder-symlink",
+                      "library": "lucide",
+                      "fill": "#FFFFFF"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kfa08",
+                  "name": "BrandText",
+                  "layout": "vertical",
+                  "gap": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ZHjl4",
+                      "name": "目录迁移",
+                      "fill": "$ink",
+                      "content": "目录迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14.5,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "fAUSR",
+                      "name": "v2.0 Fluent",
+                      "fill": "$muted",
+                      "content": "v2.0 Fluent",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "cFL6X",
+              "name": "ModeSegmented",
+              "fill": "$track",
+              "cornerRadius": 10,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "gap": 4,
+              "padding": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "OW13k",
+                  "name": "Tab-手动模式",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "NEamv",
+                      "name": "ico-folder-input",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "folder-input",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "I5j1I",
+                      "name": "手动模式",
+                      "fill": "$body",
+                      "content": "手动模式",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bIwag",
+                  "name": "Tab-一键迁移",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "fXJ60",
+                      "name": "ico-zap",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "zap",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "GAIlC",
+                      "name": "一键迁移",
+                      "fill": "$body",
+                      "content": "一键迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tpGsf",
+                  "name": "Tab-磁盘扫描",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "IRfPU",
+                      "name": "ico-radar",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "radar",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "t2Q5u6",
+                      "name": "磁盘扫描",
+                      "fill": "$body",
+                      "content": "磁盘扫描",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "v3wqo6",
+                  "name": "Tab-垃圾清理",
+                  "fill": "$surface",
+                  "cornerRadius": 7,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "IFRo8",
+                      "name": "ico-sparkles",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "sparkles",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "odXH0",
+                      "name": "垃圾清理",
+                      "fill": "$blue",
+                      "content": "垃圾清理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "iT5x4",
+              "name": "NavTools",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "U1Hpq",
+                  "name": "GlobalBackupBtn",
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    11
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "QofZe",
+                      "name": "ico-archive",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "archive",
+                      "library": "lucide",
+                      "fill": "$body"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Pcvdg",
+                      "name": "备份管理",
+                      "fill": "$ink",
+                      "content": "备份管理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "z2C06A",
+                      "name": "BackupBadge",
+                      "fill": "$amber",
+                      "cornerRadius": 99,
+                      "padding": [
+                        1,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "eVnfJ",
+                          "name": "2",
+                          "fill": "#FFFFFF",
+                          "content": "2",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "SWpMQ",
+                  "name": "HelpBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "vs5Nr",
+                      "name": "ico-book-open",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "book-open",
+                      "library": "lucide",
+                      "fill": "$body"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "sYEOC",
+          "name": "PageBody",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 9,
+          "padding": [
+            11,
+            18
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "T9vwJU",
+              "name": "S07Head",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "hSoqw",
+                  "name": "S07HL",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "N6OlJ",
+                      "name": "S07T",
+                      "gap": 7,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "TV4bi",
+                          "name": "独立垃圾清理与系统空间回收",
+                          "fill": "$ink",
+                          "content": "独立垃圾清理与系统空间回收",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 18.5,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "nBnU6",
+                          "name": "badge-建议清理",
+                          "fill": "$green-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$green-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "c5PDwS",
+                              "name": "ico-circle-check",
+                              "width": 11.5,
+                              "height": 11.5,
+                              "icon": "circle-check",
+                              "library": "lucide",
+                              "fill": "$green"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Jpnqc",
+                              "name": "建议清理",
+                              "fill": "$green",
+                              "content": "建议清理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "A7thB",
+                          "name": "badge-按需清理",
+                          "fill": "$blue-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$blue-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "QQABR",
+                              "name": "ico-info",
+                              "width": 11.5,
+                              "height": 11.5,
+                              "icon": "info",
+                              "library": "lucide",
+                              "fill": "$blue"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SpySW",
+                              "name": "按需清理",
+                              "fill": "$blue",
+                              "content": "按需清理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "x0UJ2",
+                          "name": "badge-谨慎清理",
+                          "fill": "$amber-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$amber-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "He6Ep",
+                              "name": "ico-triangle-alert",
+                              "width": 11.5,
+                              "height": 11.5,
+                              "icon": "triangle-alert",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ZhC3S",
+                              "name": "谨慎清理",
+                              "fill": "$amber",
+                              "content": "谨慎清理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "dnNmX",
+                      "name": "文件缓存默认移入同卷隔离区（可恢复）；系统组",
+                      "fill": "$muted",
+                      "content": "文件缓存默认移入同卷隔离区（可恢复）；系统组件走官方接口；谨慎项附悬浮与右侧风险说明。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "DoCgA",
+                  "name": "S07HR",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Eck8P",
+                      "name": "btn-隔离区 · 3",
+                      "fill": "$blue-soft",
+                      "cornerRadius": 7,
+                      "stroke": "$blue-border",
+                      "strokeWidth": 1,
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "tUdjc",
+                          "name": "ico-shield",
+                          "width": 13.5,
+                          "height": 13.5,
+                          "icon": "shield",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "W6aCQJ",
+                          "name": "隔离区 · 3",
+                          "fill": "$blue",
+                          "content": "隔离区 · 3",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "EpUeT",
+                      "name": "btn-重新扫描",
+                      "fill": "$surface",
+                      "cornerRadius": 7,
+                      "stroke": "$line-strong",
+                      "strokeWidth": 1,
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "w1VVrT",
+                          "name": "ico-refresh-cw",
+                          "width": 13.5,
+                          "height": 13.5,
+                          "icon": "refresh-cw",
+                          "library": "lucide",
+                          "fill": "$ink"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Ww2HA",
+                          "name": "重新扫描",
+                          "fill": "$ink",
+                          "content": "重新扫描",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yMzAh",
+              "name": "S07Main",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "E4M91I",
+                  "name": "Categories",
+                  "clip": true,
+                  "width": 196,
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A0F",
+                    "offset": {
+                      "x": 0,
+                      "y": 2
+                    },
+                    "blur": 8
+                  },
+                  "layout": "vertical",
+                  "gap": 5,
+                  "padding": 9,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "lZ5Fj",
+                      "name": "清理分类（共 21.3 GB）",
+                      "fill": "$muted",
+                      "content": "清理分类（共 21.3 GB）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11.5,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "bhCl3",
+                      "name": "系统临时与着色器缓存",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 7,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        9
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "od5ND",
+                          "name": "ico-cpu",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "cpu",
+                          "library": "lucide",
+                          "fill": "$body"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JHZVX",
+                          "name": "CT",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "pqY4K",
+                              "name": "系统临时与着色器缓存",
+                              "fill": "$ink",
+                              "content": "系统临时与着色器缓存",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "S7qfC",
+                              "name": "5.8 GB · 建议清理",
+                              "fill": "$muted",
+                              "content": "5.8 GB · 建议清理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ngMn7",
+                      "name": "系统更新与组件回收",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 7,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        9
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "RsynV",
+                          "name": "ico-refresh-cw",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "refresh-cw",
+                          "library": "lucide",
+                          "fill": "$body"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "mtmzx",
+                          "name": "CT",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "N8JFT",
+                              "name": "系统更新与组件回收",
+                              "fill": "$ink",
+                              "content": "系统更新与组件回收",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "gaICI",
+                              "name": "6.9 GB · 官方接口",
+                              "fill": "$muted",
+                              "content": "6.9 GB · 官方接口",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kkP36",
+                      "name": "软件与开发者缓存",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 7,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        9
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "IQAhv",
+                          "name": "ico-layers",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "layers",
+                          "library": "lucide",
+                          "fill": "$body"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TbmHP",
+                          "name": "CT",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ijhSd",
+                              "name": "软件与开发者缓存",
+                              "fill": "$ink",
+                              "content": "软件与开发者缓存",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "D8H4Lo",
+                              "name": "4.2 GB · 建议/按需",
+                              "fill": "$muted",
+                              "content": "4.2 GB · 建议/按需",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PAqfp",
+                      "name": "谨慎清理项（需展开）",
+                      "width": "fill_container",
+                      "fill": "$amber-soft",
+                      "cornerRadius": 7,
+                      "stroke": "$amber",
+                      "strokeWidth": 1,
+                      "gap": 7,
+                      "padding": [
+                        7,
+                        9
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "LqbPP",
+                          "name": "ico-triangle-alert",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "triangle-alert",
+                          "library": "lucide",
+                          "fill": "$amber"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "P1dV7R",
+                          "name": "CT",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VtZUx",
+                              "name": "谨慎清理项（需展开）",
+                              "fill": "$amber",
+                              "content": "谨慎清理项（需展开）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "dO2Dl",
+                              "name": "6.5 GB · 附风险说明",
+                              "fill": "$muted",
+                              "content": "6.5 GB · 附风险说明",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "WlRqu",
+                      "name": "Div",
+                      "fill": "$line",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "text",
+                      "id": "RZjJ7",
+                      "name": "永久排除（永不可清理）",
+                      "fill": "$muted",
+                      "content": "永久排除（永不可清理）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "x9mCqu",
+                      "name": "迁移原始备份",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 6,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "ixk59",
+                          "name": "ico-archive",
+                          "width": 12.5,
+                          "height": 12.5,
+                          "icon": "archive",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "qQjxW",
+                          "name": "PT",
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ur3nJ",
+                              "name": "迁移原始备份",
+                              "fill": "$body",
+                              "content": "迁移原始备份",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "OOpHf",
+                              "name": "仅在备份管理处理",
+                              "fill": "$muted",
+                              "content": "仅在备份管理处理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OCxB5",
+                      "name": "凭据 / 文档 / 模型库",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 6,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        8
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "zuJrG",
+                          "name": "ico-key-round",
+                          "width": 12.5,
+                          "height": 12.5,
+                          "icon": "key-round",
+                          "library": "lucide",
+                          "fill": "$muted"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Q8qD0K",
+                          "name": "PT",
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "bbh1d",
+                              "name": "凭据 / 文档 / 模型库",
+                              "fill": "$body",
+                              "content": "凭据 / 文档 / 模型库",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "500"
+                            },
+                            {
+                              "type": "text",
+                              "id": "QDsio",
+                              "name": "永不触碰用户数据",
+                              "fill": "$muted",
+                              "content": "永不触碰用户数据",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "AR1rl",
+                  "name": "RulesList",
+                  "clip": true,
+                  "width": 426,
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A0F",
+                    "offset": {
+                      "x": 0,
+                      "y": 2
+                    },
+                    "blur": 8
+                  },
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "UdrnA",
+                      "name": "RCH",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Cjjuu",
+                          "name": "清理项与建议度（默认全不勾）",
+                          "fill": "$ink",
+                          "content": "清理项与建议度（默认全不勾）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "UCV1I",
+                          "name": "RCHR",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "wwQ6U",
+                              "name": "CautionToggle",
+                              "fill": "$amber-soft",
+                              "cornerRadius": 6,
+                              "stroke": "$amber-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                4,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "zMS5E",
+                                  "name": "ico-eye",
+                                  "width": 11.5,
+                                  "height": 11.5,
+                                  "icon": "eye",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "j6xyV",
+                                  "name": "已显示谨慎项",
+                                  "fill": "$amber",
+                                  "content": "已显示谨慎项",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10.5,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "btCcs",
+                              "name": "btn-仅勾选建议清理",
+                              "fill": "$blue-soft",
+                              "cornerRadius": 7,
+                              "stroke": "$blue-border",
+                              "strokeWidth": 1,
+                              "gap": 6,
+                              "padding": [
+                                6,
+                                12
+                              ],
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "fkkTT",
+                                  "name": "ico-circle-check",
+                                  "width": 13.5,
+                                  "height": 13.5,
+                                  "icon": "circle-check",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "B1i1h",
+                                  "name": "仅勾选建议清理",
+                                  "fill": "$blue",
+                                  "content": "仅勾选建议清理",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "500"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gnUEw",
+                      "name": "用户与系统临时文件（>24 小时）",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "j3qRoJ",
+                          "name": "RT",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "wNlh5",
+                              "name": "RTL",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "p3Q5B",
+                                  "name": "ico-square-check",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "square-check",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "gbOds",
+                                  "name": "用户与系统临时文件（>24 小时）",
+                                  "fill": "$ink",
+                                  "content": "用户与系统临时文件（>24 小时）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.8,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "BOZAB",
+                              "name": "2.6 GB",
+                              "fill": "$ink",
+                              "content": "2.6 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "b9bY3i",
+                          "name": "%TEMP% 与 Windows\\Temp；",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "%TEMP% 与 Windows\\Temp；自动跳过 24h 内新建及占用中文件。",
+                          "lineHeight": 1.35,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.8,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "nFg7K",
+                          "name": "RF",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "YldMk",
+                              "name": "badge-建议清理",
+                              "fill": "$green-soft",
+                              "cornerRadius": 99,
+                              "stroke": "$green-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                2,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "Qgx4i",
+                                  "name": "ico-circle-check",
+                                  "width": 11.5,
+                                  "height": 11.5,
+                                  "icon": "circle-check",
+                                  "library": "lucide",
+                                  "fill": "$green"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "gnpWl",
+                                  "name": "建议清理",
+                                  "fill": "$green",
+                                  "content": "建议清理",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "IgHWf",
+                              "name": "同卷隔离可恢复",
+                              "fill": "$muted",
+                              "content": "同卷隔离可恢复",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "fYUPd",
+                      "name": "被取代的 WinSxS 组件（标准模式）",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "a4G9PI",
+                          "name": "RT",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "EcZMI",
+                              "name": "RTL",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "R7KJht",
+                                  "name": "ico-square",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "square",
+                                  "library": "lucide",
+                                  "fill": "$line-strong"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "pY6Dk",
+                                  "name": "被取代的 WinSxS 组件（标准模式）",
+                                  "fill": "$ink",
+                                  "content": "被取代的 WinSxS 组件（标准模式）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.8,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "XyBd7",
+                              "name": "4.8 GB",
+                              "fill": "$ink",
+                              "content": "4.8 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "uujoJ",
+                          "name": "调用 Dism /StartComponen",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "调用 Dism /StartComponentCleanup（保留近期更新卸载能力）；耗时 2～5 分钟。",
+                          "lineHeight": 1.35,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.8,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NMUYx",
+                          "name": "RF",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "j8QRqs",
+                              "name": "badge-按需清理",
+                              "fill": "$blue-soft",
+                              "cornerRadius": 99,
+                              "stroke": "$blue-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                2,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "guNxK",
+                                  "name": "ico-info",
+                                  "width": 11.5,
+                                  "height": 11.5,
+                                  "icon": "info",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "ewEX0",
+                                  "name": "按需清理",
+                                  "fill": "$blue",
+                                  "content": "按需清理",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "fVvyd",
+                              "name": "官方 DISM 接口 · 不可恢复",
+                              "fill": "$muted",
+                              "content": "官方 DISM 接口 · 不可恢复",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BIjmR",
+                      "name": "深度 WinSxS (/ResetBase) 与旧版 Windows",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "CpXs4",
+                          "name": "RT",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "mx8jJ",
+                              "name": "RTL",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "p51jwh",
+                                  "name": "ico-square",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "square",
+                                  "library": "lucide",
+                                  "fill": "$line-strong"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "i0xAF",
+                                  "name": "深度 WinSxS (/ResetBase)",
+                                  "fill": "$ink",
+                                  "content": "深度 WinSxS (/ResetBase) 与旧版 Windows",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.8,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ws91i",
+                              "name": "2.1 GB",
+                              "fill": "$ink",
+                              "content": "2.1 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "hhx1K",
+                          "name": "清理后将无法卸载已装更新或回退旧版 Wind",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "清理后将无法卸载已装更新或回退旧版 Windows。",
+                          "lineHeight": 1.35,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.8,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "JzTPQ",
+                          "name": "RF",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "XHvIF",
+                              "name": "badge-谨慎清理",
+                              "fill": "$amber-soft",
+                              "cornerRadius": 99,
+                              "stroke": "$amber-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                2,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "zfFNG",
+                                  "name": "ico-triangle-alert",
+                                  "width": 11.5,
+                                  "height": 11.5,
+                                  "icon": "triangle-alert",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "qtiXU",
+                                  "name": "谨慎清理",
+                                  "fill": "$amber",
+                                  "content": "谨慎清理",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "RXzZA",
+                                  "name": "ico-info",
+                                  "width": 11,
+                                  "height": 11,
+                                  "icon": "info",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "naQPJ",
+                              "name": "官方接口 · 不可回退",
+                              "fill": "$muted",
+                              "content": "官方接口 · 不可回退",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "HLv88",
+                      "name": "旧版驱动 (pnputil) 与孤立 Installer 补丁",
+                      "width": "fill_container",
+                      "fill": "$amber-soft",
+                      "cornerRadius": 8,
+                      "stroke": "$amber",
+                      "strokeWidth": 1.5,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "u9o48D",
+                          "name": "RT",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "HGWWQ",
+                              "name": "RTL",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "njfoZ",
+                                  "name": "ico-square",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "square",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "QPW5d",
+                                  "name": "旧版驱动 (pnputil) 与孤立 Ins",
+                                  "fill": "$amber",
+                                  "content": "旧版驱动 (pnputil) 与孤立 Installer 补丁",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.8,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "qHQJb",
+                              "name": "4.4 GB",
+                              "fill": "$ink",
+                              "content": "4.4 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "ACMFQ",
+                          "name": "可能导致外设/显卡回滚失灵或部分软件修复异常",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "可能导致外设/显卡回滚失灵或部分软件修复异常；悬停 ⓘ 或看右侧详述。",
+                          "lineHeight": 1.35,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.8,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "VvTOz",
+                          "name": "RF",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "G1sWu",
+                              "name": "badge-谨慎清理",
+                              "fill": "$amber-soft",
+                              "cornerRadius": 99,
+                              "stroke": "$amber-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                2,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "n9gpi",
+                                  "name": "ico-triangle-alert",
+                                  "width": 11.5,
+                                  "height": 11.5,
+                                  "icon": "triangle-alert",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Y5sBmH",
+                                  "name": "谨慎清理",
+                                  "fill": "$amber",
+                                  "content": "谨慎清理",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "uFuS6",
+                                  "name": "ico-info",
+                                  "width": 11,
+                                  "height": 11,
+                                  "icon": "info",
+                                  "library": "lucide",
+                                  "fill": "$amber"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "qhSqE",
+                              "name": "孤立 MSI 先入隔离区 · 强确认",
+                              "fill": "$amber",
+                              "content": "孤立 MSI 先入隔离区 · 强确认",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d7yuZP",
+                  "name": "CautionDetailDrawer",
+                  "clip": true,
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A0F",
+                    "offset": {
+                      "x": 0,
+                      "y": 2
+                    },
+                    "blur": 8
+                  },
+                  "layout": "vertical",
+                  "gap": 7,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "OSQNR",
+                      "name": "PVH",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ObDYy",
+                          "name": "谨慎项风险说明与明细",
+                          "fill": "$ink",
+                          "content": "谨慎项风险说明与明细",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.5,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ajQ4j",
+                          "name": "badge-谨慎清理",
+                          "fill": "$amber-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$amber-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "oW23H",
+                              "name": "ico-triangle-alert",
+                              "width": 11.5,
+                              "height": 11.5,
+                              "icon": "triangle-alert",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "pTMyV",
+                              "name": "谨慎清理",
+                              "fill": "$amber",
+                              "content": "谨慎清理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "z8DTGh",
+                      "name": "WhyCautionCard",
+                      "width": "fill_container",
+                      "fill": "$amber-soft",
+                      "cornerRadius": 8,
+                      "stroke": "$amber",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "pS7aC",
+                          "name": "WCH",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "jNE9f",
+                              "name": "ico-triangle-alert",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "triangle-alert",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "S9VmPb",
+                              "name": "为什么这一项需要谨慎清理？",
+                              "fill": "$amber",
+                              "content": "为什么这一项需要谨慎清理？",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "iGyC0",
+                          "name": "风险原因：",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gh8Ja",
+                              "name": "风险原因：Windows\\Installer",
+                              "fill": "$body",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "风险原因：Windows\\Installer 保存 MSI 修复/卸载元数据；DriverStore 保存旧驱动以便设备回滚。",
+                              "lineHeight": 1.38,
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "H7Wmj",
+                          "name": "可能影响：",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "st3HC",
+                              "name": "可能影响：误删被引用补丁会导致 Office",
+                              "fill": "$body",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "可能影响：误删被引用补丁会导致 Office/VS 修复或卸载报错；清旧驱动后外设异常将无法快速回滚。",
+                              "lineHeight": 1.38,
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NUGWS",
+                          "name": "保护策略：",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 1,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "x1jTX6",
+                              "name": "保护策略：仅核对无引用的孤立 MSI 并强制",
+                              "fill": "$body",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "保护策略：仅核对无引用的孤立 MSI 并强制先入同卷隔离区；旧驱动走官方 pnputil，执行前需输入短语确认。",
+                              "lineHeight": 1.38,
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.8,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NPslQ",
+                      "name": "PreviewList",
+                      "clip": true,
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "VJ6dK",
+                          "name": "FH",
+                          "width": "fill_container",
+                          "fill": "$track",
+                          "padding": [
+                            5,
+                            9
+                          ],
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "sUfqW",
+                              "name": "已识别候选明细（默认未勾选）",
+                              "fill": "$muted",
+                              "content": "已识别候选明细（默认未勾选）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "OkwIz",
+                              "name": "类型 · 大小",
+                              "fill": "$muted",
+                              "content": "类型 · 大小",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "OjyMT",
+                          "name": "oem42.inf (NVIDI",
+                          "width": "fill_container",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            5,
+                            9
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "KWSwo",
+                              "name": "oem42.inf (NVIDIA 560.",
+                              "fill": "$ink",
+                              "content": "oem42.inf (NVIDIA 560.70 旧驱动)",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "E3S9R",
+                              "name": "pnputil · 1.4 GB",
+                              "fill": "$amber",
+                              "content": "pnputil · 1.4 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "VMkea",
+                          "name": "oem19.inf (NVIDI",
+                          "width": "fill_container",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            5,
+                            9
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "UNF3t",
+                              "name": "oem19.inf (NVIDIA 555.",
+                              "fill": "$ink",
+                              "content": "oem19.inf (NVIDIA 555.85 旧驱动)",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "EYWA7",
+                              "name": "pnputil · 1.3 GB",
+                              "fill": "$amber",
+                              "content": "pnputil · 1.3 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "bA5Yn",
+                          "name": "3a8f12.msp (已卸载 ",
+                          "width": "fill_container",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            5,
+                            9
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "d9alIZ",
+                              "name": "3a8f12.msp (已卸载 Office",
+                              "fill": "$ink",
+                              "content": "3a8f12.msp (已卸载 Office 孤立补丁)",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "lMnZP",
+                              "name": "隔离区 · 980 MB",
+                              "fill": "$amber",
+                              "content": "隔离区 · 980 MB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Pzqiu",
+                          "name": "9c204b.msi (无产品引",
+                          "width": "fill_container",
+                          "stroke": "$line",
+                          "strokeWidth": {
+                            "top": 1
+                          },
+                          "padding": [
+                            5,
+                            9
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "iA1XB",
+                              "name": "9c204b.msi (无产品引用孤立安装包",
+                              "fill": "$ink",
+                              "content": "9c204b.msi (无产品引用孤立安装包)",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "xXA7s",
+                              "name": "隔离区 · 720 MB",
+                              "fill": "$amber",
+                              "content": "隔离区 · 720 MB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "OHuxW",
+                      "name": "HoverTooltipDemo",
+                      "width": "fill_container",
+                      "fill": "#1E293B",
+                      "cornerRadius": 7,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#0F172A24",
+                        "offset": {
+                          "x": 0,
+                          "y": 6
+                        },
+                        "blur": 18
+                      },
+                      "gap": 6,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "sQwYZ",
+                          "name": "ico-mouse-pointer-click",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "mouse-pointer-click",
+                          "library": "lucide",
+                          "fill": "#FDE68A"
+                        },
+                        {
+                          "type": "text",
+                          "id": "JTw5W",
+                          "name": "悬停 ⓘ 图标气泡快览：“高危但可自选：仅清",
+                          "fill": "#F8FAFC",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "悬停 ⓘ 图标气泡快览：“高危但可自选：仅清无引用旧驱动与孤立补丁，确认前请阅读右侧完整影响。”",
+                          "lineHeight": 1.35,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "h6Z5A",
+              "name": "S07Foot",
+              "width": "fill_container",
+              "fill": "$surface",
+              "cornerRadius": 9,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "padding": [
+                8,
+                14
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "HMCD7",
+                  "name": "S07FL",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "f8GAm",
+                      "name": "ico-shield-check",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "shield-check",
+                      "library": "lucide",
+                      "fill": "$green"
+                    },
+                    {
+                      "type": "text",
+                      "id": "e8uYX9",
+                      "name": "已勾选 1 项「建议清理」（2.6 GB ·",
+                      "fill": "$body",
+                      "content": "已勾选 1 项「建议清理」（2.6 GB · 同卷隔离可恢复）；未勾选按需或谨慎项。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "gGBqn",
+                  "name": "btn-执行所选清理（2.6 GB）",
+                  "fill": "$blue",
+                  "cornerRadius": 7,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    12
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "HGalk",
+                      "name": "ico-shield",
+                      "width": 13.5,
+                      "height": 13.5,
+                      "icon": "shield",
+                      "library": "lucide",
+                      "fill": "#FFFFFF"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xYqgr",
+                      "name": "执行所选清理（2.6 GB）",
+                      "fill": "#FFFFFF",
+                      "content": "执行所选清理（2.6 GB）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
                 }
               ]
             }
