@@ -9,7 +9,7 @@
       "name": "START 设计总览 · 定稿方案与分期原型",
       "clip": true,
       "width": 1000,
-      "height": 360,
+      "height": 368,
       "fill": "$surface",
       "cornerRadius": 12,
       "stroke": "$line-strong",
@@ -112,7 +112,7 @@
                   "id": "XN2qW",
                   "name": "采用 Windows 11 Fluent 分",
                   "fill": "$muted",
-                  "content": "采用 Windows 11 Fluent 分段胶囊导航与 4 级安全准入模型；业务画板展示产品上线完整态，实施分三期交付。",
+                  "content": "采用 Windows 11 Fluent 分段胶囊导航与 4 级安全准入模型；业务画板展示产品上线完整态，实施按四期推进（共享只读 AI 底座，内置 AI 先行）。",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 13,
                   "fontWeight": "normal"
@@ -163,20 +163,22 @@
           "id": "O9k1h",
           "name": "Phases",
           "width": "fill_container",
-          "gap": 12,
+          "height": 142,
+          "gap": 10,
           "children": [
             {
               "type": "frame",
               "id": "dsCYd",
               "name": "一期 · 核心闭环",
               "width": "fill_container",
+              "height": "fill_container",
               "fill": "$subtle",
               "cornerRadius": 10,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
               "gap": 8,
-              "padding": 14,
+              "padding": 12,
               "children": [
                 {
                   "type": "frame",
@@ -232,7 +234,7 @@
                   "fill": "$ink",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "00 扫描 → 01 目录树 → 02 清单 → 04 执行 → 05/06 全局备份 → 09 恢复/引导",
+                  "content": "00 扫描 → 01 目录树 → 02 清单 → 04 执行 → 05/06 备份",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 12,
                   "fontWeight": "600"
@@ -255,15 +257,16 @@
             {
               "type": "frame",
               "id": "wOF4G",
-              "name": "二期 · AI 辅助",
+              "name": "二期 · 内置 AI 助手",
               "width": "fill_container",
+              "height": "fill_container",
               "fill": "$subtle",
               "cornerRadius": 10,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
               "gap": 8,
-              "padding": 14,
+              "padding": 12,
               "children": [
                 {
                   "type": "frame",
@@ -303,7 +306,7 @@
                           "id": "QN1mS",
                           "name": "二期 · AI 辅助",
                           "fill": "$green",
-                          "content": "二期 · AI 辅助",
+                          "content": "二期 · 内置 AI",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 11.5,
                           "fontWeight": "500"
@@ -315,11 +318,11 @@
                 {
                   "type": "text",
                   "id": "ml7dp",
-                  "name": "03 AI 迁移建议（本地 stdio MC",
+                  "name": "10 内置 AI 抽屉与 BYOK 配置",
                   "fill": "$ink",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "03 AI 迁移建议（本地 stdio MCP 桥接）",
+                  "content": "10 内置 AI 抽屉与 BYOK 模型配置",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 12,
                   "fontWeight": "600"
@@ -331,7 +334,7 @@
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "3 步连接向导 + DPAPI 一次性配对；仅读授权摘要并提交建议，严禁越权执行。",
+                  "content": "共享只读底座；BYOK OpenAI 兼容 + 本地 Ollama；MEAI 受控单 Agent，零执行权。",
                   "lineHeight": 1.45,
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11.5,
@@ -342,15 +345,16 @@
             {
               "type": "frame",
               "id": "DGXxR",
-              "name": "三期 · 垃圾清理",
+              "name": "三期 · 清理与 AI 联合",
               "width": "fill_container",
+              "height": "fill_container",
               "fill": "$subtle",
               "cornerRadius": 10,
               "stroke": "$line",
               "strokeWidth": 1,
               "layout": "vertical",
               "gap": 8,
-              "padding": 14,
+              "padding": 12,
               "children": [
                 {
                   "type": "frame",
@@ -390,7 +394,7 @@
                           "id": "xkzU8",
                           "name": "三期 · 垃圾清理",
                           "fill": "$amber",
-                          "content": "三期 · 垃圾清理",
+                          "content": "三期 · 清理与 AI",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 11.5,
                           "fontWeight": "500"
@@ -402,11 +406,11 @@
                 {
                   "type": "text",
                   "id": "J6lmZ",
-                  "name": "07 清理主从联动 → 08 清理隔离区",
+                  "name": "07 垃圾清理 → 11 AI 疑似残留 → 08 隔离区",
                   "fill": "$ink",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "07 清理主从联动 → 08 清理隔离区",
+                  "content": "07 清理 → 11 AI 疑似残留 → 08 隔离区",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 12,
                   "fontWeight": "600"
@@ -418,7 +422,95 @@
                   "fill": "$muted",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "对标 DISM++ 系统缓存与官方组件回收；建议清理 / 按需清理 / 谨慎清理三档分级 + 三层「为什么谨慎」提示与同卷隔离区。",
+                  "content": "DISM++ 双通道与三档分级；AI 诊断未知占用，规则外项仅限通道 A 隔离并附免责确认。",
+                  "lineHeight": 1.45,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11.5,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ViV57",
+              "name": "四期 · 外部 MCP",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$subtle",
+              "cornerRadius": 10,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "b9jINW",
+                  "name": "CH",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "cMkWC",
+                      "name": "badge-四期 · 外部 MCP",
+                      "fill": "#F5F3FF",
+                      "cornerRadius": 99,
+                      "stroke": "#DDD6FE",
+                      "strokeWidth": 1,
+                      "gap": 5,
+                      "padding": [
+                        3,
+                        9
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "F9oWQ",
+                          "name": "ico-plug",
+                          "width": 12,
+                          "height": 12,
+                          "icon": "plug",
+                          "library": "lucide",
+                          "fill": "#6D28D9"
+                        },
+                        {
+                          "type": "text",
+                          "id": "iDR0L",
+                          "name": "四期 · 外部 MCP",
+                          "fill": "#6D28D9",
+                          "content": "四期 · 外部 MCP",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "C5Fc0",
+                  "name": "03 外部 Agent 本地 MCP 桥接",
+                  "fill": "$ink",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "03 外部 Agent 本地 MCP 桥接",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "bnw7G",
+                  "name": "复用同一只读工具底座",
+                  "fill": "$muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "复用同一只读底座，普通权限 stdio + 受限 Named Pipe + DPAPI 配对，严禁越权执行。",
                   "lineHeight": 1.45,
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11.5,
@@ -13800,7 +13892,7 @@
                               "id": "V2gdD5",
                               "name": "二期功能 · 只读建议无执行权",
                               "fill": "$green",
-                              "content": "二期功能 · 只读建议无执行权",
+                              "content": "四期扩展 · 复用只读底座 · 零执行权",
                               "fontFamily": "Noto Sans SC",
                               "fontSize": 11.5,
                               "fontWeight": "500"
@@ -13814,7 +13906,7 @@
                       "id": "cF6GD",
                       "name": "连接你自己的 Claude / Cursor",
                       "fill": "$muted",
-                      "content": "连接你自己的 Claude / Cursor / Codex，仅共享授权的脱敏目录摘要；AI 提交的建议必须经本地 4 级策略过滤并由你手动导入。",
+                      "content": "与二期内置 AI 共用同一套只读工具底座；适合希望直接复用 Claude / Cursor / Codex 订阅的用户，仅共享脱敏元数据。",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -18541,6 +18633,3642 @@
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "wSyhF",
+      "x": 2160,
+      "y": 1560,
+      "name": "10 内置 AI 助手 · BYOK 配置与右侧可折叠抽屉",
+      "clip": true,
+      "width": 1000,
+      "height": 700,
+      "fill": "$bg",
+      "cornerRadius": 12,
+      "stroke": "$line-strong",
+      "strokeWidth": 1,
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#0F172A18",
+        "offset": {
+          "x": 0,
+          "y": 6
+        },
+        "blur": 20
+      },
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "YBiFs",
+          "name": "WinTitleBar",
+          "width": "fill_container",
+          "height": 28,
+          "fill": "$surface",
+          "padding": [
+            0,
+            14
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "CFyCu",
+              "name": "TBLeft",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "MsyqR",
+                  "name": "ico-hard-drive",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "hard-drive",
+                  "library": "lucide",
+                  "fill": "$blue"
+                },
+                {
+                  "type": "text",
+                  "id": "dVVa7",
+                  "name": "目录迁移工具 · Directory Mig",
+                  "fill": "$muted",
+                  "content": "目录迁移工具 · Directory Migration Tool",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11.5,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GcdEV",
+              "name": "TBRight",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "MGbNf",
+                  "name": "ico-minus",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "minus",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "uR1oA",
+                  "name": "ico-square",
+                  "width": 11,
+                  "height": 11,
+                  "icon": "square",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "vOJvS",
+                  "name": "ico-x",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$muted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "xztK7",
+          "name": "TopNavBar",
+          "width": "fill_container",
+          "height": 58,
+          "fill": "$surface",
+          "stroke": "$line",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#0F172A08",
+            "offset": {
+              "x": 0,
+              "y": 1
+            },
+            "blur": 3
+          },
+          "padding": [
+            0,
+            18
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "m1EBj7",
+              "name": "Brand",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "fuD6e",
+                  "name": "AppLogo",
+                  "width": 32,
+                  "height": 32,
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 135,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#1492EB",
+                        "position": 0
+                      },
+                      {
+                        "color": "#006CC8",
+                        "position": 0.55
+                      },
+                      {
+                        "color": "#003E7E",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "cornerRadius": 8,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "n5p34",
+                      "name": "ico-folder-symlink",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "folder-symlink",
+                      "library": "lucide",
+                      "fill": "#FFFFFF"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PLzTv",
+                  "name": "BrandText",
+                  "layout": "vertical",
+                  "gap": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "paVmJ",
+                      "name": "目录迁移",
+                      "fill": "$ink",
+                      "content": "目录迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14.5,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "eC8PO",
+                      "name": "v2.0 Fluent",
+                      "fill": "$muted",
+                      "content": "v2.0 Fluent",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "BXGvk",
+              "name": "ModeSegmented",
+              "fill": "$track",
+              "cornerRadius": 10,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "gap": 4,
+              "padding": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "ICajq",
+                  "name": "Tab-手动模式",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "y3nbXY",
+                      "name": "ico-folder-input",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "folder-input",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "YkIDB",
+                      "name": "手动模式",
+                      "fill": "$body",
+                      "content": "手动模式",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "LIB8q",
+                  "name": "Tab-一键迁移",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "O2DwE8",
+                      "name": "ico-zap",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "zap",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KKqoh",
+                      "name": "一键迁移",
+                      "fill": "$body",
+                      "content": "一键迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "C6Ex04",
+                  "name": "Tab-磁盘扫描",
+                  "fill": "$surface",
+                  "cornerRadius": 7,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Ay2wV",
+                      "name": "ico-radar",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "radar",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "yHHx8",
+                      "name": "磁盘扫描",
+                      "fill": "$blue",
+                      "content": "磁盘扫描",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "JF9rm",
+                  "name": "Tab-垃圾清理",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "bSwqO",
+                      "name": "ico-sparkles",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "sparkles",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "cEN7D",
+                      "name": "垃圾清理",
+                      "fill": "$body",
+                      "content": "垃圾清理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "aJkjp",
+              "name": "NavTools",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "N2wnfV",
+                  "name": "AiDrawerToggleBtn",
+                  "fill": "$blue-soft",
+                  "cornerRadius": 8,
+                  "stroke": "$blue-border",
+                  "strokeWidth": 1,
+                  "gap": 5,
+                  "padding": [
+                    6,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "lilIh",
+                      "name": "ico-sparkles",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "sparkles",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AhrTI",
+                      "name": "AI 助手",
+                      "fill": "$blue",
+                      "content": "AI 助手",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "e3EI0",
+                  "name": "GlobalBackupBtn",
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    11
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "FnlQZ",
+                      "name": "ico-archive",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "archive",
+                      "library": "lucide",
+                      "fill": "$body"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jifKC",
+                      "name": "备份管理",
+                      "fill": "$ink",
+                      "content": "备份管理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "I3wslH",
+                      "name": "BackupBadge",
+                      "fill": "$amber",
+                      "cornerRadius": 99,
+                      "padding": [
+                        1,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GkUDT",
+                          "name": "2",
+                          "fill": "#FFFFFF",
+                          "content": "2",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bySEi",
+                  "name": "HelpBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "J3A8wn",
+                      "name": "ico-circle-help",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "book-open",
+                      "library": "lucide",
+                      "fill": "$body"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hcopi",
+          "name": "PageBody",
+          "width": "fill_container",
+          "height": "fill_container",
+          "gap": 14,
+          "padding": [
+            14,
+            18
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "bLF7G",
+              "name": "LeftMainArea",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BuiIh",
+                  "name": "S10Head",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "RxYl2",
+                      "name": "S10HL",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "S5RwjP",
+                          "name": "TitleRow",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Oz1Pi",
+                              "name": "工具内置 AI 助手（二期 · 无需外接 MCP）",
+                              "fill": "$ink",
+                              "content": "工具内置 AI 助手（BYOK / 本地模型）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 17,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "v3yAg",
+                              "name": "badge-MEAI",
+                              "fill": "$blue-soft",
+                              "cornerRadius": 99,
+                              "stroke": "$blue-border",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                2,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "w5a1eX",
+                                  "name": "ico-shield-check",
+                                  "width": 11,
+                                  "height": 11,
+                                  "icon": "shield-check",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "OArGE",
+                                  "name": "MEAI 受控单 Agent · 零执行权",
+                                  "fill": "$blue",
+                                  "content": "MEAI 受控单 Agent · 零执行权",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "JHQJi",
+                          "name": "副标题",
+                          "fill": "$muted",
+                          "content": "扫描页与垃圾清理页共用右侧 AI 抽屉；直接调用共享只读底座，自动脱敏且永不读文件内容。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OkZmO",
+                  "name": "ScanSnapshotSummary",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dB7Qi",
+                      "name": "SPHead",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Ztfh5",
+                          "name": "当前共享给内置 AI 的扫描快照",
+                          "fill": "$ink",
+                          "content": "当前分析上下文 · C: 盘扫描快照 #scan-1122（已脱敏）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.5,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "KER0E",
+                          "name": "快照统计",
+                          "fill": "$muted",
+                          "content": "共 468.2 GB · 仅共享目录结构元数据",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rtuLX",
+                      "name": "Row-ComfyUI / models",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        10
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "NIUNR",
+                          "name": "RL",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "X2wj9F",
+                              "name": "RT",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "TofAF",
+                                  "name": "ico-folder",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "folder",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "RHdJb",
+                                  "name": "ComfyUI / models",
+                                  "fill": "$ink",
+                                  "content": "ComfyUI / models",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "I1ldcD",
+                                  "name": "tag",
+                                  "fill": "$green-soft",
+                                  "cornerRadius": 99,
+                                  "stroke": "$green-border",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    1,
+                                    7
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "eZ5Ao",
+                                      "name": "L1 推荐迁移",
+                                      "fill": "$green",
+                                      "content": "L1 推荐迁移",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "YJVs1",
+                              "name": "path",
+                              "fill": "$muted",
+                              "content": "C:\\Users\\<USER>\\Apps\\ComfyUI\\models",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "naxGs",
+                          "name": "size",
+                          "fill": "$blue",
+                          "content": "128.4 GB",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "WcKVi",
+                      "name": "Row-NovaMax / knowledge",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        10
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "yAdnp",
+                          "name": "RL",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "F7BqX1",
+                              "name": "RT",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "u4mgO",
+                                  "name": "ico-folder",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "folder",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "YHGVK",
+                                  "name": "NovaMax / knowledge",
+                                  "fill": "$ink",
+                                  "content": "NovaMax / knowledge",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "nqKIi",
+                                  "name": "tag",
+                                  "fill": "$green-soft",
+                                  "cornerRadius": 99,
+                                  "stroke": "$green-border",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    1,
+                                    7
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "AdzyC",
+                                      "name": "L1 推荐迁移",
+                                      "fill": "$green",
+                                      "content": "L1 推荐迁移",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "JvmPH",
+                              "name": "path",
+                              "fill": "$muted",
+                              "content": "C:\\Users\\<USER>\\NovaMax\\knowledge",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "b6fO4v",
+                          "name": "size",
+                          "fill": "$blue",
+                          "content": "38.1 GB",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Mb52m",
+                      "name": "Row-BuildTool / tmp_cache",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "padding": [
+                        8,
+                        10
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "XBmU3",
+                          "name": "RL",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "alTY7",
+                              "name": "RT",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "gJuX9",
+                                  "name": "ico-folder",
+                                  "width": 13,
+                                  "height": 13,
+                                  "icon": "folder",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "cM2mk",
+                                  "name": "BuildTool / tmp_cache",
+                                  "fill": "$ink",
+                                  "content": "BuildTool / tmp_cache",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "pcEUA",
+                                  "name": "tag",
+                                  "fill": "$amber-soft",
+                                  "cornerRadius": 99,
+                                  "stroke": "$amber-border",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    1,
+                                    7
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "cVUaX",
+                                      "name": "未知大占用 · 可让 AI 诊断",
+                                      "fill": "$amber",
+                                      "content": "未知大占用 · 可让 AI 诊断",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "pF8eo",
+                              "name": "path",
+                              "fill": "$muted",
+                              "content": "C:\\Users\\<USER>\\AppData\\Local\\BuildTool\\tmp_cache",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "vmG95",
+                          "name": "size",
+                          "fill": "$blue",
+                          "content": "14.2 GB",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "g2XMC",
+                  "name": "ByokConfigCard",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$blue-border",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Z5g8tL",
+                      "name": "CfgHead",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ezcry",
+                          "name": "CfgHL",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "sa0fl",
+                              "name": "ico-sliders",
+                              "width": 14,
+                              "height": 14,
+                              "icon": "sliders-horizontal",
+                              "library": "lucide",
+                              "fill": "$blue"
+                            },
+                            {
+                              "type": "text",
+                              "id": "kTeez",
+                              "name": "AI 模型配置（BYOK · 自带模型 / 本地零外发）",
+                              "fill": "$ink",
+                              "content": "AI 模型配置（BYOK · OpenAI 兼容 / 本地 Ollama）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "igP07",
+                          "name": "ConnBadge",
+                          "fill": "$green-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$green-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "alErL",
+                              "name": "ico-check-circle-2",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "circle-check",
+                              "library": "lucide",
+                              "fill": "$green"
+                            },
+                            {
+                              "type": "text",
+                              "id": "X3e5G",
+                              "name": "已测通 · 支持 Tool Calling",
+                              "fill": "$green",
+                              "content": "已测通 · 支持 Tool Calling",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rhtZY",
+                      "name": "ProviderPresets",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "IoKmF",
+                          "name": "Preset-DeepSeek",
+                          "fill": "$blue-soft",
+                          "cornerRadius": 7,
+                          "stroke": "$blue",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "f73vs",
+                              "name": "DeepSeek",
+                              "fill": "$blue",
+                              "content": "DeepSeek",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "IjtzF",
+                          "name": "Preset-通义千问",
+                          "fill": "$subtle",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IcjJL",
+                              "name": "通义千问",
+                              "fill": "$body",
+                              "content": "通义千问",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "PiFJ5",
+                          "name": "Preset-OpenAI",
+                          "fill": "$subtle",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "xh2Xa",
+                              "name": "OpenAI",
+                              "fill": "$body",
+                              "content": "OpenAI",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Wzs56",
+                          "name": "Preset-本地 Ollama",
+                          "fill": "$subtle",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IZ9CZ",
+                              "name": "本地 Ollama",
+                              "fill": "$body",
+                              "content": "本地 Ollama",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "T0x2Wn",
+                          "name": "Preset-LM Studio",
+                          "fill": "$subtle",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ihu8o",
+                              "name": "LM Studio",
+                              "fill": "$body",
+                              "content": "LM Studio",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "mT5Sp",
+                          "name": "Preset-自定义端点",
+                          "fill": "$subtle",
+                          "cornerRadius": 7,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "padding": [
+                            5,
+                            10
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "zzzrK",
+                              "name": "自定义端点",
+                              "fill": "$body",
+                              "content": "自定义端点",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "P7MGw4",
+                      "name": "FormFields",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ghJXe",
+                          "name": "Field-API Endpoint",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DxamB",
+                              "name": "K-API Endpoint",
+                              "fill": "$muted",
+                              "content": "API Endpoint",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "vUR2s",
+                              "name": "V-API Endpoint",
+                              "width": "fill_container",
+                              "fill": "$subtle",
+                              "cornerRadius": 6,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                6,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nfVCO",
+                                  "name": "Txt-API Endpoint",
+                                  "fill": "$ink",
+                                  "content": "https://api.deepseek.com/v1  （本地 Ollama 填 localhost:11434/v1）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "IDgnl",
+                          "name": "Field-模型名称",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "eJGAS",
+                              "name": "K-模型名称",
+                              "fill": "$muted",
+                              "content": "模型名称",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "z3e2NH",
+                              "name": "V-模型名称",
+                              "width": "fill_container",
+                              "fill": "$subtle",
+                              "cornerRadius": 6,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                6,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "G74oO",
+                                  "name": "Txt-模型名称",
+                                  "fill": "$ink",
+                                  "content": "deepseek-chat  |  单次分析上限 8 步（硬上限 15）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "seZ2o",
+                          "name": "Field-API Key",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "XTosf",
+                              "name": "K-API Key",
+                              "fill": "$muted",
+                              "content": "API Key",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "n355bE",
+                              "name": "V-API Key",
+                              "width": "fill_container",
+                              "fill": "$subtle",
+                              "cornerRadius": 6,
+                              "stroke": "$line",
+                              "strokeWidth": 1,
+                              "padding": [
+                                6,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "g5Nof1",
+                                  "name": "Txt-API Key",
+                                  "fill": "$ink",
+                                  "content": "sk-••••••••••••8f3a  （Windows DPAPI 当前用户加密）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kzb1U",
+                      "name": "CfgFoot",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "sLaKX",
+                          "name": "PrivacyNote",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "GfOsW",
+                              "name": "ico-lock",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "lock",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "kTAPg",
+                              "name": "隐私提示",
+                              "fill": "$amber",
+                              "content": "云端仅发送脱敏目录元数据，永不读文件内容；需 100% 离线请选 Ollama。",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "lKWCi",
+                          "name": "CfgBtns",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "CBxJt",
+                              "name": "btn-测试连接",
+                              "fill": "$surface",
+                              "cornerRadius": 7,
+                              "stroke": "$line-strong",
+                              "strokeWidth": 1,
+                              "padding": [
+                                5,
+                                11
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "tu0CC",
+                                  "name": "测试连接",
+                                  "fill": "$ink",
+                                  "content": "测试连接",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "a00qns",
+                              "name": "btn-保存加密",
+                              "fill": "$blue",
+                              "cornerRadius": 7,
+                              "padding": [
+                                5,
+                                12
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "h3Sne",
+                                  "name": "保存配置",
+                                  "fill": "#FFFFFF",
+                                  "content": "保存配置",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "P0CGX",
+              "name": "RightAiDrawer",
+              "width": 374,
+              "height": "fill_container",
+              "fill": "$surface",
+              "cornerRadius": 12,
+              "stroke": "$blue-border",
+              "strokeWidth": 1,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#0078D414",
+                "offset": {
+                  "x": -2,
+                  "y": 2
+                },
+                "blur": 12
+              },
+              "layout": "vertical",
+              "gap": 9,
+              "padding": 12,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Cy2M4",
+                  "name": "DrawerHead",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "lsUBP",
+                      "name": "DrHL",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "D0Oan",
+                          "name": "ico-bot",
+                          "width": 15,
+                          "height": 15,
+                          "icon": "bot",
+                          "library": "lucide",
+                          "fill": "$blue"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Z6k8w",
+                          "name": "AI 分析助手",
+                          "fill": "$ink",
+                          "content": "AI 分析助手",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13.5,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "XjlGH",
+                          "name": "ModelOriginBadge",
+                          "fill": "$amber-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$amber-border",
+                          "strokeWidth": 1,
+                          "padding": [
+                            2,
+                            7
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ddZ02",
+                              "name": "云端 · DeepSeek",
+                              "fill": "$amber",
+                              "content": "云端 · DeepSeek",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PGbWR",
+                      "name": "DrHR",
+                      "gap": 5,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "A6R9ty",
+                          "name": "btn-settings",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$subtle",
+                          "cornerRadius": 6,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "F85rJ",
+                              "name": "ico-settings",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "settings",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "b0h1m",
+                          "name": "btn-panel-right-close",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$subtle",
+                          "cornerRadius": 6,
+                          "stroke": "$line",
+                          "strokeWidth": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "SkCiN",
+                              "name": "ico-panel-right-close",
+                              "width": 12,
+                              "height": 12,
+                              "icon": "panel-right-close",
+                              "library": "lucide",
+                              "fill": "$muted"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eFzrT",
+                  "name": "QuickPrompts",
+                  "width": "fill_container",
+                  "gap": 5,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "OTmII",
+                      "name": "Chip-分析大目录",
+                      "width": "fill_container",
+                      "fill": "$blue-soft",
+                      "cornerRadius": 7,
+                      "stroke": "$blue-border",
+                      "strokeWidth": 1,
+                      "padding": [
+                        5,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "e7Jfj",
+                          "name": "分析大目录",
+                          "fill": "$blue",
+                          "content": "分析大目录",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TiPi1",
+                      "name": "Chip-诊断未知占用",
+                      "width": "fill_container",
+                      "fill": "$blue-soft",
+                      "cornerRadius": 7,
+                      "stroke": "$blue-border",
+                      "strokeWidth": 1,
+                      "padding": [
+                        5,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "lMgqJ",
+                          "name": "诊断未知占用",
+                          "fill": "$blue",
+                          "content": "诊断未知占用",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "tGV9e",
+                      "name": "Chip-迁移 vs 清理",
+                      "width": "fill_container",
+                      "fill": "$blue-soft",
+                      "cornerRadius": 7,
+                      "stroke": "$blue-border",
+                      "strokeWidth": 1,
+                      "padding": [
+                        5,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "OcjM9",
+                          "name": "迁移 vs 清理",
+                          "fill": "$blue",
+                          "content": "迁移 vs 清理",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mWVxa",
+                  "name": "UserMsg",
+                  "width": "fill_container",
+                  "fill": "$subtle",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "padding": [
+                    7,
+                    10
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yvbSw",
+                      "name": "用户提问",
+                      "fill": "$ink",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "我：帮我看看 C 盘哪些适合迁移，哪些属于疑似垃圾缓存？",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FlZ1Y",
+                  "name": "ToolTraceBox",
+                  "width": "fill_container",
+                  "fill": "#F8FAFC",
+                  "cornerRadius": 8,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": [
+                    7,
+                    9
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "S8y5Yk",
+                      "name": "TrTop",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "P8sF3",
+                          "name": "受控工具调用轨迹",
+                          "fill": "$blue",
+                          "content": "MEAI 只读工具调用 · 2 / 8 步（已脱敏）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "z96LN",
+                          "name": "耗时",
+                          "fill": "$green",
+                          "content": "已完成 · 1.8s",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "q5aBF0",
+                      "name": "Trace1",
+                      "fill": "$muted",
+                      "content": "✓ get_scan_summary(scan-1122) → 3 个大占用热点",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "u6vnc",
+                      "name": "Trace2",
+                      "fill": "$muted",
+                      "content": "✓ inspect_unknown_dir_metadata(node-108) → 扩展名/时间分布",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PtGen",
+                  "name": "AiReplyBlock",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "gap": 7,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "p6DDe",
+                      "name": "AI 结论",
+                      "fill": "$body",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "已按「迁移 vs 清理」为您拆出 2 条建议卡片（需人工审阅，不会自动执行）：",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hpqP9",
+                      "name": "ProposalMigCard",
+                      "width": "fill_container",
+                      "fill": "$green-soft",
+                      "cornerRadius": 8,
+                      "stroke": "$green-border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "E2pOgo",
+                          "name": "CMH",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VeEIX",
+                              "name": "建议迁移",
+                              "fill": "$green",
+                              "content": "建议迁移 · ComfyUI / models",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cZVuw",
+                              "name": "大小",
+                              "fill": "$green",
+                              "content": "128.4 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "JDmWu",
+                          "name": "理由",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "命中 L1 规则（静态模型权重）；建议迁往 D 盘并保留原盘备份验证。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Hx1m3",
+                          "name": "btn-加入迁移清单",
+                          "fill": "$surface",
+                          "cornerRadius": 6,
+                          "stroke": "$green-border",
+                          "strokeWidth": 1,
+                          "padding": [
+                            4,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "kMTJt",
+                              "name": "加入待迁移清单（不立即执行）",
+                              "fill": "$green",
+                              "content": "+ 加入待迁移清单（不立即执行）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "N4ol9m",
+                      "name": "ProposalClnCard",
+                      "width": "fill_container",
+                      "fill": "$amber-soft",
+                      "cornerRadius": 8,
+                      "stroke": "$amber-border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KXTWT",
+                          "name": "CCH",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "KljEo",
+                              "name": "AI 疑似残留",
+                              "fill": "$amber",
+                              "content": "AI 疑似残留 · BuildTool / tmp_cache",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "tE8Mx",
+                              "name": "大小",
+                              "fill": "$amber",
+                              "content": "14.2 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "T3NUPX",
+                          "name": "理由",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "规则外目录：含旧构建临时文件（90 天未改）；仅可入通道 A 同卷隔离，请自行核实。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "vDHjj",
+                          "name": "btn-转入清理页核实",
+                          "fill": "$surface",
+                          "cornerRadius": 6,
+                          "stroke": "$amber-border",
+                          "strokeWidth": 1,
+                          "padding": [
+                            4,
+                            9
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "kbViV",
+                              "name": "转入清理页「AI 疑似残留」复核",
+                              "fill": "$amber",
+                              "content": "→ 转入清理页「AI 疑似残留」复核",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xkRZn",
+                  "name": "DrawerDisclaimer",
+                  "width": "fill_container",
+                  "fill": "$subtle",
+                  "cornerRadius": 6,
+                  "gap": 4,
+                  "padding": [
+                    5,
+                    8
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "J0OPZh",
+                      "name": "ico-info",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "info",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ACHQ6",
+                      "name": "免责条",
+                      "fill": "$muted",
+                      "content": "AI 建议仅供参考，请用户自行判断，本工具不对 AI 误判负责。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "o0FWRl",
+                  "name": "ChatInputRow",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "KkQUm",
+                      "name": "InputBox",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line-strong",
+                      "strokeWidth": 1,
+                      "padding": [
+                        7,
+                        10
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "h73F54",
+                          "name": "placeholder",
+                          "fill": "$muted",
+                          "content": "追问目录用途或清理影响...",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uWuUk",
+                      "name": "SendBtn",
+                      "fill": "$blue",
+                      "cornerRadius": 8,
+                      "padding": [
+                        7,
+                        12
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "cbtJZ",
+                          "name": "发送",
+                          "fill": "#FFFFFF",
+                          "content": "发送",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "NKmJF",
+      "x": 3240,
+      "y": 1560,
+      "name": "11 垃圾清理 · AI 疑似残留分组与免责二次确认",
+      "clip": true,
+      "width": 1000,
+      "height": 700,
+      "fill": "$bg",
+      "cornerRadius": 12,
+      "stroke": "$line-strong",
+      "strokeWidth": 1,
+      "effect": {
+        "type": "shadow",
+        "shadowType": "outer",
+        "color": "#0F172A18",
+        "offset": {
+          "x": 0,
+          "y": 6
+        },
+        "blur": 20
+      },
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "ZZ7QD",
+          "name": "WinTitleBar",
+          "width": "fill_container",
+          "height": 28,
+          "fill": "$surface",
+          "padding": [
+            0,
+            14
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "EQNuY",
+              "name": "TBLeft",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "jUTQ9",
+                  "name": "ico-hard-drive",
+                  "width": 12,
+                  "height": 12,
+                  "icon": "hard-drive",
+                  "library": "lucide",
+                  "fill": "$blue"
+                },
+                {
+                  "type": "text",
+                  "id": "Hp2Dk",
+                  "name": "目录迁移工具 · Directory Mig",
+                  "fill": "$muted",
+                  "content": "目录迁移工具 · Directory Migration Tool",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11.5,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WMshO",
+              "name": "TBRight",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "Eq5mr",
+                  "name": "ico-minus",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "minus",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "hJGqn",
+                  "name": "ico-square",
+                  "width": 11,
+                  "height": 11,
+                  "icon": "square",
+                  "library": "lucide",
+                  "fill": "$muted"
+                },
+                {
+                  "type": "icon",
+                  "id": "smFi5",
+                  "name": "ico-x",
+                  "width": 13,
+                  "height": 13,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$muted"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "LUFk8",
+          "name": "TopNavBar",
+          "width": "fill_container",
+          "height": 58,
+          "fill": "$surface",
+          "stroke": "$line",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#0F172A08",
+            "offset": {
+              "x": 0,
+              "y": 1
+            },
+            "blur": 3
+          },
+          "padding": [
+            0,
+            18
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "mBexQ",
+              "name": "Brand",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "a39Gh",
+                  "name": "AppLogo",
+                  "width": 32,
+                  "height": 32,
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 135,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#1492EB",
+                        "position": 0
+                      },
+                      {
+                        "color": "#006CC8",
+                        "position": 0.55
+                      },
+                      {
+                        "color": "#003E7E",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "cornerRadius": 8,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "eGzLn",
+                      "name": "ico-folder-symlink",
+                      "width": 18,
+                      "height": 18,
+                      "icon": "folder-symlink",
+                      "library": "lucide",
+                      "fill": "#FFFFFF"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "qsILo",
+                  "name": "BrandText",
+                  "layout": "vertical",
+                  "gap": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FM1Dy",
+                      "name": "目录迁移",
+                      "fill": "$ink",
+                      "content": "目录迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14.5,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "cNVEo",
+                      "name": "v2.0 Fluent",
+                      "fill": "$muted",
+                      "content": "v2.0 Fluent",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 10.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "xvolj",
+              "name": "ModeSegmented",
+              "fill": "$track",
+              "cornerRadius": 10,
+              "stroke": "$line",
+              "strokeWidth": 1,
+              "gap": 4,
+              "padding": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Oa5ey",
+                  "name": "Tab-手动模式",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hNR2p",
+                      "name": "ico-folder-input",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "folder-input",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "f8iJh",
+                      "name": "手动模式",
+                      "fill": "$body",
+                      "content": "手动模式",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "A9inp",
+                  "name": "Tab-一键迁移",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Qa0YR",
+                      "name": "ico-zap",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "zap",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "LTZg7",
+                      "name": "一键迁移",
+                      "fill": "$body",
+                      "content": "一键迁移",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "BPXod",
+                  "name": "Tab-磁盘扫描",
+                  "fill": "#00000000",
+                  "cornerRadius": 7,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "u0Vsj",
+                      "name": "ico-radar",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "radar",
+                      "library": "lucide",
+                      "fill": "$muted"
+                    },
+                    {
+                      "type": "text",
+                      "id": "u7Sn4",
+                      "name": "磁盘扫描",
+                      "fill": "$body",
+                      "content": "磁盘扫描",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "r0zNe",
+                  "name": "Tab-垃圾清理",
+                  "fill": "$surface",
+                  "cornerRadius": 7,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0F172A18",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 4
+                  },
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "eVWtO",
+                      "name": "ico-sparkles",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "sparkles",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "wK6Gi",
+                      "name": "垃圾清理",
+                      "fill": "$blue",
+                      "content": "垃圾清理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12.5,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PnDMk",
+              "name": "NavTools",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yLItA",
+                  "name": "AiDrawerBtn",
+                  "fill": "$blue-soft",
+                  "cornerRadius": 8,
+                  "stroke": "$blue-border",
+                  "strokeWidth": 1,
+                  "gap": 5,
+                  "padding": [
+                    6,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "rOHvR",
+                      "name": "ico-sparkles",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "sparkles",
+                      "library": "lucide",
+                      "fill": "$blue"
+                    },
+                    {
+                      "type": "text",
+                      "id": "VNlZ6",
+                      "name": "AI 诊断",
+                      "fill": "$blue",
+                      "content": "AI 诊断",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "V2iRcv",
+                  "name": "GlobalBackupBtn",
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    6,
+                    11
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "WJEVy",
+                      "name": "ico-archive",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "archive",
+                      "library": "lucide",
+                      "fill": "$body"
+                    },
+                    {
+                      "type": "text",
+                      "id": "FSMVn",
+                      "name": "备份管理",
+                      "fill": "$ink",
+                      "content": "备份管理",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mptnQ",
+                      "name": "BackupBadge",
+                      "fill": "$amber",
+                      "cornerRadius": 99,
+                      "padding": [
+                        1,
+                        6
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "sbwCg",
+                          "name": "2",
+                          "fill": "#FFFFFF",
+                          "content": "2",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZlUxp",
+                  "name": "HelpBtn",
+                  "width": 32,
+                  "height": 32,
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "TC1Dg",
+                      "name": "ico-book-open",
+                      "width": 15,
+                      "height": 15,
+                      "icon": "book-open",
+                      "library": "lucide",
+                      "fill": "$body"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QIoGQ",
+          "name": "PageBody",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            14,
+            18
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "d9RlZs",
+              "name": "S11Head",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "t09E8H",
+                  "name": "S11HL",
+                  "layout": "vertical",
+                  "gap": 3,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "IeTSj",
+                      "name": "TitleRow",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ZXUPg",
+                          "name": "独立垃圾清理 · AI 疑似残留（规则库外）",
+                          "fill": "$ink",
+                          "content": "垃圾清理 · 「AI 疑似残留」分组与隔离确认",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 17,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "xzgs3",
+                          "name": "badge-仅限通道A",
+                          "fill": "$amber-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$amber-border",
+                          "strokeWidth": 1,
+                          "gap": 4,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "Rnpas",
+                              "name": "ico-archive",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "archive",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "muV8P",
+                              "name": "仅限通道 A 同卷隔离 · 可恢复",
+                              "fill": "$amber",
+                              "content": "仅限通道 A 同卷隔离 · 可恢复",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "f9C69",
+                      "name": "副标题",
+                      "fill": "$muted",
+                      "content": "规则库外由 AI 发现的疑似残留默认折叠且不勾选；经永久排除区硬拦截后，仅允许移入同卷隔离区并须独立二次确认。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11.5,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mzEBE",
+                  "name": "btn-返回规则分类",
+                  "fill": "$surface",
+                  "cornerRadius": 8,
+                  "stroke": "$line-strong",
+                  "strokeWidth": 1,
+                  "gap": 5,
+                  "padding": [
+                    6,
+                    11
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "V0evH",
+                      "name": "ico-arrow-left",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "arrow-left",
+                      "library": "lucide",
+                      "fill": "$body"
+                    },
+                    {
+                      "type": "text",
+                      "id": "klm4q",
+                      "name": "返回三档规则",
+                      "fill": "$ink",
+                      "content": "返回三档规则",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11.5,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "R1j9VS",
+              "name": "AiDisclaimerBanner",
+              "width": "fill_container",
+              "fill": "$amber-soft",
+              "cornerRadius": 8,
+              "stroke": "$amber-border",
+              "strokeWidth": 1,
+              "gap": 8,
+              "padding": [
+                8,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "i9a4q",
+                  "name": "ico-alert-triangle",
+                  "width": 15,
+                  "height": 15,
+                  "icon": "triangle-alert",
+                  "library": "lucide",
+                  "fill": "$amber"
+                },
+                {
+                  "type": "text",
+                  "id": "L6zske",
+                  "name": "强制免责声明",
+                  "fill": "$amber",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "免责声明：以下条目来自 AI 对脱敏目录结构的推测，仅供参考且不代表官方安全背书；请务必点击「打开目录」自行核实归属与业务影响，本工具不对 AI 误判负责。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11.5,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "aZ8KA",
+              "name": "S11Main",
+              "width": "fill_container",
+              "height": "fill_container",
+              "gap": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "pvqYW",
+                  "name": "AiResidualListPanel",
+                  "width": 536,
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 10,
+                  "stroke": "$line",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ToJMQ",
+                      "name": "LLHead",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "eppTt",
+                          "name": "AI 疑似残留候选",
+                          "fill": "$ink",
+                          "content": "AI 疑似残留（需人工自判 · 默认全不勾选）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GV2OX",
+                          "name": "计数",
+                          "fill": "$muted",
+                          "content": "2 项可选 · 1 项已硬拦截",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c6Wsxn",
+                      "name": "Cand1-Selected",
+                      "width": "fill_container",
+                      "fill": "$amber-soft",
+                      "cornerRadius": 9,
+                      "stroke": "$amber",
+                      "strokeWidth": 1.5,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "nhpyr",
+                          "name": "C1H",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "I5XXx",
+                              "name": "C1HL",
+                              "gap": 7,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "C02AHz",
+                                  "name": "CheckboxOn",
+                                  "width": 15,
+                                  "height": 15,
+                                  "fill": "$amber",
+                                  "cornerRadius": 4,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "icon",
+                                      "id": "ZUI8y",
+                                      "name": "ico-check",
+                                      "width": 10,
+                                      "height": 10,
+                                      "icon": "check",
+                                      "library": "lucide",
+                                      "fill": "#FFFFFF"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "RXT6O",
+                                  "name": "BuildTool/tmp_cache",
+                                  "fill": "$ink",
+                                  "content": "AppData\\Local\\BuildTool\\tmp_cache",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "pSWBv",
+                              "name": "8.6 GB",
+                              "fill": "$amber",
+                              "content": "8.6 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "O3e4iH",
+                          "name": "AI 推测理由",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "AI 推测（仅供参考）：含 4,120 个 .tmp/.log 临时构建文件，最近修改于 96 天前；不命中永久排除区。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "lM5pz",
+                          "name": "C1F",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "gar2w",
+                              "name": "Tags",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EBpsb",
+                                  "name": "tag-AI疑似",
+                                  "fill": "$surface",
+                                  "cornerRadius": 99,
+                                  "stroke": "$amber-border",
+                                  "strokeWidth": 1,
+                                  "padding": [
+                                    2,
+                                    7
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "FBuXZ",
+                                      "name": "AI 疑似残留",
+                                      "fill": "$amber",
+                                      "content": "AI 疑似残留 · 需自判",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "HVgP6",
+                                  "name": "通道",
+                                  "fill": "$muted",
+                                  "content": "仅通道 A 同卷隔离",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10.5,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Z8EBZ",
+                              "name": "btn-打开目录核实1",
+                              "fill": "$surface",
+                              "cornerRadius": 6,
+                              "stroke": "$line-strong",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                3,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "Wy2zC",
+                                  "name": "ico-folder-open",
+                                  "width": 11,
+                                  "height": 11,
+                                  "icon": "folder-open",
+                                  "library": "lucide",
+                                  "fill": "$blue"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "z3jKF",
+                                  "name": "打开目录核实",
+                                  "fill": "$blue",
+                                  "content": "打开目录核实",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10.5,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "q5v56O",
+                      "name": "Cand2-Unselected",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 9,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "P0iGE",
+                          "name": "C2H",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "IySKp",
+                              "name": "C2HL",
+                              "gap": 7,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "q1bIO",
+                                  "name": "CheckboxOff",
+                                  "width": 15,
+                                  "height": 15,
+                                  "fill": "$surface",
+                                  "cornerRadius": 4,
+                                  "stroke": "$line-strong",
+                                  "strokeWidth": 1
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "HyhoO",
+                                  "name": "OldInstaller_Extract",
+                                  "fill": "$ink",
+                                  "content": "D:\\OldInstaller_Extract\\2024_Setup",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "n2Inr",
+                              "name": "5.6 GB",
+                              "fill": "$ink",
+                              "content": "5.6 GB",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12.5,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Y6H1Ga",
+                          "name": "AI 推测理由2",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "AI 推测（仅供参考）：疑似旧版离线安装包解压残余，180 天未访问；默认未勾选，建议打开目录确认。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "I26yyE",
+                          "name": "C2F",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "S2V3C",
+                              "name": "通道2",
+                              "fill": "$muted",
+                              "content": "仅通道 A 同卷隔离 · 未勾选",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10.5,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "dDKQh",
+                              "name": "btn-打开目录核实2",
+                              "fill": "$surface",
+                              "cornerRadius": 6,
+                              "stroke": "$line-strong",
+                              "strokeWidth": 1,
+                              "gap": 4,
+                              "padding": [
+                                3,
+                                8
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "FkR0s",
+                                  "name": "ico-folder-open",
+                                  "width": 11,
+                                  "height": 11,
+                                  "icon": "folder-open",
+                                  "library": "lucide",
+                                  "fill": "$body"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "qAwjw",
+                                  "name": "打开目录核实",
+                                  "fill": "$body",
+                                  "content": "打开目录核实",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10.5,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "HUuly",
+                      "name": "HardBlockedCard",
+                      "width": "fill_container",
+                      "fill": "$red-soft",
+                      "cornerRadius": 9,
+                      "stroke": "$red-border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 11,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "LxBS4",
+                          "name": "BLH",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "vgBiv",
+                              "name": "BLHL",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "vA790",
+                                  "name": "ico-shield-ban",
+                                  "width": 14,
+                                  "height": 14,
+                                  "icon": "shield-ban",
+                                  "library": "lucide",
+                                  "fill": "$red"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "CgyJK",
+                                  "name": "已硬拦截条目",
+                                  "fill": "$red",
+                                  "content": "已自动拦截：Documents\\ProjectBackup（22.4 GB）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11.5,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "inoxT",
+                              "name": "tag-永久排除",
+                              "fill": "$surface",
+                              "cornerRadius": 99,
+                              "stroke": "$red-border",
+                              "strokeWidth": 1,
+                              "padding": [
+                                2,
+                                7
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "WCa4u",
+                                  "name": "永久排除",
+                                  "fill": "$red",
+                                  "content": "永久排除 · 不可解锁",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "RJUmD",
+                          "name": "拦截原因",
+                          "fill": "$red",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "命中「永久排除区（个人文档 / 迁移备份）」；即使 AI 建议清理，核心安全策略也强制拒收且永不提供勾选入口。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zdsQj",
+                  "name": "AiIsolateConfirmModal",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": 12,
+                  "stroke": "$amber",
+                  "strokeWidth": 1.5,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#B453091F",
+                    "offset": {
+                      "x": 0,
+                      "y": 4
+                    },
+                    "blur": 16
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "D3G5k",
+                      "name": "ModalHead",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "CdLlR",
+                          "name": "RMHL",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "bms5t",
+                              "name": "ico-shield-alert",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "shield-alert",
+                              "library": "lucide",
+                              "fill": "$amber"
+                            },
+                            {
+                              "type": "text",
+                              "id": "mjR9V",
+                              "name": "二次确认标题",
+                              "fill": "$ink",
+                              "content": "二次确认 · 移入同卷隔离区",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Nn4v3",
+                          "name": "NoPermDeleteBadge",
+                          "fill": "$green-soft",
+                          "cornerRadius": 99,
+                          "stroke": "$green-border",
+                          "strokeWidth": 1,
+                          "padding": [
+                            2,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "bV4BW",
+                              "name": "绝不永久删除",
+                              "fill": "$green",
+                              "content": "可恢复 · 绝不直删",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TzHNg",
+                      "name": "TargetScopeBox",
+                      "width": "fill_container",
+                      "fill": "$subtle",
+                      "cornerRadius": 8,
+                      "stroke": "$line",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "lRw7V",
+                          "name": "本次隔离范围",
+                          "fill": "$muted",
+                          "content": "本次待隔离目录（共 1 项 · 8.6 GB）：",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "s9HL0",
+                          "name": "源路径",
+                          "fill": "$ink",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "源路径：C:\\Users\\zhao\\AppData\\Local\\BuildTool\\tmp_cache",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "scWaW",
+                          "name": "隔离目标",
+                          "fill": "$blue",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "隔离区：C:\\.MoveFolderQuarantine\\ai-20261122-01（同卷原子移入）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "wzu3Q",
+                          "name": "空间说明",
+                          "fill": "$muted",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "注：移入同卷隔离区不会立即释放 C: 盘空间；确认无异常后，请前往「清理隔离区」手动二次确认释放。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10.5,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mWUo0",
+                      "name": "ExplicitDisclaimerBox",
+                      "width": "fill_container",
+                      "fill": "$red-soft",
+                      "cornerRadius": 8,
+                      "stroke": "$red-border",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "c95uS",
+                          "name": "AI 误判免责须知",
+                          "fill": "$red",
+                          "content": "⚠ AI 建议免责须知（必读）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11.5,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "p8xfhD",
+                          "name": "免责正文",
+                          "fill": "$body",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "该目录不在工具已验证规则库内，完全基于 AI 推测。AI 可能误判冷门软件数据或项目依赖；请用户自行判断并承担决策责任，本工具不对 AI 建议及其引发的后果负责。",
+                          "lineHeight": 1.45,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mvQTl",
+                      "name": "MandatoryChecks",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "pElqm",
+                          "name": "CheckRow",
+                          "width": "fill_container",
+                          "gap": 7,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "jaMtf",
+                              "name": "ChkBox",
+                              "width": 15,
+                              "height": 15,
+                              "fill": "$blue",
+                              "cornerRadius": 4,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "IBq2g",
+                                  "name": "ico-check",
+                                  "width": 10,
+                                  "height": 10,
+                                  "icon": "check",
+                                  "library": "lucide",
+                                  "fill": "#FFFFFF"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "t0c6Nn",
+                              "name": "ChkTxt",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "我已自行核实目录内容，确认不含个人文档、密钥或重要业务数据",
+                              "lineHeight": 1.4,
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "dVki9",
+                          "name": "CheckRow",
+                          "width": "fill_container",
+                          "gap": 7,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "L1gHE",
+                              "name": "ChkBox",
+                              "width": 15,
+                              "height": 15,
+                              "fill": "$blue",
+                              "cornerRadius": 4,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "VvMIj",
+                                  "name": "ico-check",
+                                  "width": 10,
+                                  "height": 10,
+                                  "icon": "check",
+                                  "library": "lucide",
+                                  "fill": "#FFFFFF"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "SUoVT",
+                              "name": "ChkTxt",
+                              "fill": "$ink",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "我已知晓 AI 建议仅供参考、工具不负责，且本次仅移入可恢复的同卷隔离区",
+                              "lineHeight": 1.4,
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Iz4XA",
+                      "name": "ModalFoot",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Y0rGKl",
+                          "name": "btn-取消",
+                          "fill": "$surface",
+                          "cornerRadius": 8,
+                          "stroke": "$blue",
+                          "strokeWidth": 1.5,
+                          "padding": [
+                            7,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "x8PLh",
+                              "name": "取消（默认）",
+                              "fill": "$blue",
+                              "content": "取消（默认）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d2XHN",
+                          "name": "btn-确认移入隔离区",
+                          "fill": "$amber",
+                          "cornerRadius": 8,
+                          "padding": [
+                            7,
+                            16
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "iZZ9Y",
+                              "name": "确认移入同卷隔离区（8.6 GB）",
+                              "fill": "#FFFFFF",
+                              "content": "确认移入隔离区（8.6 GB）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11.5,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
                     }
                   ]
                 }
