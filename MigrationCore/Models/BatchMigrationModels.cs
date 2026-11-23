@@ -35,7 +35,8 @@ public sealed record MigrationPlanDraftItem(
     bool L3RiskAcknowledged = false,
     Guid? ScanId = null,
     int? NodeId = null,
-    BatchPlanItemSource Source = BatchPlanItemSource.ScanDiscovery);
+    BatchPlanItemSource Source = BatchPlanItemSource.ScanDiscovery,
+    bool HasInternalHardLinks = false);
 
 /// <summary>
 /// 已冻结并经过安全策略、去重、碰撞与容量校验的批量迁移清单项。

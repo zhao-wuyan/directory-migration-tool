@@ -6,7 +6,8 @@ public sealed record AlternateStreamManifest(string Name, long Length, string? H
 
 public sealed record FileManifestEntry(string RelativePath, bool IsDirectory, long Length,
     DateTime LastWriteTimeUtc, FileAttributes Attributes, string AclSddl,
-    AlternateStreamManifest[] AlternateStreams, string? Hash, DirectoryIdentity Identity);
+    AlternateStreamManifest[] AlternateStreams, string? Hash, DirectoryIdentity Identity,
+    uint LinkCount = 1);
 
 public sealed record FileManifest(string RootPath, DirectoryIdentity RootIdentity, VerificationMode Mode,
     IReadOnlyDictionary<string, FileManifestEntry> Entries);

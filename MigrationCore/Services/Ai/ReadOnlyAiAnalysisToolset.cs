@@ -428,10 +428,12 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
             // L0 硬拒绝绝不作为迁移候选返回
             if (decision.IsHardDenied) continue;
 
-            var (hasHardLinks, hasIncomplete, _) = snapshot.InspectSubtreeHazards(nodeId);
+            SubtreeHazardReport hazards = snapshot.AnalyzeSubtreeHazards(nodeId, maxExternalSamples: 0);
             bool isCompressed = node.IsSparseOrCompressed || node.IsWofCompressed;
             long conservativeTarget = MigrationPlanService.ComputeConservativeTargetBytes(
-                node.LogicalBytes, node.UniqueAllocatedBytes, isCompressed);
+                hazards.HasInternalOnlyHardLinks ? node.UniqueAllocatedBytes : node.LogicalBytes,
+                node.UniqueAllocatedBytes,
+                isCompressed);
 
             DirectoryExplanation? exp = KnownDirectoryExplainer.Explain(fullPath, _catalog, decision);
             string displayName = BuildDisplayName(snapshot, nodeId, decision.MatchedApplicationName);
@@ -464,9 +466,12 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
                 RecommendedTargetCandidateId: bestTarget?.TargetCandidateId,
                 SuggestedTargetDisplay: suggestedTargetDisplay,
                 RequiredStoppedProcesses: decision.RequiredStoppedProcesses ?? [],
-                HasSubtreeHardLinks: hasHardLinks,
-                HasIncompleteNodes: hasIncomplete,
-                Summary: decision.Summary));
+                HasSubtreeHardLinks: hazards.HasHardLinks,
+                HasIncompleteNodes: hazards.HasIncompleteNodes,
+                Summary: decision.Summary,
+                HardLinkKind: hazards.HardLinkKind,
+                InternalHardLinkGroupCount: hazards.InternalHardLinkGroupCount,
+                ExternalHardLinkFileCount: hazards.ExternalHardLinkFileCount));
         }
 
         // L1 推荐迁移优先，其次按占用降序
@@ -513,14 +518,32 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         string fullPath = snapshot.GetFullPath(nodeId);
         SafetyPolicyDecision decision = EvaluateSnapshotPath(fullPath);
         DirectoryExplanation? exp = KnownDirectoryExplainer.Explain(fullPath, _catalog, decision);
-        var (hasHardLinks, hasIncomplete, hasReparse) = snapshot.InspectSubtreeHazards(nodeId);
+        SubtreeHazardReport hazards = snapshot.AnalyzeSubtreeHazards(nodeId, maxExternalSamples: 3);
+        string[] sanitizedExternalPeers = hazards.SampleExternalPeerPaths
+            .Select(p => AiPathSanitizer.SanitizePath(p))
+            .ToArray();
 
         bool isCompressed = node.IsSparseOrCompressed || node.IsWofCompressed;
         long conservativeTarget = MigrationPlanService.ComputeConservativeTargetBytes(
-            node.LogicalBytes, node.UniqueAllocatedBytes, isCompressed);
+            hazards.HasInternalOnlyHardLinks ? node.UniqueAllocatedBytes : node.LogicalBytes,
+            node.UniqueAllocatedBytes,
+            isCompressed);
+
+        string hardLinkNote = hazards.HardLinkKind switch
+        {
+            SubtreeHardLinkKind.InternalOnly =>
+                $" 检测到 {hazards.InternalHardLinkGroupCount} 组目录内闭环硬链接（节省约 {FileStatsService.FormatBytes(hazards.HardLinkSharedBytes)} 重复空间）；本工具支持迁移时在目标盘无损重建内部硬链接，零空间膨胀，允许正常迁移。",
+            SubtreeHardLinkKind.ExternalLinked =>
+                $" 检测到 {hazards.ExternalHardLinkFileCount} 个文件存在指向目录外部的硬链接" +
+                (sanitizedExternalPeers.Length > 0 ? $"（外部关联示例：{string.Join("；", sanitizedExternalPeers)}）" : string.Empty) +
+                "，跨盘迁移必然断开共享关系且源盘对应空间无法释放，已自动拦截。",
+            SubtreeHardLinkKind.UnverifiedExternal =>
+                " 检测到未能验证归属闭环的硬链接文件，按安全原则已自动拦截。",
+            _ => string.Empty
+        };
 
         string spaceNote = $"逻辑大小 {FileStatsService.FormatBytes(node.LogicalBytes)}，卷内去重实际占用 {FileStatsService.FormatBytes(node.UniqueAllocatedBytes)}，" +
-            $"目标盘保守预估需求 {FileStatsService.FormatBytes(conservativeTarget)}。迁移后原目录将在源盘改名保留为备份，在用户人工验证并二次确认删除前不会释放源盘物理空间。";
+            $"目标盘保守预估需求 {FileStatsService.FormatBytes(conservativeTarget)}。迁移后原目录将在源盘改名保留为备份，在用户人工验证并二次确认删除前不会释放源盘物理空间。{hardLinkNote}";
 
         return new AiCandidateDetailsResponse(
             ScanId: scanId,
@@ -534,7 +557,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
             FileCount: node.FileCount,
             DirectoryCount: node.DirectoryCount,
             AdmissionLevel: decision.Level,
-            IsAllowedForNewMigration: decision.IsAllowedForNewMigration && !hasHardLinks && !hasIncomplete,
+            IsAllowedForNewMigration: decision.IsAllowedForNewMigration && !hazards.HasBlockingHardLinks && !hazards.HasIncompleteNodes,
             ReasonCodes: decision.ReasonCodes,
             PolicySummary: decision.Summary,
             MatchedApplicationId: decision.MatchedApplicationId,
@@ -546,10 +569,14 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
             DirectoryRoleTitle: exp?.RoleTitle,
             DirectoryPurpose: exp?.Purpose,
             DirectoryAdvice: exp?.MigrationAdvice,
-            HasSubtreeHardLinks: hasHardLinks,
-            HasIncompleteNodes: hasIncomplete,
-            HasReparseDescendants: hasReparse,
-            SpaceAccountingNote: spaceNote);
+            HasSubtreeHardLinks: hazards.HasHardLinks,
+            HasIncompleteNodes: hazards.HasIncompleteNodes,
+            HasReparseDescendants: hazards.HasReparseDescendants,
+            SpaceAccountingNote: spaceNote,
+            HardLinkKind: hazards.HardLinkKind,
+            InternalHardLinkGroupCount: hazards.InternalHardLinkGroupCount,
+            ExternalHardLinkFileCount: hazards.ExternalHardLinkFileCount,
+            ExternalHardLinkSamplePaths: sanitizedExternalPeers);
     }
 
     public AiUnknownDirectoryMetadataResponse InspectUnknownDirectoryMetadata(Guid scanId, int nodeId)
@@ -892,14 +919,24 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
                 continue;
             }
 
-            // 3. 子树硬链接/不完整节点拦截
-            var (hasHardLinks, hasIncomplete, _) = snapshot.InspectSubtreeHazards(input.NodeId);
-            if (hasHardLinks || hasIncomplete)
+            // 3. 子树外部硬链接 / 不完整节点拦截（纯目录内闭环硬链接支持目标盘无损重建，允许放行）
+            SubtreeHazardReport hazards = snapshot.AnalyzeSubtreeHazards(input.NodeId, maxExternalSamples: 2);
+            if (hazards.HasBlockingHardLinks || hazards.HasIncompleteNodes)
             {
                 blockedByPolicyCount++;
-                string hazardMsg = hasHardLinks
-                    ? "该目录子树包含硬链接文件，为防止破坏共享语义，已自动拦截。"
-                    : "该目录子树扫描不完整或存在损坏节点，已自动拦截。";
+                string hazardMsg;
+                if (hazards.HasBlockingHardLinks)
+                {
+                    string[] samplePeers = hazards.SampleExternalPeerPaths.Select(p => AiPathSanitizer.SanitizePath(p)).ToArray();
+                    string peerHint = samplePeers.Length > 0 ? $"（外部关联如：{string.Join("；", samplePeers)}）" : string.Empty;
+                    hazardMsg = hazards.HardLinkKind == SubtreeHardLinkKind.ExternalLinked
+                        ? $"该目录存在 {hazards.ExternalHardLinkFileCount} 个指向目录外部的硬链接文件{peerHint}，跨卷迁移会断开共享语义且无法释放源盘对应空间，已自动拦截。"
+                        : "该目录子树包含无法核实闭环归属的硬链接文件，为防止破坏共享语义，已自动拦截。";
+                }
+                else
+                {
+                    hazardMsg = "该目录子树扫描不完整或存在损坏节点，已自动拦截。";
+                }
                 evaluatedItems.Add(new AiMigrationProposalItemRecord(
                     Guid.NewGuid(), input.NodeId, displayName, sanitizedPath, fullPath,
                     node.LogicalBytes, node.UniqueAllocatedBytes, MigrationAdmissionLevel.HardDenied,

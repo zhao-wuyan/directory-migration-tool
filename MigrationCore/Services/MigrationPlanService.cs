@@ -174,10 +174,10 @@ public sealed class MigrationPlanService
                 }
             }
 
-            // 4. 扫描子树硬链接 / 不完整数据拦截
+            // 4. 扫描子树外部硬链接 / 不完整数据拦截（纯子树内部硬链接支持在目标盘无损重建，不阻断迁移）
             if (blockingReason is null && draft.HasSubtreeHardLinks)
             {
-                blockingReason = "目录包含硬链接文件；初始版本拒绝跨卷迁移含硬链接的目录以防破坏共享语义。";
+                blockingReason = "目录包含指向目录外部的硬链接文件；跨卷迁移会破坏共享语义且无法释放源盘对应空间，已禁止迁移。";
             }
             if (blockingReason is null && draft.HasIncompleteScanData)
             {

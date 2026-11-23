@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Text;
 using MigrationCore.Models;
 
@@ -58,6 +59,18 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
             else CheckFinalTarget();
             Report(CopyPhase.Preparing);
             before = await verification.CaptureAsync(source, record.VerificationMode, cancellationToken).ConfigureAwait(false);
+            CopyVerificationService.ManifestHardLinkAnalysis hardLinkAnalysis = CopyVerificationService.AnalyzeManifestHardLinks(before);
+            if (hardLinkAnalysis.HasExternalHardLinks)
+            {
+                string sampleList = string.Join("、", hardLinkAnalysis.ExternalHardLinkRelativePaths.Take(3));
+                throw new IOException(
+                    $"检测到源目录存在指向目录外部的硬链接文件（共 {hardLinkAnalysis.ExternalHardLinkRelativePaths.Length} 项，例如：{sampleList}）；跨卷复制会破坏共享语义且无法释放源盘空间，已安全中止。");
+            }
+
+            var secondaryHardLinkPaths = new HashSet<string>(
+                hardLinkAnalysis.InternalGroups.SelectMany(g => g.SecondaryRelativePaths),
+                StringComparer.OrdinalIgnoreCase);
+
             string final = record.Mode == MigrationMode.Restore ? record.SourcePath : record.TargetPath;
             string parent = Path.GetDirectoryName(final) ?? throw new IOException("复制父路径缺失。");
             DirectoryIdentity parentIdentity = identity.ReadDirectory(parent, false);
@@ -65,6 +78,10 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
             long requiredBytes = 0;
             foreach (var item in before.Entries)
             {
+                if (!item.Value.IsDirectory && secondaryHardLinkPaths.Contains(item.Key))
+                {
+                    continue;
+                }
                 requiredBytes = checked(requiredBytes + item.Value.Length);
                 foreach (var stream in item.Value.AlternateStreams) requiredBytes = checked(requiredBytes + stream.Length);
             }
@@ -98,57 +115,77 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
             // /E 不替换既有目的根目录 ACL；先冻结源根权限，避免继承目标父目录的规则。
             RootSecuritySnapshot.Apply(staging, before.Entries[""].AclSddl);
             identity.RequireSame(staging, stageIdentity);
-            var arguments = new[] { source, staging, "/E", "/COPYALL", "/DCOPY:DAT", "/R:0", "/W:0", "/XJ", "/SL",
-                "/XC", "/XN", "/XO", "/BYTES", "/FP", "/UNICODE", $"/MT:{Math.Clamp(robocopyThreads, 1, 128)}" };
-            job = new OwnedProcessJob();
-            job.Start(Path.Combine(Environment.SystemDirectory, "robocopy.exe"), arguments, parent, Encoding.Unicode);
-            processExited = false;
-            registration = cancellationToken.Register(() =>
-            {
-                try { job.Stop(); }
-                catch (Exception ex) { Interlocked.CompareExchange(ref stopError, ex.Message, null); }
-            });
-            stdout = Drain(job.Output, false);
-            stderr = Drain(job.Error, true);
-            Task exit = job.WaitForExitAsync(cancellationToken);
-            Task lifecycle = Task.WhenAll(stdout, stderr, exit);
-            Report(CopyPhase.ProcessStarted);
-            cancellationToken.ThrowIfCancellationRequested();
-            identity.RequireSame(source, before.RootIdentity);
-            identity.RequireSame(staging, stageIdentity);
-            identity.RequireSame(parent, parentIdentity);
-            // 两个读取任务与退出等待此时已经挂起；根进程仍受控挂起，取消可确定复现。
-            Report(CopyPhase.ReadingOutput);
-            cancellationToken.ThrowIfCancellationRequested();
-            Report(CopyPhase.WaitingForExit);
-            cancellationToken.ThrowIfCancellationRequested();
-            job.Resume();
-            var clock = Stopwatch.StartNew();
             long previousBytes = 0;
-            double previousSeconds = 0;
-            double speed = 0;
-            do
+            if (hardLinkAnalysis.HasInternalHardLinks)
             {
-                if (stdout.IsFaulted) await stdout.ConfigureAwait(false);
-                if (stderr.IsFaulted) await stderr.ConfigureAwait(false);
-                if (exit.IsFaulted) await exit.ConfigureAwait(false);
+                logProgress?.Report(
+                    $"[{actionName}] 检测到 {hardLinkAnalysis.InternalGroups.Length} 组目录内闭环硬链接（共 {secondaryHardLinkPaths.Count} 个共享链接项），启用无损硬链接重建模式，零空间膨胀。");
+                previousBytes = await ExecuteHardLinkAwareCopyAsync(
+                    before,
+                    source,
+                    staging,
+                    hardLinkAnalysis,
+                    secondaryHardLinkPaths,
+                    Math.Clamp(robocopyThreads, 1, 16),
+                    Math.Clamp(sampleMilliseconds, 10, 10000),
+                    (bytes, speed) => Report(CopyPhase.Sampling, bytes, speed),
+                    () => identity.RequireSame(staging, stageIdentity),
+                    cancellationToken).ConfigureAwait(false);
+                exitCode = 0;
+            }
+            else
+            {
+                var arguments = new[] { source, staging, "/E", "/COPYALL", "/DCOPY:DAT", "/R:0", "/W:0", "/XJ", "/SL",
+                    "/XC", "/XN", "/XO", "/BYTES", "/FP", "/UNICODE", $"/MT:{Math.Clamp(robocopyThreads, 1, 128)}" };
+                job = new OwnedProcessJob();
+                job.Start(Path.Combine(Environment.SystemDirectory, "robocopy.exe"), arguments, parent, Encoding.Unicode);
+                processExited = false;
+                registration = cancellationToken.Register(() =>
+                {
+                    try { job.Stop(); }
+                    catch (Exception ex) { Interlocked.CompareExchange(ref stopError, ex.Message, null); }
+                });
+                stdout = Drain(job.Output, false);
+                stderr = Drain(job.Error, true);
+                Task exit = job.WaitForExitAsync(cancellationToken);
+                Task lifecycle = Task.WhenAll(stdout, stderr, exit);
+                Report(CopyPhase.ProcessStarted);
                 cancellationToken.ThrowIfCancellationRequested();
-                Report(CopyPhase.Sampling, previousBytes, speed);
-                await Task.WhenAny(lifecycle, Task.Delay(Math.Clamp(sampleMilliseconds, 10, 10000), cancellationToken)).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
+                identity.RequireSame(source, before.RootIdentity);
                 identity.RequireSame(staging, stageIdentity);
-                long bytes = FileStatsService.GetDirectorySize(staging);
-                double seconds = clock.Elapsed.TotalSeconds;
-                double instantaneous = seconds > previousSeconds ? Math.Max(0, bytes - previousBytes) / (seconds - previousSeconds) : 0;
-                speed = speed == 0 ? instantaneous : 0.3 * instantaneous + 0.7 * speed;
-                previousBytes = bytes;
-                previousSeconds = seconds;
-            } while (!lifecycle.IsCompleted);
-            await lifecycle.ConfigureAwait(false);
-            processExited = job.HasExited && job.ActiveProcesses == 0;
-            if (!processExited) throw new IOException("无法确认本任务进程集已经退出。");
-            exitCode = job.ExitCode;
-            if (exitCode is < 0 or >= 8) throw new IOException($"Robocopy {actionName}失败，退出码 {exitCode}；数据保留于 {staging}。");
+                identity.RequireSame(parent, parentIdentity);
+                // 两个读取任务与退出等待此时已经挂起；根进程仍受控挂起，取消可确定复现。
+                Report(CopyPhase.ReadingOutput);
+                cancellationToken.ThrowIfCancellationRequested();
+                Report(CopyPhase.WaitingForExit);
+                cancellationToken.ThrowIfCancellationRequested();
+                job.Resume();
+                var clock = Stopwatch.StartNew();
+                double previousSeconds = 0;
+                double speed = 0;
+                do
+                {
+                    if (stdout.IsFaulted) await stdout.ConfigureAwait(false);
+                    if (stderr.IsFaulted) await stderr.ConfigureAwait(false);
+                    if (exit.IsFaulted) await exit.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Report(CopyPhase.Sampling, previousBytes, speed);
+                    await Task.WhenAny(lifecycle, Task.Delay(Math.Clamp(sampleMilliseconds, 10, 10000), cancellationToken)).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    identity.RequireSame(staging, stageIdentity);
+                    long bytes = FileStatsService.GetDirectorySize(staging);
+                    double seconds = clock.Elapsed.TotalSeconds;
+                    double instantaneous = seconds > previousSeconds ? Math.Max(0, bytes - previousBytes) / (seconds - previousSeconds) : 0;
+                    speed = speed == 0 ? instantaneous : 0.3 * instantaneous + 0.7 * speed;
+                    previousBytes = bytes;
+                    previousSeconds = seconds;
+                } while (!lifecycle.IsCompleted);
+                await lifecycle.ConfigureAwait(false);
+                processExited = job.HasExited && job.ActiveProcesses == 0;
+                if (!processExited) throw new IOException("无法确认本任务进程集已经退出。");
+                exitCode = job.ExitCode;
+                if (exitCode is < 0 or >= 8) throw new IOException($"Robocopy {actionName}失败，退出码 {exitCode}；数据保留于 {staging}。");
+            }
             Report(CopyPhase.Verifying, previousBytes);
             cancellationToken.ThrowIfCancellationRequested();
             identity.RequireSame(staging, stageIdentity);
@@ -291,7 +328,254 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
         };
     }
 
+    /// <summary>
+    /// 面向闭环纯内部硬链接目录的无损重建复制核心：仅复制每组唯一主文件与 ADS，通过 Win32 CreateHardLinkW 在目标目录重建全部共享硬链接。
+    /// </summary>
+    public static async Task<long> ExecuteHardLinkAwareCopyAsync(
+        FileManifest before,
+        string sourceRoot,
+        string stagingRoot,
+        CopyVerificationService.ManifestHardLinkAnalysis hardLinkAnalysis,
+        HashSet<string> secondaryRelativePaths,
+        int maxDegreeOfParallelism,
+        int sampleMilliseconds,
+        Action<long, double> reportProgress,
+        Action verifyStagingIdentity,
+        CancellationToken cancellationToken)
+    {
+        // 1. 按深度自顶向下创建所有子目录骨架（暂不设只读属性，确保后续文件与硬链接可写入）
+        FileManifestEntry[] subDirectories = before.Entries.Values
+            .Where(e => e.IsDirectory && e.RelativePath.Length > 0)
+            .OrderBy(e => CountSeparators(e.RelativePath))
+            .ThenBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (FileManifestEntry dir in subDirectories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string targetDir = Path.Combine(stagingRoot, dir.RelativePath);
+            Directory.CreateDirectory(targetDir);
+        }
+
+        // 2. 并发复制全部唯一实体文件（普通文件 + 每组内部硬链接的 Primary 主文件）及其 ADS 备用流
+        FileManifestEntry[] primaryFiles = before.Entries.Values
+            .Where(e => !e.IsDirectory && !secondaryRelativePaths.Contains(e.RelativePath))
+            .ToArray();
+
+        long totalCopiedBytes = 0;
+        var clock = Stopwatch.StartNew();
+        long lastReportMs = 0;
+        long lastReportedBytes = 0;
+        double smoothedSpeed = 0;
+        var reportLock = new object();
+
+        void MaybeReport(bool force = false)
+        {
+            long nowMs = clock.ElapsedMilliseconds;
+            lock (reportLock)
+            {
+                if (!force && nowMs - lastReportMs < sampleMilliseconds) return;
+                long currentBytes = Interlocked.Read(ref totalCopiedBytes);
+                double dt = (nowMs - lastReportMs) / 1000.0;
+                double instant = dt > 0.001 ? Math.Max(0, currentBytes - lastReportedBytes) / dt : 0;
+                smoothedSpeed = smoothedSpeed == 0 ? instant : 0.3 * instant + 0.7 * smoothedSpeed;
+                lastReportMs = nowMs;
+                lastReportedBytes = currentBytes;
+                reportProgress(currentBytes, smoothedSpeed);
+            }
+        }
+
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = maxDegreeOfParallelism,
+            CancellationToken = cancellationToken
+        };
+
+        await Parallel.ForEachAsync(primaryFiles, parallelOptions, async (entry, ct) =>
+        {
+            string srcPath = Path.Combine(sourceRoot, entry.RelativePath);
+            string dstPath = Path.Combine(stagingRoot, entry.RelativePath);
+            string? dstParent = Path.GetDirectoryName(dstPath);
+            if (!string.IsNullOrEmpty(dstParent))
+            {
+                Directory.CreateDirectory(dstParent);
+            }
+
+            await CopySingleFileStreamAsync(srcPath, dstPath, read =>
+            {
+                Interlocked.Add(ref totalCopiedBytes, read);
+                MaybeReport();
+            }, ct).ConfigureAwait(false);
+
+            // 复制该唯一主文件的全部非默认 ADS 数据流
+            foreach (AlternateStreamManifest ads in entry.AlternateStreams)
+            {
+                string streamSuffix = ads.Name.EndsWith(":$DATA", StringComparison.Ordinal)
+                    ? ads.Name[..^6]
+                    : ads.Name;
+                await CopySingleFileStreamAsync(srcPath + streamSuffix, dstPath + streamSuffix, read =>
+                {
+                    Interlocked.Add(ref totalCopiedBytes, read);
+                    MaybeReport();
+                }, ct).ConfigureAwait(false);
+            }
+
+            CopyFileAclFromSource(srcPath, dstPath);
+            File.SetCreationTimeUtc(dstPath, File.GetCreationTimeUtc(srcPath));
+            File.SetLastWriteTimeUtc(dstPath, entry.LastWriteTimeUtc);
+        }).ConfigureAwait(false);
+
+        verifyStagingIdentity();
+
+        // 3. 在目标 staging 内对同组全部 Secondary 路径调用 Win32 CreateHardLinkW 无损重建硬链接（零额外磁盘空间）
+        foreach (CopyVerificationService.ManifestHardLinkGroup group in hardLinkAnalysis.InternalGroups)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string dstPrimary = Path.Combine(stagingRoot, group.PrimaryRelativePath);
+            foreach (string secRel in group.SecondaryRelativePaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string dstSecondary = Path.Combine(stagingRoot, secRel);
+                string? secParent = Path.GetDirectoryName(dstSecondary);
+                if (!string.IsNullOrEmpty(secParent))
+                {
+                    Directory.CreateDirectory(secParent);
+                }
+
+                if (!CreateHardLinkW(@"\\?\" + dstSecondary, @"\\?\" + dstPrimary, IntPtr.Zero))
+                {
+                    throw new Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        $"在目标目录重建内部硬链接失败：{dstSecondary} -> {dstPrimary}");
+                }
+            }
+        }
+
+        // 4. 恢复全部唯一主文件的最终文件属性（含 ReadOnly/Hidden/System）并重新确认写入时间（同组硬链接共享同一 MFT 实体自动生效）
+        foreach (FileManifestEntry entry in primaryFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string dstPath = Path.Combine(stagingRoot, entry.RelativePath);
+            File.SetLastWriteTimeUtc(dstPath, entry.LastWriteTimeUtc);
+            File.SetAttributes(dstPath, entry.Attributes);
+        }
+
+        // 5. 自底向上恢复子目录的 ACL、时间戳与属性（避免写入子文件冲掉父目录 LastWriteTimeUtc）
+        for (int i = subDirectories.Length - 1; i >= 0; i--)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FileManifestEntry dir = subDirectories[i];
+            string srcDir = Path.Combine(sourceRoot, dir.RelativePath);
+            string dstDir = Path.Combine(stagingRoot, dir.RelativePath);
+            CopyDirectoryAclFromSource(srcDir, dstDir);
+            Directory.SetCreationTimeUtc(dstDir, Directory.GetCreationTimeUtc(srcDir));
+            Directory.SetLastWriteTimeUtc(dstDir, dir.LastWriteTimeUtc);
+            File.SetAttributes(dstDir, dir.Attributes);
+        }
+
+        // 6. 恢复根目录时间戳与属性（根目录 ACL 已在复制前由 RootSecuritySnapshot.Apply 冻结）
+        FileManifestEntry rootEntry = before.Entries[""];
+        Directory.SetLastWriteTimeUtc(stagingRoot, rootEntry.LastWriteTimeUtc);
+        FileAttributes rootAttrs = rootEntry.Attributes & ~FileAttributes.ReadOnly;
+        if (rootAttrs != 0)
+        {
+            File.SetAttributes(stagingRoot, rootAttrs);
+        }
+        if ((rootEntry.Attributes & FileAttributes.ReadOnly) != 0)
+        {
+            File.SetAttributes(stagingRoot, rootEntry.Attributes);
+        }
+
+        MaybeReport(force: true);
+        return Interlocked.Read(ref totalCopiedBytes);
+    }
+
+    private static async Task CopySingleFileStreamAsync(
+        string srcPath,
+        string dstPath,
+        Action<int> onChunkCopied,
+        CancellationToken ct)
+    {
+        const int bufferSize = 1024 * 1024;
+        await using var input = new FileStream(
+            srcPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var output = new FileStream(
+            dstPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        byte[] buffer = new byte[bufferSize];
+        int read;
+        while ((read = await input.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        {
+            await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            onChunkCopied(read);
+        }
+    }
+
+    private static void CopyFileAclFromSource(string srcPath, string dstPath)
+    {
+        var srcInfo = new FileInfo(srcPath);
+        var dstInfo = new FileInfo(dstPath);
+        try
+        {
+            FileSecurity srcSec = srcInfo.GetAccessControl(AccessControlSections.All);
+            var dstSec = new FileSecurity();
+            dstSec.SetSecurityDescriptorBinaryForm(srcSec.GetSecurityDescriptorBinaryForm());
+            dstInfo.SetAccessControl(dstSec);
+        }
+        catch (Exception ex) when (ex is PrivilegeNotHeldException or UnauthorizedAccessException)
+        {
+            FileSecurity srcSec = srcInfo.GetAccessControl(AccessControlSections.Access);
+            var dstSec = new FileSecurity();
+            dstSec.SetSecurityDescriptorBinaryForm(srcSec.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+            dstInfo.SetAccessControl(dstSec);
+        }
+    }
+
+    private static void CopyDirectoryAclFromSource(string srcPath, string dstPath)
+    {
+        var srcInfo = new DirectoryInfo(srcPath);
+        var dstInfo = new DirectoryInfo(dstPath);
+        try
+        {
+            DirectorySecurity srcSec = srcInfo.GetAccessControl(AccessControlSections.All);
+            var dstSec = new DirectorySecurity();
+            dstSec.SetSecurityDescriptorBinaryForm(srcSec.GetSecurityDescriptorBinaryForm());
+            dstInfo.SetAccessControl(dstSec);
+        }
+        catch (Exception ex) when (ex is PrivilegeNotHeldException or UnauthorizedAccessException)
+        {
+            DirectorySecurity srcSec = srcInfo.GetAccessControl(AccessControlSections.Access);
+            var dstSec = new DirectorySecurity();
+            dstSec.SetSecurityDescriptorBinaryForm(srcSec.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
+            dstInfo.SetAccessControl(dstSec);
+        }
+    }
+
+    private static int CountSeparators(string path)
+    {
+        int count = 0;
+        for (int i = 0; i < path.Length; i++)
+        {
+            if (path[i] == '\\') count++;
+        }
+        return count;
+    }
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CreateDirectoryW(string path, IntPtr securityAttributes);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 }

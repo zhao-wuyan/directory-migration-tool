@@ -44,7 +44,10 @@ public sealed class PathIdentityService
         return identity;
     }
 
-    public DirectoryIdentity ReadEntry(string path, bool followLink = false)
+    public DirectoryIdentity ReadEntry(string path, bool followLink = false) =>
+        ReadEntryWithLinkCount(path, followLink).Identity;
+
+    public (DirectoryIdentity Identity, uint LinkCount) ReadEntryWithLinkCount(string path, bool followLink = false)
     {
         path = Normalize(path);
         for (int end = 3; end < path.Length;)
@@ -55,7 +58,7 @@ public sealed class PathIdentityService
             if (next < 0) break;
             end = next;
         }
-        return ReadNative(path, followLink);
+        return ReadNativeWithLinkCount(path, followLink);
     }
 
     public void RequireSame(string path, DirectoryIdentity? expected, bool followLink = false)
@@ -88,7 +91,10 @@ public sealed class PathIdentityService
         if (identity.IsReparsePoint) throw new IOException($"状态目录不能是重解析点：{path}");
     }
 
-    private static DirectoryIdentity ReadNative(string path, bool followLink)
+    private static DirectoryIdentity ReadNative(string path, bool followLink) =>
+        ReadNativeWithLinkCount(path, followLink).Identity;
+
+    private static (DirectoryIdentity Identity, uint LinkCount) ReadNativeWithLinkCount(string path, bool followLink)
     {
         using SafeFileHandle handle = CreateFileW(@"\\?\" + path, 0, 7, IntPtr.Zero, 3,
             0x02000000U | (followLink ? 0U : 0x00200000U), IntPtr.Zero);
@@ -108,10 +114,11 @@ public sealed class PathIdentityService
         if (length >= name.Capacity || final.Length < rootLength || !final.StartsWith(@"\\?\Volume{", StringComparison.Ordinal)
             || final[47] != '}' || final[48] != '\\' || !Guid.TryParseExact(final.AsSpan(11, 36), "D", out Guid volume) || volume == Guid.Empty)
             throw new IOException($"无法核对本地卷 GUID：{path}");
-        return new DirectoryIdentity(final[..rootLength].ToUpperInvariant(), info.VolumeSerialNumber,
+        var identity = new DirectoryIdentity(final[..rootLength].ToUpperInvariant(), info.VolumeSerialNumber,
             ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow,
             (info.Attributes & (uint)FileAttributes.ReparsePoint) != 0,
             (info.Attributes & (uint)FileAttributes.Directory) != 0);
+        return (identity, Math.Max(1u, info.NumberOfLinks));
     }
 
     [StructLayout(LayoutKind.Sequential)]

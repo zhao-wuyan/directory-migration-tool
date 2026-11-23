@@ -243,7 +243,10 @@ public partial class BatchPlanRowItem : ObservableObject
     public long LogicalBytes { get; init; }
     public long AllocatedBytes { get; init; }
     public bool IsCompressedOrSparse { get; init; }
+    /// <summary>是否存在阻断迁移的外部或未验证硬链接。</summary>
     public bool HasSubtreeHardLinks { get; init; }
+    /// <summary>是否包含可在目标盘无损重建的纯目录内硬链接。</summary>
+    public bool HasInternalHardLinks { get; init; }
     public bool HasIncompleteScanData { get; init; }
     public MigrationAdmissionLevel Level { get; init; }
     public BatchPlanItemSource Source { get; init; } = BatchPlanItemSource.ScanDiscovery;
@@ -1209,13 +1212,19 @@ public partial class DiskScanViewModel : ObservableObject
             return;
         }
 
-        var (hasHardLinks, hasIncomplete, _) = _snapshot.InspectSubtreeHazards(SelectedRow.NodeId);
-        if (hasHardLinks)
+        SubtreeHazardReport hazards = _snapshot.AnalyzeSubtreeHazards(SelectedRow.NodeId, maxExternalSamples: 2);
+        if (hazards.HasBlockingHardLinks)
         {
-            CustomMessageBox.ShowWarning("该目录包含硬链接文件，为防止跨卷复制破坏共享语义，当前版本不允许加入迁移清单。", "硬链接拦截");
+            string peerInfo = hazards.SampleExternalPeerPaths.Length > 0
+                ? $"\n\n外部关联路径示例：\n• {string.Join("\n• ", hazards.SampleExternalPeerPaths)}"
+                : string.Empty;
+            string detail = hazards.HardLinkKind == SubtreeHardLinkKind.ExternalLinked
+                ? $"该目录包含 {hazards.ExternalHardLinkFileCount} 个指向目录外部的硬链接文件；跨卷迁移会断开共享语义且无法释放源盘对应空间，禁止直接迁移。建议改用软件原生路径设置。{peerInfo}"
+                : "该目录包含未能验证归属闭环的硬链接文件，为防止跨卷复制破坏共享语义，不允许加入迁移清单。";
+            CustomMessageBox.ShowWarning(detail, "跨外部硬链接拦截");
             return;
         }
-        if (hasIncomplete)
+        if (hazards.HasIncompleteNodes)
         {
             CustomMessageBox.ShowWarning("该目录子树在扫描中存在无法读取或损坏节点，禁止加入批量清单。", "扫描不完整拦截");
             return;
@@ -1245,11 +1254,12 @@ public partial class DiskScanViewModel : ObservableObject
             LogicalBytes = SelectedRow.LogicalBytes,
             AllocatedBytes = SelectedRow.UniqueAllocatedBytes,
             IsCompressedOrSparse = (SelectedRow.Flags & (ScanNodeFlags.IsSparseOrCompressed | ScanNodeFlags.IsWofCompressed)) != 0,
-            HasSubtreeHardLinks = hasHardLinks,
-            HasIncompleteScanData = hasIncomplete,
+            HasSubtreeHardLinks = hazards.HasBlockingHardLinks,
+            HasInternalHardLinks = hazards.HasInternalOnlyHardLinks,
+            HasIncompleteScanData = hazards.HasIncompleteNodes,
             Level = SelectedDecision.Level,
             L3RiskAcknowledged = SelectedDecision.Level == MigrationAdmissionLevel.ManualRiskConfirm && IsL3RiskConfirmedForSelection,
-            StatusText = "待预检"
+            StatusText = hazards.HasInternalOnlyHardLinks ? "待预检（无损重建内部硬链接）" : "待预检"
         });
 
         InvalidateFrozenPlan();
@@ -1308,7 +1318,8 @@ public partial class DiskScanViewModel : ObservableObject
             L3RiskAcknowledged: p.L3RiskAcknowledged,
             ScanId: p.ScanId,
             NodeId: p.NodeId,
-            Source: p.Source)).ToArray();
+            Source: p.Source,
+            HasInternalHardLinks: p.HasInternalHardLinks)).ToArray();
 
         MigrationTransactionRecord[] existing = [];
         try { existing = await new MigrationTransactionStore().ReadAllAsync(); }
@@ -1564,12 +1575,15 @@ public partial class DiskScanViewModel : ObservableObject
             return (false, "该目录属于 L2 厂商原生引导项，不建议符号链接迁移，请使用官方原生方案。");
         }
 
-        var (hasHardLinks, hasIncomplete, _) = _snapshot.InspectSubtreeHazards(nodeId);
-        if (hasHardLinks)
+        SubtreeHazardReport hazards = _snapshot.AnalyzeSubtreeHazards(nodeId, maxExternalSamples: 2);
+        if (hazards.HasBlockingHardLinks)
         {
-            return (false, "该目录子树包含硬链接文件，为防止破坏共享语义，禁止加入迁移清单。");
+            string peerHint = hazards.SampleExternalPeerPaths.Length > 0
+                ? $"（外部关联：{string.Join("；", hazards.SampleExternalPeerPaths)}）"
+                : string.Empty;
+            return (false, $"该目录子树包含指向目录外部的硬链接文件{peerHint}，为防止破坏共享语义与释放空间落空，禁止加入迁移清单。");
         }
-        if (hasIncomplete)
+        if (hazards.HasIncompleteNodes)
         {
             return (false, "该目录子树扫描不完整或存在损坏节点，禁止加入迁移清单。");
         }
@@ -1600,15 +1614,16 @@ public partial class DiskScanViewModel : ObservableObject
             LogicalBytes = node.LogicalBytes,
             AllocatedBytes = node.UniqueAllocatedBytes,
             IsCompressedOrSparse = (node.Flags & (ScanNodeFlags.IsSparseOrCompressed | ScanNodeFlags.IsWofCompressed)) != 0,
-            HasSubtreeHardLinks = hasHardLinks,
-            HasIncompleteScanData = hasIncomplete,
+            HasSubtreeHardLinks = hazards.HasBlockingHardLinks,
+            HasInternalHardLinks = hazards.HasInternalOnlyHardLinks,
+            HasIncompleteScanData = hazards.HasIncompleteNodes,
             Level = decision.Level,
             Source = BatchPlanItemSource.AiProposal,
             // L3 项严禁替用户自动勾选确认，必须由用户在清单页人工核对后勾选
             L3RiskAcknowledged = false,
             StatusText = decision.Level == MigrationAdmissionLevel.ManualRiskConfirm
-                ? "待预检（AI 建议 · 需人工确认 L3）"
-                : "待预检（AI 建议）"
+                ? (hazards.HasInternalOnlyHardLinks ? "待预检（AI 建议 · 内部硬链接无损重建 · 需人工确认 L3）" : "待预检（AI 建议 · 需人工确认 L3）")
+                : (hazards.HasInternalOnlyHardLinks ? "待预检（AI 建议 · 内部硬链接无损重建）" : "待预检（AI 建议）")
         });
 
         foreach (ScanTreeRowItem row in VisibleTreeRows)
@@ -2106,6 +2121,37 @@ public partial class DiskScanViewModel : ObservableObject
                     hintToolTip = KnownDirectoryExplainer.FormatHoverToolTip(explanation);
                 }
 
+                // O(1) 预聚合子树硬链接与不完整风险警示：在左侧目录树直接标出感叹号（不可迁外部硬链接/损坏）或信息图标（可无损重建内部硬链接）
+                if (level != MigrationAdmissionLevel.HardDenied)
+                {
+                    SubtreeHazardFlags subtreeFlags = _snapshot.GetSubtreeHazardFlags(nodeId);
+                    bool hasExternalHardLinks = (subtreeFlags & SubtreeHazardFlags.HasExternalHardLinks) != 0;
+                    bool hasInternalHardLinks = (subtreeFlags & SubtreeHazardFlags.HasInternalHardLinks) != 0;
+                    bool hasIncompleteNodes = (subtreeFlags & SubtreeHazardFlags.HasIncompleteNodes) != 0;
+
+                    if (hasExternalHardLinks || hasIncompleteNodes)
+                    {
+                        string hazardTip = hasExternalHardLinks
+                            ? "⚠ 包含跨目录外部硬链接（禁止直接迁移）\n该目录存在与目录外部共享底层数据的 NTFS 硬链接；跨盘迁移会断开共享语义且无法释放源盘对应空间。\n建议：点击选中查看外部关联路径，或改用软件自身路径设置。"
+                            : "⚠ 子树包含扫描不完整或受限节点（禁止迁移）\n该目录下存在扫描期间无法读取或损坏的记录，为保证数据安全已禁止加入迁移清单。";
+                        hintLevel = DirectoryHintLevel.Warning;
+                        hintToolTip = string.IsNullOrWhiteSpace(hintToolTip)
+                            ? hazardTip
+                            : $"{hazardTip}\n\n{hintToolTip}";
+                    }
+                    else if (hasInternalHardLinks)
+                    {
+                        string internalTip = "ℹ 包含目录内闭环硬链接（支持无损迁移）\n该目录内的硬链接全部闭环在目录内部；迁移时工具将在目标盘自动按 FileId 无损重建硬链接，零空间膨胀。";
+                        if (hintLevel == DirectoryHintLevel.None)
+                        {
+                            hintLevel = DirectoryHintLevel.Info;
+                        }
+                        hintToolTip = string.IsNullOrWhiteSpace(hintToolTip)
+                            ? internalTip
+                            : $"{hintToolTip}\n\n{internalTip}";
+                    }
+                }
+
                 string rawAttr = preview.MatchedApplicationName ?? _catalog.IdentifyAttributionLabel(fullPath) ?? string.Empty;
 
                 if (includeParentHint)
@@ -2319,13 +2365,47 @@ public partial class DiskScanViewModel : ObservableObject
 
         SelectedDecision = decision;
         bool isSelfProtected = decision.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase);
+        SubtreeHazardReport subtreeHazards = _snapshot.AnalyzeSubtreeHazards(row.NodeId, maxExternalSamples: 3);
 
         DirectoryExplanation? explanation = KnownDirectoryExplainer.Explain(row.FullPath, _catalog, decision);
-        HasDirectoryExplanation = explanation is not null;
-        SelectedExplanationIsWarning = explanation?.HintLevel == DirectoryHintLevel.Warning;
-        SelectedDirectoryRoleTitle = explanation?.RoleTitle ?? string.Empty;
-        SelectedDirectoryPurpose = explanation?.Purpose ?? string.Empty;
-        SelectedDirectoryAdvice = explanation?.MigrationAdvice ?? string.Empty;
+        if (decision.Level != MigrationAdmissionLevel.HardDenied && (subtreeHazards.HasBlockingHardLinks || subtreeHazards.HasIncompleteNodes))
+        {
+            HasDirectoryExplanation = true;
+            SelectedExplanationIsWarning = true;
+            if (subtreeHazards.HasBlockingHardLinks)
+            {
+                string peerPreview = subtreeHazards.SampleExternalPeerPaths.Length > 0
+                    ? $"（外部关联如：{string.Join("；", subtreeHazards.SampleExternalPeerPaths)}）"
+                    : string.Empty;
+                SelectedDirectoryRoleTitle = "检测到跨目录外部硬链接（不可直接迁移）";
+                SelectedDirectoryPurpose = subtreeHazards.HardLinkKind == SubtreeHardLinkKind.ExternalLinked
+                    ? $"该目录下有 {subtreeHazards.ExternalHardLinkFileCount} 个文件与目录外部共享底层 NTFS 数据{peerPreview}。"
+                    : "该目录下存在未能核实闭环归属的硬链接文件。";
+                SelectedDirectoryAdvice = "NTFS 硬链接无法跨盘维持，直接迁出会断开共享关系且源盘对应空间无法释放。建议改用软件原生路径设置，或扩大选择范围至包含所有硬链接的共同父目录（若安全）。";
+            }
+            else
+            {
+                SelectedDirectoryRoleTitle = "子树包含扫描不完整或受限节点";
+                SelectedDirectoryPurpose = "扫描该目录子树时存在访问受限或损坏的节点记录。";
+                SelectedDirectoryAdvice = "为保证迁移核对完整，禁止直接加入迁移清单；请尝试以管理员身份重新完整扫描后再评估。";
+            }
+        }
+        else if (decision.Level != MigrationAdmissionLevel.HardDenied && subtreeHazards.HasInternalOnlyHardLinks && explanation is null)
+        {
+            HasDirectoryExplanation = true;
+            SelectedExplanationIsWarning = false;
+            SelectedDirectoryRoleTitle = "包含目录内闭环硬链接（支持无损重建）";
+            SelectedDirectoryPurpose = $"检测到 {subtreeHazards.InternalHardLinkGroupCount} 组目录内硬链接（共 {subtreeHazards.InternalHardLinkEntryCount} 个文件项，节省约 {FileStatsService.FormatBytes(subtreeHazards.HardLinkSharedBytes)} 重复占用）。";
+            SelectedDirectoryAdvice = "所有硬链接均闭环在本目录内部；迁移时工具会去重复制唯一文件并在目标盘无损重建硬链接，不会造成目标盘空间膨胀。";
+        }
+        else
+        {
+            HasDirectoryExplanation = explanation is not null;
+            SelectedExplanationIsWarning = explanation?.HintLevel == DirectoryHintLevel.Warning;
+            SelectedDirectoryRoleTitle = explanation?.RoleTitle ?? string.Empty;
+            SelectedDirectoryPurpose = explanation?.Purpose ?? string.Empty;
+            SelectedDirectoryAdvice = explanation?.MigrationAdvice ?? string.Empty;
+        }
 
         (SelectedLevelBadgeText, SelectedLevelBadgeBg, SelectedLevelBadgeBorder, SelectedLevelBadgeFg) = decision.Level switch
         {
@@ -2339,19 +2419,36 @@ public partial class DiskScanViewModel : ObservableObject
             ? $"• 识别依据：内置规则 #{decision.MatchedApplicationId}（{decision.MatchedApplicationName}）"
             : $"• 识别依据：{decision.Summary}";
 
-        SelectedEvidenceStructure = decision.ReasonCodes.Length > 0
+        string hardLinkStructureNote = subtreeHazards.HardLinkKind switch
+        {
+            SubtreeHardLinkKind.InternalOnly => $"；含 {subtreeHazards.InternalHardLinkGroupCount} 组内部硬链接（支持目标盘无损重建）",
+            SubtreeHardLinkKind.ExternalLinked => $"；含 {subtreeHazards.ExternalHardLinkFileCount} 个跨外部硬链接（禁止跨卷迁移）",
+            SubtreeHardLinkKind.UnverifiedExternal => "；含未验证硬链接（禁止迁移）",
+            _ => string.Empty
+        };
+
+        SelectedEvidenceStructure = (decision.ReasonCodes.Length > 0
             ? $"• 结构核验：{string.Join(" / ", decision.ReasonCodes)}"
-            : "• 结构核验：无重解析点、无系统禁区命中、路径身份正常";
+            : "• 结构核验：无重解析点、无系统禁区命中、路径身份正常") + hardLinkStructureNote;
 
         SelectedSafeNote = decision.Level == MigrationAdmissionLevel.HardDenied
             ? $"已由统一安全底座拦截：{decision.Summary}"
-            : "迁移后原目录将在源盘改名保留为备份，待你运行对应软件验证加载正常并经两次确认后再手动删除。";
+            : subtreeHazards.HasBlockingHardLinks
+                ? "检测到跨外部硬链接：跨卷复制会破坏共享语义且无法释放源盘空间，已禁止加入迁移清单。"
+                : subtreeHazards.HasInternalOnlyHardLinks
+                    ? $"检测到 {subtreeHazards.InternalHardLinkGroupCount} 组目录内硬链接：复制时将在目标盘自动无损重建硬链接（零空间膨胀），原目录仍保留为备份。"
+                    : "迁移后原目录将在源盘改名保留为备份，待你运行对应软件验证加载正常并经两次确认后再手动删除。";
 
         ShowNativeGuidance = decision.Level == MigrationAdmissionLevel.VendorNativeRecommended;
         SelectedNativeGuidance = decision.NativeGuidance ?? string.Empty;
-        ShowL3ConfirmCheck = decision.Level == MigrationAdmissionLevel.ManualRiskConfirm;
+        ShowL3ConfirmCheck = decision.Level == MigrationAdmissionLevel.ManualRiskConfirm
+            && !subtreeHazards.HasBlockingHardLinks
+            && !subtreeHazards.HasIncompleteNodes;
+        _selectedHasBlockingSubtreeHazard = subtreeHazards.HasBlockingHardLinks || subtreeHazards.HasIncompleteNodes;
         UpdateCanAddSelected();
     }
+
+    private bool _selectedHasBlockingSubtreeHazard;
 
     private void UpdateCanAddSelected()
     {
@@ -2359,6 +2456,12 @@ public partial class DiskScanViewModel : ObservableObject
             && PlanItems.Any(p => p.SourcePath.Equals(SelectedRow.FullPath, StringComparison.OrdinalIgnoreCase));
 
         if (SelectedRow is null || !SelectedRow.IsDirectory || SelectedDecision is null)
+        {
+            CanAddSelectedToPlan = false;
+            return;
+        }
+
+        if (_selectedHasBlockingSubtreeHazard && !IsSelectedAlreadyInPlan)
         {
             CanAddSelectedToPlan = false;
             return;

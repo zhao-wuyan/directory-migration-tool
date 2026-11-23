@@ -145,7 +145,10 @@ public sealed record AiMigrationCandidateDto(
     string[] RequiredStoppedProcesses,
     bool HasSubtreeHardLinks,
     bool HasIncompleteNodes,
-    string Summary);
+    string Summary,
+    SubtreeHardLinkKind HardLinkKind = SubtreeHardLinkKind.None,
+    int InternalHardLinkGroupCount = 0,
+    int ExternalHardLinkFileCount = 0);
 
 public sealed record AiMigrationCandidatesResponse(
     Guid ScanId,
@@ -186,7 +189,11 @@ public sealed record AiCandidateDetailsResponse(
     bool HasSubtreeHardLinks,
     bool HasIncompleteNodes,
     bool HasReparseDescendants,
-    string SpaceAccountingNote);
+    string SpaceAccountingNote,
+    SubtreeHardLinkKind HardLinkKind = SubtreeHardLinkKind.None,
+    int InternalHardLinkGroupCount = 0,
+    int ExternalHardLinkFileCount = 0,
+    string[]? ExternalHardLinkSamplePaths = null);
 
 /// <summary>
 /// 扩展名只读统计桶（仅依据扫描快照文件名后缀聚合，永不读取文件内容）。

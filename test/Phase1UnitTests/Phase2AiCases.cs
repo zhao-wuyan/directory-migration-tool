@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -13,6 +14,7 @@ using MigrationCore.Models;
 using MigrationCore.Models.Ai;
 using MigrationCore.Models.Safety;
 using MigrationCore.Models.Scanning;
+using MigrationCore.Services;
 using MigrationCore.Services.Ai;
 using MigrationCore.Services.Safety;
 using MigrationCore.Services.Scanning;
@@ -900,6 +902,247 @@ internal static class Phase2AiCases
                 && promptCapture.LastSystemPrompt.Contains("程序本体和共享运行环境"),
                 "System Prompt must include tiered migration granularity rules for games vs dev/AI tools");
         });
+
+        await test("HardLinkClassification-TreeHazardCache-and-LosslessInternalHardLinkCopy", async () =>
+        {
+            // 1. MFT 快照级测试：验证 O(1) GetSubtreeHazardFlags 与 AnalyzeSubtreeHazards 精准区分「纯内部硬链接」与「跨外部硬链接」
+            const long GB = 1024L * 1024 * 1024;
+            var pool = new Utf8NamePool();
+            (byte p, int o, ushort l) AddName(string n) => pool.AddName(n);
+
+            // 0: C:\
+            // 1: ModelsInternal (纯内部硬链接：blobs\m1.safetensors <-> checkpoints\m1.safetensors, MFT=1001, LinkCount=2)
+            //    2: blobs -> 3: m1.safetensors (MFT=1001, LinkCount=2)
+            //    4: checkpoints -> 5: m1.safetensors (MFT=1001, LinkCount=2, Secondary)
+            // 6: ModelsExternal (跨外部硬链接：ext.safetensors 链接到外部 9: ExternalCache\ext.safetensors, MFT=2002, LinkCount=2)
+            //    7: ext.safetensors (MFT=2002, LinkCount=2)
+            // 8: ExternalCache
+            //    9: ext.safetensors (MFT=2002, LinkCount=2, Secondary)
+            var nodeSpecs = new (string Name, int Parent, bool IsDir, ulong Mft, ushort LinkCount, ScanNodeFlags ExtraFlags, long Logical, long Unique)[]
+            {
+                (@"C:\", -1, true, 5, 1, ScanNodeFlags.None, 30 * GB, 20 * GB),
+                ("ModelsInternal", 0, true, 100, 1, ScanNodeFlags.None, 20 * GB, 10 * GB),
+                ("blobs", 1, true, 101, 1, ScanNodeFlags.None, 10 * GB, 10 * GB),
+                ("m1.safetensors", 2, false, 1001, 2, ScanNodeFlags.None, 10 * GB, 10 * GB),
+                ("checkpoints", 1, true, 102, 1, ScanNodeFlags.None, 10 * GB, 0),
+                ("m1.safetensors", 4, false, 1001, 2, ScanNodeFlags.IsHardLinkSecondary, 10 * GB, 0),
+                ("ModelsExternal", 0, true, 200, 1, ScanNodeFlags.None, 5 * GB, 5 * GB),
+                ("ext.safetensors", 6, false, 2002, 2, ScanNodeFlags.None, 5 * GB, 5 * GB),
+                ("ExternalCache", 0, true, 300, 1, ScanNodeFlags.None, 5 * GB, 0),
+                ("ext.safetensors", 8, false, 2002, 2, ScanNodeFlags.IsHardLinkSecondary, 5 * GB, 0)
+            };
+
+            var nodes = new ScanNodeRecord[nodeSpecs.Length];
+            var kids = Enumerable.Range(0, nodeSpecs.Length).Select(_ => new List<int>()).ToArray();
+            for (int i = 0; i < nodeSpecs.Length; i++)
+            {
+                var s = nodeSpecs[i];
+                var (pg, off, len) = AddName(s.Name);
+                nodes[i] = new ScanNodeRecord
+                {
+                    NodeId = i,
+                    ParentNodeId = s.Parent,
+                    MftRecordNumber = s.Mft,
+                    SequenceNumber = 1,
+                    NamePageIndex = pg,
+                    NameOffset = off,
+                    NameLength = len,
+                    Flags = (s.IsDir ? ScanNodeFlags.IsDirectory : ScanNodeFlags.None) | s.ExtraFlags,
+                    LogicalBytes = s.Logical,
+                    AllocatedBytes = s.Logical,
+                    UniqueAllocatedBytes = s.Unique,
+                    FileCount = s.IsDir ? 1 : 1,
+                    DirectoryCount = s.IsDir ? 1 : 0,
+                    LinkCount = s.LinkCount
+                };
+                if (s.Parent >= 0) kids[s.Parent].Add(i);
+            }
+            var offsets = new int[nodeSpecs.Length + 1];
+            var flatKids = new List<int>();
+            for (int i = 0; i < nodeSpecs.Length; i++)
+            {
+                offsets[i] = flatKids.Count;
+                flatKids.AddRange(kids[i]);
+            }
+            offsets[nodeSpecs.Length] = flatKids.Count;
+
+            var hlSnapshot = new ScanSnapshot
+            {
+                Volume = new ScanVolumeInfo(@"C:\", "System", @"\\?\Volume{hl-test}\", 1, "NTFS", 500 * GB, 200 * GB, true, "test"),
+                Backend = ScanBackendKind.RawNtfsMft,
+                Coverage = ScanCoverageStatus.Complete,
+                StartedAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1),
+                CompletedAtUtc = DateTimeOffset.UtcNow,
+                PolicyVersion = MigrationSafetyPolicy.CurrentPolicyVersion,
+                RootNodeId = 0,
+                Nodes = nodes,
+                CsrOffsets = offsets,
+                CsrChildren = flatKids.ToArray(),
+                NamePool = pool
+            };
+
+            // 验证 O(1) 树缓存标记
+            SubtreeHazardFlags internalDirFlags = hlSnapshot.GetSubtreeHazardFlags(1);
+            Require((internalDirFlags & SubtreeHazardFlags.HasInternalHardLinks) != 0 && (internalDirFlags & SubtreeHazardFlags.HasExternalHardLinks) == 0,
+                $"ModelsInternal should have InternalOnly flag, got {internalDirFlags}");
+
+            SubtreeHazardFlags splitSubDirFlags = hlSnapshot.GetSubtreeHazardFlags(2); // blobs 只包住了 1/2 链接
+            Require((splitSubDirFlags & SubtreeHazardFlags.HasExternalHardLinks) != 0,
+                $"Subdir 'blobs' alone splits hardlink group and must be marked HasExternalHardLinks, got {splitSubDirFlags}");
+
+            SubtreeHazardFlags externalDirFlags = hlSnapshot.GetSubtreeHazardFlags(6);
+            Require((externalDirFlags & SubtreeHazardFlags.HasExternalHardLinks) != 0,
+                $"ModelsExternal must be marked HasExternalHardLinks, got {externalDirFlags}");
+
+            // 验证精确分析与 AI 只读工具策略：放行纯内部硬链接，拦截跨外部硬链接并返回外部对端路径
+            SubtreeHazardReport internalReport = hlSnapshot.AnalyzeSubtreeHazards(1);
+            Require(internalReport.HasInternalOnlyHardLinks && !internalReport.HasBlockingHardLinks && internalReport.InternalHardLinkGroupCount == 1,
+                $"Expected InternalOnly report for ModelsInternal, got {internalReport}");
+
+            SubtreeHazardReport externalReport = hlSnapshot.AnalyzeSubtreeHazards(6);
+            Require(externalReport.HasBlockingHardLinks && externalReport.HardLinkKind == SubtreeHardLinkKind.ExternalLinked
+                && externalReport.SampleExternalPeerPaths.Any(p => p.Contains("ExternalCache", StringComparison.OrdinalIgnoreCase)),
+                $"Expected ExternalLinked report with ExternalCache sample peer, got {externalReport}");
+
+            var (_, env, _) = BuildAiTestSnapshot();
+            var toolset = new ReadOnlyAiAnalysisToolset(
+                catalog: new ApplicationCatalog(BuiltInApplicationRules.All, []),
+                policyEnvironment: env,
+                targetCandidatesProvider: () => [new AiTargetCandidateDto("target-vol-d", "D:", @"D:\MigratedData", 500 * GB, true)]);
+            toolset.AuthorizeSnapshot(hlSnapshot);
+
+            AiCandidateDetailsResponse internalDetails = toolset.GetCandidateDetails(hlSnapshot.ScanId, 1);
+            Require(internalDetails.IsAllowedForNewMigration && internalDetails.HardLinkKind == SubtreeHardLinkKind.InternalOnly,
+                "Pure internal hardlink directory must be allowed for migration");
+
+            AiCandidateDetailsResponse externalDetails = toolset.GetCandidateDetails(hlSnapshot.ScanId, 6);
+            Require(!externalDetails.IsAllowedForNewMigration && externalDetails.HardLinkKind == SubtreeHardLinkKind.ExternalLinked
+                && externalDetails.ExternalHardLinkSamplePaths is { Length: >= 1 },
+                "External hardlink directory must be blocked with sample external peer paths");
+
+            AiMigrationProposalReceipt hlReceipt = toolset.SubmitMigrationProposal(new AiMigrationProposalRequest(
+                SchemaVersion: 1,
+                ClientRequestId: "hl-proposal-1",
+                ScanId: hlSnapshot.ScanId,
+                PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
+                Items:
+                [
+                    new AiMigrationProposalItemInput(1, "target-vol-d", 1, "纯内部硬链接模型库"),
+                    new AiMigrationProposalItemInput(6, "target-vol-d", 2, "含跨外部硬链接目录")
+                ]));
+            Require(hlReceipt.AcceptedCount == 1 && hlReceipt.BlockedByPolicyCount == 1,
+                $"Expected 1 accepted (internal hardlink) and 1 blocked (external hardlink), got accepted={hlReceipt.AcceptedCount}, blocked={hlReceipt.BlockedByPolicyCount}");
+
+            // 2. 真实 NTFS 文件系统端到端验证：CreateHardLinkW 构造真实内部硬链接 + 外部硬链接，执行无损重建复制与拓扑核对
+            string tempRoot = Path.Combine(Path.GetTempPath(), "MoveFolder_HardLinkE2E_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string srcInternal = Path.Combine(tempRoot, "SrcInternal");
+                string dstInternal = Path.Combine(tempRoot, "DstInternal");
+                string srcExternal = Path.Combine(tempRoot, "SrcExternal");
+                string externalPeerDir = Path.Combine(tempRoot, "ExternalPeer");
+                Directory.CreateDirectory(Path.Combine(srcInternal, "blobs"));
+                Directory.CreateDirectory(Path.Combine(srcInternal, "checkpoints"));
+                Directory.CreateDirectory(dstInternal);
+                Directory.CreateDirectory(srcExternal);
+                Directory.CreateDirectory(externalPeerDir);
+
+                string blobFile = Path.Combine(srcInternal, "blobs", "weight.bin");
+                string ckptLink = Path.Combine(srcInternal, "checkpoints", "weight_link.bin");
+                string sameDirLink = Path.Combine(srcInternal, "blobs", "weight_same_dir.bin");
+                string plainFile = Path.Combine(srcInternal, "readme.txt");
+                await File.WriteAllBytesAsync(blobFile, Encoding.UTF8.GetBytes("FAKE-SAFETENSORS-PAYLOAD-1234567890"));
+                await File.WriteAllTextAsync(plainFile, "model readme", Encoding.UTF8);
+                Require(CreateHardLinkW(@"\\?\" + ckptLink, @"\\?\" + blobFile, IntPtr.Zero), "CreateHardLinkW for cross-subdir internal link failed");
+                Require(CreateHardLinkW(@"\\?\" + sameDirLink, @"\\?\" + blobFile, IntPtr.Zero), "CreateHardLinkW for same-dir internal link failed");
+
+                string extSourceFile = Path.Combine(srcExternal, "shared.bin");
+                string extPeerFile = Path.Combine(externalPeerDir, "shared_outside.bin");
+                await File.WriteAllTextAsync(extSourceFile, "shared across subtrees", Encoding.UTF8);
+                Require(CreateHardLinkW(@"\\?\" + extPeerFile, @"\\?\" + extSourceFile, IntPtr.Zero), "CreateHardLinkW for external link failed");
+
+                var idSvc = new PathIdentityService();
+                static FileManifest BuildRealManifestForTest(string rootPath, PathIdentityService identityService)
+                {
+                    DirectoryIdentity rootId = identityService.ReadDirectory(rootPath, false);
+                    var entries = new Dictionary<string, FileManifestEntry>(StringComparer.OrdinalIgnoreCase);
+                    void Walk(FileSystemInfo fsi)
+                    {
+                        var (id, lc) = identityService.ReadEntryWithLinkCount(fsi.FullName);
+                        string rel = fsi.FullName.Equals(rootPath, StringComparison.OrdinalIgnoreCase)
+                            ? ""
+                            : Path.GetRelativePath(rootPath, fsi.FullName);
+                        bool isDir = id.IsDirectory;
+                        long len = isDir ? 0 : ((FileInfo)fsi).Length;
+                        entries[rel] = new FileManifestEntry(rel, isDir, len, fsi.LastWriteTimeUtc, fsi.Attributes, string.Empty, [], null, id, isDir ? 1u : lc);
+                        if (isDir)
+                        {
+                            foreach (FileSystemInfo child in ((DirectoryInfo)fsi).EnumerateFileSystemInfos())
+                                Walk(child);
+                        }
+                    }
+                    Walk(new DirectoryInfo(rootPath));
+                    return new FileManifest(rootPath, rootId, VerificationMode.Basic, entries);
+                }
+
+                FileManifest extManifest = BuildRealManifestForTest(srcExternal, idSvc);
+                var extAnalysis = CopyVerificationService.AnalyzeManifestHardLinks(extManifest);
+                Require(extAnalysis.HasExternalHardLinks && extAnalysis.ExternalHardLinkRelativePaths.Contains("shared.bin"),
+                    "Real NTFS manifest analysis MUST detect external hardlink");
+
+                FileManifest intManifest = BuildRealManifestForTest(srcInternal, idSvc);
+                var intAnalysis = CopyVerificationService.AnalyzeManifestHardLinks(intManifest);
+                Require(!intAnalysis.HasExternalHardLinks && intAnalysis.HasInternalHardLinks && intAnalysis.InternalGroups.Length == 1
+                    && intAnalysis.InternalGroups[0].SecondaryRelativePaths.Length == 2,
+                    "Real NTFS manifest analysis MUST detect 1 closed internal hardlink group with 3 entries");
+
+                var secondarySet = new HashSet<string>(intAnalysis.InternalGroups.SelectMany(g => g.SecondaryRelativePaths), StringComparer.OrdinalIgnoreCase);
+                await CopyOperationExecutor.ExecuteHardLinkAwareCopyAsync(
+                    intManifest,
+                    srcInternal,
+                    dstInternal,
+                    intAnalysis,
+                    secondarySet,
+                    maxDegreeOfParallelism: 2,
+                    sampleMilliseconds: 50,
+                    (_, _) => { },
+                    () => { },
+                    CancellationToken.None);
+
+                // 验证真实目标目录：内容一致、同组 3 个路径共享同一个新 FileId 且 LinkCount == 3，硬链接拓扑核对通过
+                FileManifest dstManifest = BuildRealManifestForTest(dstInternal, idSvc);
+                var topoMismatches = new List<string>();
+                CopyVerificationService.VerifyHardLinkTopology(intManifest, dstManifest, "目标核对失败", topoMismatches);
+                Require(topoMismatches.Count == 0, $"Lossless internal hardlink topology verification failed: {string.Join("; ", topoMismatches)}");
+
+                var (dstBlobId, dstBlobLinks) = idSvc.ReadEntryWithLinkCount(Path.Combine(dstInternal, "blobs", "weight.bin"));
+                var (dstCkptId, dstCkptLinks) = idSvc.ReadEntryWithLinkCount(Path.Combine(dstInternal, "checkpoints", "weight_link.bin"));
+                var (dstSameId, _) = idSvc.ReadEntryWithLinkCount(Path.Combine(dstInternal, "blobs", "weight_same_dir.bin"));
+                var srcBlobId = idSvc.ReadEntry(blobFile);
+                Require(dstBlobId.FileId == dstCkptId.FileId && dstBlobId.FileId == dstSameId.FileId && dstBlobLinks == 3 && dstCkptLinks == 3,
+                    $"Target hardlinks must share identical FileId with LinkCount=3, got {dstBlobId.FileId}/{dstCkptId.FileId}, links={dstBlobLinks}");
+                Require(dstBlobId.FileId != srcBlobId.FileId, "Target hardlink group must be an independent FileId from source");
+                Require(await File.ReadAllTextAsync(Path.Combine(dstInternal, "checkpoints", "weight_link.bin")) == "FAKE-SAFETENSORS-PAYLOAD-1234567890",
+                    "Copied hardlink content must match source bytes");
+
+                // 反向验证：若人为把目标硬链接替换成普通独立副本，拓扑核对必须立即检测并判为不匹配！
+                string dstSamePath = Path.Combine(dstInternal, "blobs", "weight_same_dir.bin");
+                DateTime origTime = File.GetLastWriteTimeUtc(dstSamePath);
+                byte[] origBytes = await File.ReadAllBytesAsync(dstSamePath);
+                File.Delete(dstSamePath);
+                await File.WriteAllBytesAsync(dstSamePath, origBytes);
+                File.SetLastWriteTimeUtc(dstSamePath, origTime);
+                FileManifest brokenDstManifest = BuildRealManifestForTest(dstInternal, idSvc);
+                var brokenMismatches = new List<string>();
+                CopyVerificationService.VerifyHardLinkTopology(intManifest, brokenDstManifest, "目标核对失败", brokenMismatches);
+                Require(brokenMismatches.Any(m => m.Contains("内部硬链接未保持共享身份")),
+                    "Verification MUST catch broken hardlink topology when target links were split into independent files");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
+            }
+        });
     }
 
     public static void VerifyWpfUiInCurrentSta(Action<DependencyObject> assertButtonsSafe)
@@ -1453,4 +1696,8 @@ internal static class Phase2AiCases
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
         public void Dispose() { }
     }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 }

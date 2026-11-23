@@ -96,7 +96,7 @@ public sealed class CopyVerificationService
         Dictionary<string, byte[]>? directorySecurity, FileShare share, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        DirectoryIdentity id = _identity.ReadEntry(info.FullName);
+        var (id, linkCount) = _identity.ReadEntryWithLinkCount(info.FullName);
         FileAttributes attributes = info.Attributes;
         if (id.IsReparsePoint || (attributes & ~SupportedAttributes) != 0)
             throw new IOException($"存在无法安全保存或核对的重解析点/属性：{info.FullName} ({attributes})");
@@ -121,7 +121,7 @@ public sealed class CopyVerificationService
         string? contentHash = mode == VerificationMode.ContentHash && !directory
             ? await HashAsync(info.FullName, length, ct, share).ConfigureAwait(false) : null;
         var entry = new FileManifestEntry(relative, directory, length, info.LastWriteTimeUtc,
-            attributes, acl, streams?.ToArray() ?? [], contentHash, id);
+            attributes, acl, streams?.ToArray() ?? [], contentHash, id, directory ? 1u : linkCount);
         _identity.RequireSame(info.FullName, id);
         return entry;
     }
@@ -159,6 +159,71 @@ public sealed class CopyVerificationService
         return new VerificationSummary { Mode = mode, IsMatch = mismatches.Count == 0, Mismatches = mismatches.ToArray() };
     }
 
+    public sealed record ManifestHardLinkGroup(string PrimaryRelativePath, string[] SecondaryRelativePaths);
+
+    public sealed record ManifestHardLinkAnalysis(
+        ManifestHardLinkGroup[] InternalGroups,
+        string[] ExternalHardLinkRelativePaths)
+    {
+        public bool HasExternalHardLinks => ExternalHardLinkRelativePaths.Length > 0;
+        public bool HasInternalHardLinks => InternalGroups.Length > 0;
+    }
+
+    /// <summary>
+    /// 实时分析文件清单中的硬链接拓扑：验证所有硬链接组是否完全闭环在当前清单内部。
+    /// </summary>
+    public static ManifestHardLinkAnalysis AnalyzeManifestHardLinks(FileManifest manifest)
+    {
+        var byFileId = new Dictionary<(string VolumeGuid, ulong FileId), List<FileManifestEntry>>();
+        foreach (FileManifestEntry entry in manifest.Entries.Values)
+        {
+            if (entry.IsDirectory) continue;
+            if (entry.LinkCount <= 1 && !byFileId.ContainsKey((entry.Identity.VolumeGuid, entry.Identity.FileId)))
+            {
+                // 仍然登记以避免极端情况下 LinkCount 读为 1 但同 FileId 重复出现
+            }
+
+            var key = (entry.Identity.VolumeGuid, entry.Identity.FileId);
+            if (!byFileId.TryGetValue(key, out List<FileManifestEntry>? list))
+            {
+                list = [];
+                byFileId[key] = list;
+            }
+            list.Add(entry);
+        }
+
+        var internalGroups = new List<ManifestHardLinkGroup>();
+        var externalPaths = new List<string>();
+
+        foreach (List<FileManifestEntry> group in byFileId.Values)
+        {
+            uint expectedLinks = 1;
+            foreach (FileManifestEntry e in group)
+            {
+                if (e.LinkCount > expectedLinks) expectedLinks = e.LinkCount;
+            }
+
+            if (expectedLinks <= 1 && group.Count <= 1) continue;
+
+            group.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.RelativePath, b.RelativePath));
+            if (group.Count < expectedLinks)
+            {
+                foreach (FileManifestEntry e in group)
+                {
+                    externalPaths.Add(e.RelativePath);
+                }
+            }
+            else
+            {
+                internalGroups.Add(new ManifestHardLinkGroup(
+                    group[0].RelativePath,
+                    group.Skip(1).Select(e => e.RelativePath).ToArray()));
+            }
+        }
+
+        return new ManifestHardLinkAnalysis(internalGroups.ToArray(), externalPaths.ToArray());
+    }
+
     private static void Compare(FileManifest expected, FileManifest actual, bool compareIdentity,
         string scope, List<string> mismatches)
     {
@@ -175,6 +240,32 @@ public sealed class CopyVerificationService
         }
         foreach (string path in actual.Entries.Keys)
             if (!expected.Entries.ContainsKey(path)) mismatches.Add($"{scope}：出现未知额外项 {path}");
+
+        // 核对目标盘内部硬链接拓扑：确保源中共享同一 FileId 的内部硬链接组在目标卷上仍然共享同一 FileId（未被拆成独立副本）
+        if (!compareIdentity)
+        {
+            VerifyHardLinkTopology(expected, actual, scope, mismatches);
+        }
+    }
+
+    public static void VerifyHardLinkTopology(FileManifest expected, FileManifest actual, string scope, List<string> mismatches)
+    {
+        ManifestHardLinkAnalysis expectedHardLinks = AnalyzeManifestHardLinks(expected);
+        foreach (ManifestHardLinkGroup group in expectedHardLinks.InternalGroups)
+        {
+            if (!actual.Entries.TryGetValue(group.PrimaryRelativePath, out FileManifestEntry? primaryActual))
+                continue;
+            foreach (string secPath in group.SecondaryRelativePaths)
+            {
+                if (!actual.Entries.TryGetValue(secPath, out FileManifestEntry? secActual))
+                    continue;
+                if (secActual.Identity.VolumeGuid != primaryActual.Identity.VolumeGuid
+                    || secActual.Identity.FileId != primaryActual.Identity.FileId)
+                {
+                    mismatches.Add($"{scope}：内部硬链接未保持共享身份（{secPath} 与 {group.PrimaryRelativePath} 指向不同底层实体）");
+                }
+            }
+        }
     }
 
     private static async Task<string> HashAsync(string path, long expectedLength, CancellationToken ct, FileShare share = FileShare.Read)
