@@ -1208,6 +1208,31 @@ internal static class Program
                     Require(scanVm.VisibleTreeRows.Any(r => r.Name == "models" && r.AdmissionLevel == MigrationAdmissionLevel.VerifiedEligible),
                         "NovaStudio\\comfyui\\models should be surfaced as L1 VerifiedEligible");
                     scanVm.SwitchToTreeViewCommand.Execute(null);
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("$RECYCLE.BIN", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root $RECYCLE.BIN");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root System Volume Information");
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name.Equals("Users", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must still display normal directories like Users");
+
+                    var rebuildRows = typeof(DiskScanViewModel).GetMethod("RebuildVisibleRows",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+                    scanVm.SearchFilter = "Docker";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Any(r => r.Name == "Docker"), "Search must still find normal directories like Docker");
+                    scanVm.SearchFilter = "RECYCLE";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose $RECYCLE.BIN");
+                    scanVm.SearchFilter = "S-1-5-21-test";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose children under $RECYCLE.BIN");
+                    scanVm.SearchFilter = "System Volume";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose System Volume Information");
+                    scanVm.SearchFilter = string.Empty;
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 11), "TryLocateNodeInTree must refuse hidden $RECYCLE.BIN");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 13), "TryLocateNodeInTree must refuse hidden System Volume Information");
 
                     foreach (DiskScanSubView sub in Enum.GetValues<DiskScanSubView>())
                     {
@@ -1246,9 +1271,10 @@ internal static class Program
 
         // 0: C:\  1: Users  2: Alice  3: AppData  4: Local  5: Docker(100G)  6: JetBrains(60G)
         // 7: Programs(200G)  8: NovaStudio(200G)  9: comfyui(200G)  10: models(200G)
-        var names = new[] { @"C:\", "Users", "Alice", "AppData", "Local", "Docker", "JetBrains", "Programs", "NovaStudio", "comfyui", "models" };
-        var parents = new[] { -1, 0, 1, 2, 3, 4, 4, 4, 7, 8, 9 };
-        var sizes = new[] { 360 * GB, 360 * GB, 360 * GB, 360 * GB, 360 * GB, 100 * GB, 60 * GB, 200 * GB, 200 * GB, 200 * GB, 200 * GB };
+        // 11: $RECYCLE.BIN(20G)  12: S-1-5-21-test(20G)  13: System Volume Information(10G)
+        var names = new[] { @"C:\", "Users", "Alice", "AppData", "Local", "Docker", "JetBrains", "Programs", "NovaStudio", "comfyui", "models", "$RECYCLE.BIN", "S-1-5-21-test", "System Volume Information" };
+        var parents = new[] { -1, 0, 1, 2, 3, 4, 4, 4, 7, 8, 9, 0, 11, 0 };
+        var sizes = new[] { 390 * GB, 360 * GB, 360 * GB, 360 * GB, 360 * GB, 100 * GB, 60 * GB, 200 * GB, 200 * GB, 200 * GB, 200 * GB, 20 * GB, 20 * GB, 10 * GB };
 
         var nodes = new ScanNodeRecord[names.Length];
         for (int i = 0; i < names.Length; i++)

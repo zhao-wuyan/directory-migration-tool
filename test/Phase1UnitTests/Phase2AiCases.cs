@@ -1263,23 +1263,53 @@ internal static class Phase2AiCases
             Require(!diskVm.IsAiDrawerOpen && diskVm.SelectedRow?.NodeId == ids.UnknownCache,
                 "Locating node should close drawer and select target tree row");
 
-            // 6. 验证 AiToolPayloadWindow 可安全实例化布局且按钮无 RenderTransform 冲突
+            // 6. 验证 AiToolPayloadWindow 可安全实例化布局、按钮无 RenderTransform 冲突，且 JSON 文本框铺满容器并可垂直滚动（不被全局单行 TextBox Height=40 截断）
+            string longPayload = JsonSerializer.Serialize(new
+            {
+                osDescription = "Microsoft Windows 10.0.26200",
+                systemDrive = "C:",
+                drives = Enumerable.Range(1, 24).Select(i => new
+                {
+                    driveLetter = $"D{i}:",
+                    totalBytes = 1000000000L * i,
+                    freeBytes = 500000000L * i
+                })
+            });
             var sampleStep = new AiToolCallStepItem
             {
-                StepNumber = 1,
+                StepNumber = 2,
                 ToolName = "get_system_environment",
                 FriendlyLabel = "获取脱敏系统与磁盘环境信息",
                 ResultSummary = "已返回只读数据",
-                ResultPayload = "{\"systemDrive\":\"C:\",\"drives\":[{\"driveLetter\":\"C:\"}]}",
+                ResultPayload = longPayload,
                 IsRunning = false,
                 Succeeded = true,
                 ElapsedMilliseconds = 12
             };
             var payloadWin = new AiToolPayloadWindow(sampleStep);
-            payloadWin.Measure(new Size(760, 560));
-            payloadWin.Arrange(new Rect(0, 0, 760, 560));
-            payloadWin.UpdateLayout();
-            assertButtonsSafe(payloadWin);
+            var payloadRoot = payloadWin.Content as FrameworkElement;
+            Require(payloadRoot is not null, "AiToolPayloadWindow must have a FrameworkElement root");
+            payloadRoot!.Measure(new Size(820, 620));
+            payloadRoot.Arrange(new Rect(0, 0, 820, 620));
+            payloadRoot.UpdateLayout();
+            assertButtonsSafe(payloadRoot);
+
+            var payloadTextBox = payloadWin.FindName("PayloadTextBox") as TextBox;
+            Require(payloadTextBox is not null, "AiToolPayloadWindow must contain PayloadTextBox");
+            Require(double.IsNaN(payloadTextBox!.Height), $"PayloadTextBox.Height should be Auto (NaN), got {payloadTextBox.Height}");
+            Require(payloadTextBox.ActualHeight >= 250,
+                $"PayloadTextBox should stretch to fill available vertical space instead of collapsing to single-line height, got ActualHeight={payloadTextBox.ActualHeight}");
+            Require(payloadTextBox.VerticalScrollBarVisibility == ScrollBarVisibility.Auto,
+                $"PayloadTextBox should enable vertical auto scrollbar, got {payloadTextBox.VerticalScrollBarVisibility}");
+            payloadTextBox.ApplyTemplate();
+            var payloadContentHost = payloadTextBox.Template?.FindName("PART_ContentHost", payloadTextBox) as ScrollViewer;
+            Require(payloadContentHost is not null, "PayloadTextBox template must define PART_ContentHost ScrollViewer");
+            Require(payloadContentHost!.VerticalScrollBarVisibility == ScrollBarVisibility.Auto,
+                $"PART_ContentHost must bind VerticalScrollBarVisibility=Auto, got {payloadContentHost.VerticalScrollBarVisibility}");
+            Require(payloadContentHost.VerticalAlignment == VerticalAlignment.Stretch,
+                $"PART_ContentHost must stretch vertically, got {payloadContentHost.VerticalAlignment}");
+            Require(payloadContentHost.ActualHeight >= 220,
+                $"PART_ContentHost viewport should fill PayloadTextBox, got ActualHeight={payloadContentHost.ActualHeight}");
 
             // 6b. 验证非 TestLab 模式下重启应用后，手动模式默认保持在步骤 1，不再强行跳入步骤 4 历史结果页
             var mainVm = new MainViewModel();

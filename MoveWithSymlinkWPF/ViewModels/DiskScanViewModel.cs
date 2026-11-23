@@ -1661,6 +1661,7 @@ public partial class DiskScanViewModel : ObservableObject
     {
         if (_snapshot is null || _snapshot.ScanId != scanId) return false;
         if ((uint)nodeId >= (uint)_snapshot.Nodes.Length) return false;
+        if (IsHiddenSystemVolumeNode(_snapshot, nodeId)) return false;
 
         ActiveSubView = DiskScanSubView.DirectoryTree;
         IsAiDrawerOpen = false;
@@ -1935,7 +1936,8 @@ public partial class DiskScanViewModel : ObservableObject
                 ref readonly ScanNodeRecord node = ref _snapshot.Nodes[i];
                 if (!node.IsDirectory) continue;
                 string name = _snapshot.GetNodeName(i);
-                if (name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                if (name.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                    && !IsHiddenSystemVolumeNode(_snapshot, i))
                 {
                     matches.Add((i, Math.Max(node.UniqueAllocatedBytes, node.LogicalBytes)));
                 }
@@ -2045,7 +2047,8 @@ public partial class DiskScanViewModel : ObservableObject
             ? GetNodeSizeForShare(_snapshot.RootNodeId)
             : GetNodeSizeForShare(parentNodeId);
 
-        // 默认仅展示文件夹（隐藏无法迁移的单个文件如 hiberfil.sys/pagefile.sys），用户勾选“显示文件”时全部显示
+        // 默认仅展示文件夹（隐藏无法迁移的单个文件如 hiberfil.sys/pagefile.sys），用户勾选“显示文件”时全部显示；
+        // 卷根系统元目录（$Recycle.Bin、System Volume Information）不具备迁移价值，始终在目录树中隐藏
         int cursor = insertAt;
         int matched = 0;
         int displayed = 0;
@@ -2055,6 +2058,7 @@ public partial class DiskScanViewModel : ObservableObject
             int cid = children[i];
             ref readonly ScanNodeRecord child = ref _snapshot.Nodes[cid];
             if (!ShowFilesInTree && !child.IsDirectory) continue;
+            if (IsHiddenSystemVolumeNode(_snapshot, cid)) continue;
 
             if (matched < startOffset)
             {
@@ -2235,6 +2239,67 @@ public partial class DiskScanViewModel : ObservableObject
             IsInPlan = PlanItems.Any(p => p.SourcePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase)),
             HasDescendantInPlan = HasDescendantPathInPlan(fullPath, PlanItems.Select(p => p.SourcePath))
         };
+    }
+
+    private static readonly string[] HiddenVolumeRootDirectoryNames =
+    [
+        "$Recycle.Bin",
+        "System Volume Information"
+    ];
+
+    /// <summary>
+    /// 判断节点是否为卷根下应隐藏的系统元目录（回收站、System Volume Information）或其子项。
+    /// 仅在视图展示层过滤，保留底层 ScanSnapshot 的真实卷空间统计与 L0 安全策略。
+    /// </summary>
+    internal static bool IsHiddenSystemVolumeNode(ScanSnapshot snapshot, int nodeId)
+    {
+        if ((uint)nodeId >= (uint)snapshot.Nodes.Length || nodeId == snapshot.RootNodeId)
+        {
+            return false;
+        }
+
+        // 仅当快照根为卷根目录（如 C:\、D:\）时按卷根保留名隐藏，避免误伤普通子目录下的同名文件夹
+        string? scanRoot = snapshot.ScanRootPath;
+        if (!string.IsNullOrEmpty(scanRoot)
+            && !string.Equals(scanRoot.TrimEnd('\\'), snapshot.Volume.DriveRoot.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        int topLevelId = nodeId;
+        int guard = 0;
+        while (guard++ < 128)
+        {
+            int parentId = snapshot.Nodes[topLevelId].ParentNodeId;
+            if (parentId == snapshot.RootNodeId)
+            {
+                break;
+            }
+
+            if ((uint)parentId >= (uint)snapshot.Nodes.Length || parentId == topLevelId)
+            {
+                return false;
+            }
+
+            topLevelId = parentId;
+        }
+
+        if (snapshot.Nodes[topLevelId].ParentNodeId != snapshot.RootNodeId
+            || !snapshot.Nodes[topLevelId].IsDirectory)
+        {
+            return false;
+        }
+
+        string topName = snapshot.GetNodeName(topLevelId);
+        foreach (string hiddenName in HiddenVolumeRootDirectoryNames)
+        {
+            if (topName.Equals(hiddenName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsGenericContainerName(string folderName) =>

@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AI 工具返回数据明细（只读脱敏）"
-        Width="760"
-        Height="560"
+        Width="820"
+        Height="620"
         MinWidth="520"
         MinHeight="380"
         Background="#F4F6F9"
@@ -13,6 +13,60 @@
         TextOptions.TextRenderingMode="ClearType"
         UseLayoutRounding="True"
         KeyDown="Window_OnKeyDown">
+
+    <Window.Resources>
+        <!-- 独立于 App.xaml 全局单行 TextBox 样式的多行只读 JSON 展示框，避免被 Height=40 与 Hidden 滚动条截断 -->
+        <Style x:Key="PayloadViewerTextBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Height" Value="Auto"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#BFDBFE"/>
+            <Setter Property="CaretBrush" Value="#0078D4"/>
+            <Setter Property="Padding" Value="12,10,6,10"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Stretch"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalScrollBarVisibility="{TemplateBinding VerticalScrollBarVisibility}"
+                                          HorizontalScrollBarVisibility="{TemplateBinding HorizontalScrollBarVisibility}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#93C5FD"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
     <Grid Margin="16,14">
         <Grid.RowDefinitions>
@@ -61,18 +115,8 @@
 
                 <TextBox x:Name="PayloadTextBox"
                          Grid.Row="1"
-                         IsReadOnly="True"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         FontFamily="Consolas, Cascadia Mono, Courier New"
-                         FontSize="12"
-                         Foreground="#1E293B"
-                         Background="#F8FAFC"
-                         BorderBrush="#E2E8F0"
-                         BorderThickness="1"
-                         Padding="10,8"/>
+                         Style="{StaticResource PayloadViewerTextBoxStyle}"
+                         AutomationProperties.AutomationId="AiToolPayloadTextBox"/>
             </Grid>
         </Border>
 
