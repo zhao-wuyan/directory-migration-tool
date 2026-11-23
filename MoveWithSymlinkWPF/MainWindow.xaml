@@ -142,8 +142,23 @@
                     </StackPanel>
                 </Border>
 
-                <!-- 右侧常驻：备份管理(N) + 使用说明 -->
+                <!-- 右侧常驻：AI 助手 + 备份管理(N) + 使用说明（对齐 docs/untitled.pen 画板 10 TopNavBar） -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding ShowAiAssistantCommand}"
+                            AutomationProperties.Name="AI 助手"
+                            AutomationProperties.AutomationId="NavAiAssistant"
+                            Style="{StaticResource FluentSoftPrimaryButtonStyle}"
+                            Tag="{Binding AiAssistantNavTag}"
+                            IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
+                            Padding="10,0" Height="32" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="AI 助手" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Command="{Binding ShowBackupCenterCommand}"
                             AutomationProperties.Name="备份管理"
                             AutomationProperties.AutomationId="NavGlobalBackup"
@@ -1138,6 +1153,12 @@
                            Content="{Binding GlobalBackupPage}"
                            Style="{StaticResource FadeInContentControl}"
                            Visibility="{Binding IsBackupCenterMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- Built-in AI Assistant Content (Phase 2: BYOK + Controlled Single Agent Drawer) -->
+            <ContentControl Grid.Column="0" Grid.ColumnSpan="2"
+                           Content="{Binding AiAssistantPage}"
+                           Style="{StaticResource FadeInContentControl}"
+                           Visibility="{Binding IsAiAssistantMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </Grid>
         </Grid>
         

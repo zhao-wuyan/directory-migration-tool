@@ -152,7 +152,17 @@ public partial class ScanTreeRowItem : ObservableObject
     private bool _isExpanded;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminateInPlan))]
     private bool _isInPlan;
+
+    /// <summary>
+    /// 当前目录本身未直接加入待迁移清单，但其下级子目录中已有至少 1 项加入清单（用于显示三态勾选框的「半选」横杠）。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminateInPlan))]
+    private bool _hasDescendantInPlan;
+
+    public bool IsIndeterminateInPlan => !IsInPlan && HasDescendantInPlan;
 
     public Thickness IndentMargin => new(Depth * 14, 0, 0, 0);
     public string ExpandGlyph => IsLoadMorePlaceholder ? "⋯" : (!HasChildren ? string.Empty : (IsExpanded ? "▾" : "▸"));
@@ -236,6 +246,7 @@ public partial class BatchPlanRowItem : ObservableObject
     public bool HasSubtreeHardLinks { get; init; }
     public bool HasIncompleteScanData { get; init; }
     public MigrationAdmissionLevel Level { get; init; }
+    public BatchPlanItemSource Source { get; init; } = BatchPlanItemSource.ScanDiscovery;
 
     [ObservableProperty]
     private string _targetPath = string.Empty;
@@ -327,6 +338,18 @@ public partial class DiskScanViewModel : ObservableObject
     private FrozenMigrationPlan? _frozenPlan;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _batchCts;
+
+    public ScanSnapshot? CurrentSnapshot => _snapshot;
+    public event EventHandler<ScanSnapshot?>? SnapshotChanged;
+
+    [ObservableProperty]
+    private AiAssistantViewModel? _aiAssistant;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AiDrawerButtonTag))]
+    private bool _isAiDrawerOpen;
+
+    public string AiDrawerButtonTag => IsAiDrawerOpen ? "Active" : string.Empty;
 
     public ObservableCollection<VolumeCardItem> VolumeCards { get; } = [];
     public ObservableCollection<RecentScanItem> RecentScans { get; } = [];
@@ -655,6 +678,28 @@ public partial class DiskScanViewModel : ObservableObject
         OnPropertyChanged(nameof(StartBatchButtonText));
         UpdateTargetSpaceHint();
         SyncTreePlanChecks();
+        SyncAiProposalAdoptedStates();
+    }
+
+    partial void OnAiAssistantChanged(AiAssistantViewModel? value)
+    {
+        SyncAiProposalAdoptedStates();
+    }
+
+    private void SyncAiProposalAdoptedStates()
+    {
+        if (AiAssistant is null) return;
+
+        var nodeIds = PlanItems
+            .Where(p => p.NodeId.HasValue)
+            .Select(p => p.NodeId!.Value)
+            .ToArray();
+        var paths = PlanItems
+            .Select(p => p.SourcePath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToArray();
+
+        AiAssistant.SyncAdoptedPlanItems(_snapshot?.ScanId, nodeIds, paths);
     }
 
     [RelayCommand]
@@ -1262,7 +1307,8 @@ public partial class DiskScanViewModel : ObservableObject
             HasIncompleteScanData: p.HasIncompleteScanData,
             L3RiskAcknowledged: p.L3RiskAcknowledged,
             ScanId: p.ScanId,
-            NodeId: p.NodeId)).ToArray();
+            NodeId: p.NodeId,
+            Source: p.Source)).ToArray();
 
         MigrationTransactionRecord[] existing = [];
         try { existing = await new MigrationTransactionStore().ReadAllAsync(); }
@@ -1463,6 +1509,177 @@ public partial class DiskScanViewModel : ObservableObject
 
         SelectedRow = null;
         RebuildVisibleRows();
+        SnapshotChanged?.Invoke(this, snapshot);
+    }
+
+    [RelayCommand]
+    private void ToggleAiDrawer()
+    {
+        IsAiDrawerOpen = !IsAiDrawerOpen;
+    }
+
+    /// <summary>
+    /// 接收用户人工审核并采纳的 AI 迁移建议（仅加入待迁移清单，绝不自动启动执行，仍须全量策略与子树复核）。
+    /// </summary>
+    public (bool Added, string Message) TryAddAiProposalToPlan(Guid scanId, int nodeId, string? suggestedTargetPath)
+    {
+        if (IsBatchExecuting)
+        {
+            return (false, "当前正在执行批量迁移，请等待完成后再修改清单。");
+        }
+
+        if (_snapshot is null || _snapshot.ScanId != scanId)
+        {
+            return (false, "当前磁盘扫描快照已变更或已释放，请重新扫描后再审阅 AI 建议。");
+        }
+
+        if (!_snapshot.CanUseForMigrationPlanning)
+        {
+            return (false, "当前扫描快照处于已取消或访问受限状态，不能用于生成迁移清单。");
+        }
+
+        if ((uint)nodeId >= (uint)_snapshot.Nodes.Length || !_snapshot.Nodes[nodeId].IsDirectory)
+        {
+            return (false, "建议指向的目录节点在当前快照中无效。");
+        }
+
+        ref readonly ScanNodeRecord node = ref _snapshot.Nodes[nodeId];
+        string fullPath = _snapshot.GetFullPath(nodeId);
+
+        if (PlanItems.Any(p => p.SourcePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            return (true, $"「{fullPath}」已在待迁移清单中。");
+        }
+
+        SafetyPolicyDecision decision = MigrationSafetyPolicy.EvaluateSource(
+            fullPath, _catalog, SafetyEvaluationContext.ScanPreview, checkFilesystem: false);
+
+        if (decision.IsHardDenied)
+        {
+            return (false, $"安全策略硬拦截（L0）：{decision.Summary}");
+        }
+
+        if (decision.Level == MigrationAdmissionLevel.VendorNativeRecommended)
+        {
+            return (false, "该目录属于 L2 厂商原生引导项，不建议符号链接迁移，请使用官方原生方案。");
+        }
+
+        var (hasHardLinks, hasIncomplete, _) = _snapshot.InspectSubtreeHazards(nodeId);
+        if (hasHardLinks)
+        {
+            return (false, "该目录子树包含硬链接文件，为防止破坏共享语义，禁止加入迁移清单。");
+        }
+        if (hasIncomplete)
+        {
+            return (false, "该目录子树扫描不完整或存在损坏节点，禁止加入迁移清单。");
+        }
+
+        string targetPath = string.Empty;
+        if (!string.IsNullOrWhiteSpace(suggestedTargetPath))
+        {
+            targetPath = suggestedTargetPath;
+        }
+        else if (!string.IsNullOrWhiteSpace(UnifiedTargetRoot))
+        {
+            try
+            {
+                targetPath = MigrationPlanService.BuildDefaultTargetPath(
+                    fullPath, UnifiedTargetRoot, decision.MatchedApplicationId);
+            }
+            catch { }
+        }
+
+        PlanItems.Add(new BatchPlanRowItem
+        {
+            NodeId = nodeId,
+            ScanId = _snapshot.ScanId,
+            SourcePath = fullPath,
+            TargetPath = targetPath,
+            ApplicationId = decision.MatchedApplicationId,
+            ApplicationLabel = decision.MatchedApplicationName ?? string.Empty,
+            LogicalBytes = node.LogicalBytes,
+            AllocatedBytes = node.UniqueAllocatedBytes,
+            IsCompressedOrSparse = (node.Flags & (ScanNodeFlags.IsSparseOrCompressed | ScanNodeFlags.IsWofCompressed)) != 0,
+            HasSubtreeHardLinks = hasHardLinks,
+            HasIncompleteScanData = hasIncomplete,
+            Level = decision.Level,
+            Source = BatchPlanItemSource.AiProposal,
+            // L3 项严禁替用户自动勾选确认，必须由用户在清单页人工核对后勾选
+            L3RiskAcknowledged = false,
+            StatusText = decision.Level == MigrationAdmissionLevel.ManualRiskConfirm
+                ? "待预检（AI 建议 · 需人工确认 L3）"
+                : "待预检（AI 建议）"
+        });
+
+        foreach (ScanTreeRowItem row in VisibleTreeRows)
+        {
+            if (row.NodeId == nodeId)
+            {
+                row.IsInPlan = true;
+            }
+        }
+
+        InvalidateFrozenPlan();
+        UpdateCanAddSelected();
+
+        return (true, $"已将「{Path.GetFileName(fullPath.TrimEnd('\\'))}」加入待迁移清单（未执行，请前往清单页核对目标并手动启动）。");
+    }
+
+    /// <summary>
+    /// 在目录树中自动展开祖先路径并选中指定节点（供 AI 诊断卡片一键核实）。
+    /// </summary>
+    public bool TryLocateNodeInTree(Guid scanId, int nodeId)
+    {
+        if (_snapshot is null || _snapshot.ScanId != scanId) return false;
+        if ((uint)nodeId >= (uint)_snapshot.Nodes.Length) return false;
+
+        ActiveSubView = DiskScanSubView.DirectoryTree;
+        IsAiDrawerOpen = false;
+        if (!string.IsNullOrEmpty(SearchFilter))
+        {
+            SearchFilter = string.Empty;
+        }
+        if (BrowseMode != ScanBrowseMode.DirectoryTree)
+        {
+            BrowseMode = ScanBrowseMode.DirectoryTree;
+        }
+        else
+        {
+            RebuildVisibleRows();
+        }
+
+        var ancestorChain = new Stack<int>();
+        int cur = nodeId;
+        int guard = 0;
+        while (cur >= 0 && cur != _snapshot.RootNodeId && guard++ < 64)
+        {
+            ancestorChain.Push(cur);
+            int parent = _snapshot.Nodes[cur].ParentNodeId;
+            if (parent == cur) break;
+            cur = parent;
+        }
+
+        ScanTreeRowItem? located = null;
+        while (ancestorChain.Count > 0)
+        {
+            int nextId = ancestorChain.Pop();
+            ScanTreeRowItem? row = VisibleTreeRows.FirstOrDefault(r => !r.IsLoadMorePlaceholder && r.NodeId == nextId);
+            if (row is null) break;
+
+            located = row;
+            if (ancestorChain.Count > 0 && !row.IsExpanded && row.HasChildren)
+            {
+                ToggleExpand(row);
+            }
+        }
+
+        if (located is not null)
+        {
+            SelectedRow = located;
+            return true;
+        }
+
+        return false;
     }
 
     private (int LargeDirCount, int L1Count, long L1Bytes) SummarizeSnapshotHighlights(ScanSnapshot snapshot)
@@ -1955,7 +2172,8 @@ public partial class DiskScanViewModel : ObservableObject
             HintLevel = hintLevel,
             HintToolTip = hintToolTip,
             Flags = node.Flags,
-            IsInPlan = PlanItems.Any(p => p.SourcePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase))
+            IsInPlan = PlanItems.Any(p => p.SourcePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase)),
+            HasDescendantInPlan = HasDescendantPathInPlan(fullPath, PlanItems.Select(p => p.SourcePath))
         };
     }
 
@@ -1974,11 +2192,36 @@ public partial class DiskScanViewModel : ObservableObject
     private void SyncTreePlanChecks()
     {
         if (VisibleTreeRows.Count == 0) return;
-        var set = PlanItems.Select(p => p.SourcePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string[] planPaths = PlanItems
+            .Select(p => p.SourcePath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToArray();
+        var set = planPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var row in VisibleTreeRows)
         {
-            row.IsInPlan = set.Contains(row.FullPath);
+            bool direct = set.Contains(row.FullPath);
+            row.IsInPlan = direct;
+            row.HasDescendantInPlan = !direct && row.IsDirectory && HasDescendantPathInPlan(row.FullPath, planPaths);
         }
+    }
+
+    private static bool HasDescendantPathInPlan(string directoryPath, IEnumerable<string> planPaths)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath)) return false;
+        string normalized = directoryPath.TrimEnd('\\');
+        string prefix = normalized + "\\";
+
+        foreach (string candidate in planPaths)
+        {
+            if (string.IsNullOrWhiteSpace(candidate)) continue;
+            string trimmedCandidate = candidate.TrimEnd('\\');
+            if (trimmedCandidate.Length > prefix.Length
+                && trimmedCandidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void InspectSelectedRow(ScanTreeRowItem? row)

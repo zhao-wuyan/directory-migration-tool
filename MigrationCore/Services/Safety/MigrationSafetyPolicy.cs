@@ -266,21 +266,7 @@ public static partial class MigrationSafetyPolicy
             }
         }
 
-        // 4. 工具自身目录、事务状态目录及事务保留备份/staging/probe 目录（双向重叠拦截，禁止迁移包含工具本体的父目录）
-        foreach (string toolDir in env.ToolAndStateDirectories)
-        {
-            if (PathIdentityService.IsWithin(full, toolDir) || PathIdentityService.IsWithin(toolDir, full))
-            {
-                return HardDeny(SafetyReasonCodes.L0SelfOrActiveTransaction, $"不允许操作工具自身、事务状态目录或包含它们的父目录：{toolDir}");
-            }
-        }
-
-        if (ContainsTransactionArtifactSegment(full))
-        {
-            return HardDeny(SafetyReasonCodes.L0SelfOrActiveTransaction, "不允许将迁移备份、staging 或活动事务目录作为源/目标。");
-        }
-
-        // 5. 系统容器根本身（仅精确拦截容器根，不阻塞其下合法第三方应用子目录）
+        // 4. 系统容器根本身（仅精确拦截容器根，不阻塞其下合法第三方应用子目录；优先级高于工具保护，避免 C:\Users 等被误标为“工具保护”）
         foreach (string container in EnumerateContainerRoots(env))
         {
             if (full.Equals(container, StringComparison.OrdinalIgnoreCase))
@@ -289,14 +275,14 @@ public static partial class MigrationSafetyPolicy
             }
         }
 
-        // 5b. 任意用户目录（含 Default、Public 及其他本地用户）的 Profile 根、AppData 根及 Microsoft/Packages/Temp 受保护子树
+        // 4b. 任意用户目录（含 Default、Public 及其他本地用户）的 Profile 根、AppData 根及 Microsoft/Packages/Temp 受保护子树
         SafetyPolicyDecision? anyUserBlock = CheckAnyUserProfileHardDeny(full, env);
         if (anyUserBlock is not null)
         {
             return anyUserBlock;
         }
 
-        // 6. Windows 与系统组件受保护子树
+        // 5. Windows 与系统组件受保护子树
         foreach (string pf in env.ProgramFilesDirectories)
         {
             foreach (string sub in ProgramFilesBlockedSubtrees)
@@ -352,7 +338,7 @@ public static partial class MigrationSafetyPolicy
             }
         }
 
-        // 7. 高危安全软件 / EDR / 驱动 / 凭据密钥目录（按路径组件边界匹配）
+        // 6. 高危安全软件 / EDR / 驱动 / 凭据密钥目录（按路径组件边界匹配）
         string[] segments = full[3..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
         foreach (string segment in segments)
         {
@@ -360,6 +346,20 @@ public static partial class MigrationSafetyPolicy
             {
                 return HardDeny(SafetyReasonCodes.L0HighRiskSecurityOrDriver, $"不允许操作高危安全软件、驱动或凭据目录：{segment}");
             }
+        }
+
+        // 7. 工具自身目录、事务状态目录及事务保留备份/staging/probe 目录（双向重叠拦截，优先级低于系统核心/容器保护，仅在非系统目录上标为“工具保护”）
+        foreach (string toolDir in env.ToolAndStateDirectories)
+        {
+            if (PathIdentityService.IsWithin(full, toolDir) || PathIdentityService.IsWithin(toolDir, full))
+            {
+                return HardDeny(SafetyReasonCodes.L0SelfOrActiveTransaction, $"不允许操作工具自身、事务状态目录或包含它们的父目录：{toolDir}");
+            }
+        }
+
+        if (ContainsTransactionArtifactSegment(full))
+        {
+            return HardDeny(SafetyReasonCodes.L0SelfOrActiveTransaction, "不允许将迁移备份、staging 或活动事务目录作为源/目标。");
         }
 
         // 8. 实时文件系统边界检查（卷类型、祖先重解析点、叶特殊属性）

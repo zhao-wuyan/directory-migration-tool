@@ -183,10 +183,22 @@ public static class BuiltInApplicationRules
                 @"Docker\wsl",
                 @"Docker\wsl\disk",
                 @"Docker\wsl\data",
-                @"Docker\wsl\main"
+                @"Docker\wsl\main",
+                @"DockerDesktop\vm-data",
+                @"DockerDesktop\vms"
             ],
             RelativeForbiddenSubpaths: [],
-            PathContainsMarkers: [@"AppData\Local\Docker", @"AppData\Local\wsl", @"Docker\wsl", "DockerDesktopWSL", "docker-desktop-data"],
+            PathContainsMarkers:
+            [
+                @"AppData\Local\Docker",
+                @"AppData\Local\wsl",
+                @"Docker\wsl",
+                @"ProgramData\DockerDesktop",
+                @"DockerDesktop\vm-data",
+                @"DockerDesktop\vms",
+                "DockerDesktopWSL",
+                "docker-desktop-data"
+            ],
             RequiredStoppedProcessNames: ["Docker Desktop", "com.docker.backend"],
             AssociatedServiceNames: ["com.docker.service"],
             RequireProcessStopped: true,

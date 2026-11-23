@@ -5,7 +5,8 @@ namespace MigrationCore.Models;
 public enum BatchPlanItemSource
 {
     ManualSelection,
-    ScanDiscovery
+    ScanDiscovery,
+    AiProposal
 }
 
 public enum BatchPlanItemStatus

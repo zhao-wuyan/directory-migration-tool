@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+             xmlns:views="clr-namespace:MoveWithSymlinkWPF.Views"
              mc:Ignorable="d"
              d:DesignHeight="640"
              d:DesignWidth="1000"
@@ -466,6 +467,16 @@
             <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14,9" Margin="0,0,0,9">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Command="{Binding ToggleAiDrawerCommand}"
+                                AutomationProperties.AutomationId="DiskScanAiDrawerToggle"
+                                Style="{StaticResource FluentSoftPrimaryButtonStyle}"
+                                Tag="{Binding AiDrawerButtonTag}"
+                                Height="30" Padding="10,0" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,5,0"/>
+                                <TextBlock Text="AI 助手" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                         <Button Command="{Binding GoToVolumeSelectCommand}" Style="{StaticResource FluentSecondaryButtonStyle}" Height="30" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{StaticResource IconHardDrive}" Width="13" Height="13" Stretch="Uniform" Stroke="#0F172A" StrokeThickness="1.8" Margin="0,0,6,0"/>
@@ -553,12 +564,12 @@
                 </StackPanel>
             </DockPanel>
 
-            <!-- S01Main：左侧 TreeTableCard (64%) + 右侧 DetailPanel (36%) -->
-            <Grid Grid.Row="2" Margin="0,0,0,9">
+            <!-- S01Main：左侧 TreeTableCard (默认 64%) + 可拖动分隔条 + 右侧 DetailPanel / AI 抽屉 (默认 36%) -->
+            <Grid x:Name="TreeMainSplitGrid" Grid.Row="2" Margin="0,0,0,9" SizeChanged="TreeMainSplitGrid_OnSizeChanged">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="64*"/>
+                    <ColumnDefinition x:Name="TreeLeftColumn" Width="64*" MinWidth="480"/>
                     <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="36*" MinWidth="310"/>
+                    <ColumnDefinition x:Name="TreeRightColumn" Width="36*" MinWidth="310" MaxWidth="920"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧 TreeTableCard -->
@@ -700,6 +711,10 @@
                                                                 <Setter Property="Background" Value="#FFFFFF"/>
                                                                 <Setter Property="BorderBrush" Value="#CBD5E1"/>
                                                                 <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsIndeterminateInPlan}" Value="True">
+                                                                        <Setter Property="Background" Value="#EBF5FF"/>
+                                                                        <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                                    </DataTrigger>
                                                                     <DataTrigger Binding="{Binding IsInPlan}" Value="True">
                                                                         <Setter Property="Background" Value="#0078D4"/>
                                                                         <Setter Property="BorderBrush" Value="#0078D4"/>
@@ -707,9 +722,15 @@
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <Path Data="{StaticResource IconCheck}" Width="9" Height="9" Stretch="Uniform"
-                                                              Stroke="#FFFFFF" StrokeThickness="2.4"
-                                                              Visibility="{Binding IsInPlan, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                        <Grid>
+                                                            <Path Data="{StaticResource IconCheck}" Width="9" Height="9" Stretch="Uniform"
+                                                                  Stroke="#FFFFFF" StrokeThickness="2.4"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                  Visibility="{Binding IsInPlan, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                            <Border Width="8" Height="2" CornerRadius="1" Background="#0078D4"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    Visibility="{Binding IsIndeterminateInPlan, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                        </Grid>
                                                     </Border>
                                                 </Button>
                                             </Grid>
@@ -767,8 +788,22 @@
                     </Grid>
                 </Border>
 
-                <!-- 右侧 DetailPanel（底部主按钮常驻吸底，永不滚出视野） -->
-                <Border Grid.Column="2" Style="{StaticResource FluentCardBorderStyle}" Padding="14">
+                <!-- 可拖动分隔条：支持用户按窗口宽度动态调整目录树与右侧详情/AI 分析助手的宽度比例 -->
+                <GridSplitter x:Name="TreeDrawerGridSplitter"
+                              Grid.Column="1"
+                              Style="{StaticResource FluentVerticalGridSplitterStyle}"
+                              AutomationProperties.AutomationId="DiskScanDrawerSplitter"
+                              ToolTip="左右拖动调整右侧面板 / AI 分析助手宽度（双击恢复默认比例）"
+                              MouseDoubleClick="TreeDrawerGridSplitter_OnMouseDoubleClick"/>
+
+                <!-- 右侧面板：默认目录详情卡，展开 AI 抽屉时原位切换为共用 AI 分析助手抽屉（保障 1000x700 下目录树零挤压） -->
+                <Grid Grid.Column="2">
+                    <views:AiAssistantDrawerControl DataContext="{Binding AiAssistant}"
+                                                      ShowCloseButton="True"
+                                                      Visibility="{Binding DataContext.IsAiDrawerOpen, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                    <Border Style="{StaticResource FluentCardBorderStyle}" Padding="14"
+                            Visibility="{Binding IsAiDrawerOpen, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                     <DockPanel>
                         <Button DockPanel.Dock="Bottom"
                                 Command="{Binding AddSelectedToPlanCommand}"
@@ -912,6 +947,7 @@
                         </ScrollViewer>
                     </DockPanel>
                 </Border>
+                </Grid>
             </Grid>
 
             <!-- S01Foot：已勾选汇总 + 前往迁移清单主按钮 -->

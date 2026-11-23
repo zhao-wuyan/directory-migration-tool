@@ -31,6 +31,10 @@ public partial class MainViewModel : ObservableObject
     private bool _isBackupCenterMode = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AiAssistantNavTag))]
+    private bool _isAiAssistantMode = false;
+
+    [ObservableProperty]
     private object? _quickMigratePage;
 
     [ObservableProperty]
@@ -39,10 +43,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private object? _globalBackupPage;
 
+    [ObservableProperty]
+    private object? _aiAssistantPage;
+
+    public AiAssistantViewModel AiAssistantViewModel { get; }
+
     public string ManualNavTag => IsManualMode ? "Active" : string.Empty;
     public string QuickMigrateNavTag => IsQuickMigrateMode ? "Active" : string.Empty;
     public string DiskScanNavTag => IsDiskScanMode ? "Active" : string.Empty;
     public string BackupCenterNavTag => IsBackupCenterMode ? "Active" : string.Empty;
+    public string AiAssistantNavTag => IsAiAssistantMode ? "Active" : string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUnverifiedBackups))]
@@ -194,6 +204,44 @@ public partial class MainViewModel : ObservableObject
         DiskScanPage = new DiskScanPage();
         GlobalBackupPage = new GlobalBackupPage();
 
+        DiskScanViewModel? diskScanVm = (DiskScanPage as DiskScanPage)?.DataContext as DiskScanViewModel;
+        AiAssistantViewModel = new AiAssistantViewModel(
+            adoptToPlanCallback: (scanId, nodeId, suggestedTarget) =>
+                diskScanVm is null
+                    ? (false, "磁盘扫描模块尚未就绪。")
+                    : diskScanVm.TryAddAiProposalToPlan(scanId, nodeId, suggestedTarget),
+            locateNodeInTreeCallback: (scanId, nodeId) =>
+            {
+                if (diskScanVm is null || !diskScanVm.TryLocateNodeInTree(scanId, nodeId))
+                    return false;
+                SetActiveMode(diskScan: true);
+                return true;
+            },
+            openDiskScanCallback: () =>
+            {
+                if (!IsOperationBusy) SetActiveMode(diskScan: true);
+            },
+            openAiSettingsCallback: () =>
+            {
+                if (!IsOperationBusy) SetActiveMode(aiAssistant: true);
+            },
+            closeDrawerCallback: () =>
+            {
+                if (diskScanVm is not null) diskScanVm.IsAiDrawerOpen = false;
+            });
+
+        if (diskScanVm is not null)
+        {
+            diskScanVm.AiAssistant = AiAssistantViewModel;
+            diskScanVm.SnapshotChanged += (_, snap) => AiAssistantViewModel.SyncScanSnapshot(snap);
+            if (diskScanVm.CurrentSnapshot is not null)
+            {
+                AiAssistantViewModel.SyncScanSnapshot(diskScanVm.CurrentSnapshot);
+            }
+        }
+
+        AiAssistantPage = new AiAssistantPage { DataContext = AiAssistantViewModel };
+
         _ = RestoreLastTransactionAsync();
         
 #if DEBUG
@@ -221,6 +269,13 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsOperationBusy) return;
         SetActiveMode(diskScan: true);
+    }
+
+    [RelayCommand]
+    private void ShowAiAssistant()
+    {
+        if (IsOperationBusy) return;
+        SetActiveMode(aiAssistant: true);
     }
 
     [RelayCommand]
@@ -254,12 +309,13 @@ public partial class MainViewModel : ObservableObject
         SourcePath = sourcePath;
     }
 
-    private void SetActiveMode(bool manual = false, bool quick = false, bool diskScan = false, bool backupCenter = false)
+    private void SetActiveMode(bool manual = false, bool quick = false, bool diskScan = false, bool backupCenter = false, bool aiAssistant = false)
     {
         IsManualMode = manual;
         IsQuickMigrateMode = quick;
         IsDiskScanMode = diskScan;
         IsBackupCenterMode = backupCenter;
+        IsAiAssistantMode = aiAssistant;
         if (diskScan && DiskScanPage is DiskScanPage dp && dp.DataContext is DiskScanViewModel dvm)
         {
             dvm.SyncUnverifiedBackupCount(UnverifiedBackupCount);
@@ -1401,6 +1457,10 @@ public partial class MainViewModel : ObservableObject
         {
             if (dvm.IsBatchExecuting) dvm.CancelBatchCommand.Execute(null);
             if (dvm.IsScanning) dvm.CancelScanCommand.Execute(null);
+        }
+        if (AiAssistantViewModel.IsAnalyzing)
+        {
+            AiAssistantViewModel.StopAnalysisCommand.Execute(null);
         }
     }
 

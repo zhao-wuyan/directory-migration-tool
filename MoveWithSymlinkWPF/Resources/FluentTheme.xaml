@@ -66,6 +66,13 @@
     <Geometry x:Key="IconSquare">M4 4h16v16H4z</Geometry>
     <Geometry x:Key="IconChevronRight">M9 6l6 6-6 6</Geometry>
     <Geometry x:Key="IconChevronDown">M6 9l6 6 6-6</Geometry>
+    <Geometry x:Key="IconSparkles">M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z M19 3v4 M21 5h-4 M5 17v4 M7 19H3</Geometry>
+    <Geometry x:Key="IconBot">M12 8V4H8 M4 10h16a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z M2 14h2 M20 14h2 M9 14v2 M15 14v2</Geometry>
+    <Geometry x:Key="IconSliders">M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6</Geometry>
+    <Geometry x:Key="IconSettings">M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41</Geometry>
+    <Geometry x:Key="IconPanelRightClose">M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z M15 3v18 M8 9l3 3-3 3</Geometry>
+    <Geometry x:Key="IconSend">M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z</Geometry>
+    <Geometry x:Key="IconStopCircle">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M9 9h6v6H9z</Geometry>
 
     <!-- 轻量卡片容器样式 -->
     <Style x:Key="FluentCardBorderStyle" TargetType="Border">
@@ -425,6 +432,93 @@
                                    ViewportSize="{TemplateBinding ViewportWidth}"
                                    Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
                     </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 轻量 Fluent 垂直分栏拖动条：保留卡片间留白呼吸感，悬停/拖动时给出清晰视觉反馈 -->
+    <Style x:Key="FluentVerticalGridSplitterStyle" TargetType="GridSplitter">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="ResizeDirection" Value="Columns"/>
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext"/>
+        <Setter Property="ShowsPreview" Value="False"/>
+        <Setter Property="DragIncrement" Value="1"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridSplitter">
+                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                        <Border x:Name="guideLine"
+                                Width="2"
+                                CornerRadius="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Stretch"
+                                Margin="0,10"
+                                Background="Transparent"/>
+                        <Border x:Name="gripPill"
+                                Width="3"
+                                Height="36"
+                                CornerRadius="1.5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="{StaticResource FluentBorderStrongBrush}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="guideLine" Property="Background" Value="{StaticResource FluentPrimaryBorderBrush}"/>
+                            <Setter TargetName="gripPill" Property="Background" Value="{StaticResource FluentPrimaryBrush}"/>
+                            <Setter TargetName="gripPill" Property="Width" Value="4"/>
+                            <Setter TargetName="gripPill" Property="Height" Value="54"/>
+                            <Setter TargetName="gripPill" Property="CornerRadius" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="guideLine" Property="Background" Value="{StaticResource FluentPrimaryBrush}"/>
+                            <Setter TargetName="guideLine" Property="Opacity" Value="0.45"/>
+                            <Setter TargetName="gripPill" Property="Background" Value="{StaticResource FluentPrimaryHoverBrush}"/>
+                            <Setter TargetName="gripPill" Property="Width" Value="4"/>
+                            <Setter TargetName="gripPill" Property="Height" Value="72"/>
+                            <Setter TargetName="gripPill" Property="CornerRadius" Value="2"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- AI 时间线单行点击展开切换按钮（无缩放 RenderTransform，支持完整行点击与悬停高亮） -->
+    <Style x:Key="FluentTimelineToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="7,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#EEF2F6"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="#E2E8F0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

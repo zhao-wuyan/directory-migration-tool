@@ -35,7 +35,8 @@ internal static class Program
             RunGroup("BatchPlanCases", RunBatchPlanCases),
             await RunGroupAsync("ConcurrencyCases", RunConcurrencyCasesAsync),
             RunGroup("ExitConfirmCases", RunExitConfirmCases),
-            RunGroup("WpfUiSmokeCases", RunWpfUiSmokeCases)
+            RunGroup("WpfUiSmokeCases", RunWpfUiSmokeCases),
+            await RunGroupAsync("Phase2AiCases", Phase2AiCases.RunAsync)
         };
 
         int totalPassed = results.Sum(r => r.Passed);
@@ -252,6 +253,29 @@ internal static class Program
             Require(usersRoot is not null && usersRoot.HintLevel == DirectoryHintLevel.None, "Users container should stay clean without extra row icon");
             Require(selfProtectExplain is not null && selfProtectExplain.RoleTitle.Contains("运行中的迁移工具") && selfProtectExplain.HintLevel == DirectoryHintLevel.Warning,
                 "L0SelfOrActiveTransaction must produce Warning explanation");
+
+            // 2b. 系统保护优先于工具保护：Users / Profile / AppData 即使包含工具事务状态目录，也必须归为系统保护而非工具保护
+            foreach (string sysContainer in new[]
+            {
+                @"E:\Users",
+                @"E:\Users\Alice",
+                @"E:\Users\Alice\AppData",
+                @"E:\Users\Alice\AppData\Local"
+            })
+            {
+                var sysDecision = MigrationSafetyPolicy.EvaluateL0HardDeny(sysContainer, checkFilesystem: false, environment: nonCEnv);
+                Require(sysDecision.IsHardDenied
+                    && !sysDecision.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase),
+                    $"System container '{sysContainer}' must prioritize system protection over tool protection, got [{string.Join(',', sysDecision.ReasonCodes)}]");
+            }
+            var toolDirDecision = MigrationSafetyPolicy.EvaluateL0HardDeny(@"E:\Users\Alice\AppData\Local\MoveWithSymlinkWPF", checkFilesystem: false, environment: nonCEnv);
+            Require(toolDirDecision.IsHardDenied
+                && toolDirDecision.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase),
+                "Non-system tool directory must still be classified as tool protection (L0SelfOrActiveTransaction)");
+            var toolParentDecision = MigrationSafetyPolicy.EvaluateL0HardDeny(@"D:\Tools", checkFilesystem: false, environment: nonCEnv);
+            Require(toolParentDecision.IsHardDenied
+                && toolParentDecision.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase),
+                "Non-system parent directory containing tool binary must be classified as tool protection (L0SelfOrActiveTransaction)");
 
             // 3. 高频软件/AI/开发/聊天/虚拟磁盘目录，且普通项目名为 Docker 的目录不被误判为 Docker Desktop
             var jetbrainsLocal = KnownDirectoryExplainer.Explain(@"C:\Users\alice\AppData\Local\JetBrains", catalog);
@@ -1056,6 +1080,9 @@ internal static class Program
                         scanPage.UpdateLayout();
                         AssertAllButtonsSafeForRenderTransform(scanPage);
                     }
+
+                    // 5. 二期内置 AI 助手页面、磁盘扫描 AI 抽屉、建议采纳与目录定位联合烟测
+                    Phase2AiCases.VerifyWpfUiInCurrentSta(AssertAllButtonsSafeForRenderTransform);
                 }
                 catch (Exception ex)
                 {
