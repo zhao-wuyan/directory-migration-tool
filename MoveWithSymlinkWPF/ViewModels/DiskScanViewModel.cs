@@ -758,6 +758,11 @@ public partial class DiskScanViewModel : ObservableObject
         {
             var progress = new Progress<ScanProgress>(p =>
             {
+                if (_scanCts?.IsCancellationRequested == true || !IsScanning)
+                {
+                    return;
+                }
+
                 if (p.ProcessedRecords > 0)
                 {
                     ScanProcessedRecordsText = $"{p.ProcessedRecords:N0} 项";
@@ -801,6 +806,13 @@ public partial class DiskScanViewModel : ObservableObject
                 allowFallbackToDirectoryWalk: true,
                 progress,
                 _scanCts.Token);
+
+            // 扫描器在扫描中途收到取消信号时会返回 Coverage=Cancelled 的残缺快照；
+            // 此处统一按取消流程收口，禁止将其作为完整结果切入目录树或写入缓存。
+            if (snapshot.Coverage == ScanCoverageStatus.Cancelled || _scanCts.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(_scanCts.Token);
+            }
 
             _scanStopwatch.Stop();
             _scanElapsedTimer.Stop();
@@ -858,7 +870,9 @@ public partial class DiskScanViewModel : ObservableObject
             _scanElapsedTimer.Stop();
             ScanStageBadgeText = "已取消";
             ScanStageHeading = "扫描已安全取消，未修改任何卷数据";
-            ScanStep1Status = "已取消";
+            if (ScanStep1State != 2) { ScanStep1State = 0; ScanStep1Status = "已取消"; }
+            if (ScanStep2State != 2) { ScanStep2State = 0; ScanStep2Status = "已取消"; }
+            if (ScanStep3State != 2) { ScanStep3State = 0; ScanStep3Status = "已取消"; }
         }
         catch (Exception ex)
         {
