@@ -1281,6 +1281,10 @@ internal static class Phase2AiCases
             payloadWin.UpdateLayout();
             assertButtonsSafe(payloadWin);
 
+            // 6b. 验证非 TestLab 模式下重启应用后，手动模式默认保持在步骤 1，不再强行跳入步骤 4 历史结果页
+            var mainVm = new MainViewModel();
+            Require(mainVm.CurrentStep == 1, $"Manual mode should start cleanly on Step 1 when not in TestLab, got Step {mainVm.CurrentStep}");
+
             // 7. 验证 SafeMarkdownViewer 安全渲染（支持标题/列表/加粗/代码/表格，物理上零 Hyperlink）
             const string sampleMd = """
                 ## 空间分析结论

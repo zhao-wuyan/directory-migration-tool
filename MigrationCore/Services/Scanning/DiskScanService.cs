@@ -57,12 +57,15 @@ public sealed class DiskScanService
             }
 
             bool isNtfs = fs.Equals("NTFS", StringComparison.OrdinalIgnoreCase);
+            bool isRefs = fs.Equals("ReFS", StringComparison.OrdinalIgnoreCase);
             bool supportsMft = isNtfs && isAdmin;
-            string reason = !isNtfs
-                ? $"文件系统为 {fs}（仅支持普通遍历只读浏览，禁止执行迁移）"
-                : !isAdmin
-                    ? "当前非管理员权限，无法打开原始 NTFS 卷，将降级为普通目录遍历"
-                    : "支持只读原始 NTFS MFT 高速扫描";
+            string reason = isRefs
+                ? "文件系统为 ReFS（无 MFT，使用低占用并发目录扫描只读浏览；当前版本暂未开放 ReFS 迁移）"
+                : !isNtfs
+                    ? $"文件系统为 {fs}（仅支持低占用并发目录扫描只读浏览，禁止执行迁移）"
+                    : !isAdmin
+                        ? "当前非管理员权限，无法打开原始 NTFS 卷，将降级为低占用并发目录遍历"
+                        : "支持只读原始 NTFS MFT 高速扫描";
 
             volumes.Add(new ScanVolumeInfo(root, label, guid, serial, fs, total, free, supportsMft, reason));
         }

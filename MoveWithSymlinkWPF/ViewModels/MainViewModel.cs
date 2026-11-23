@@ -1334,6 +1334,15 @@ public partial class MainViewModel : ObservableObject
             if (QuickMigratePage is QuickMigratePage page && page.DataContext is QuickMigrateViewModel vm) await vm.Initialization;
             var records = await new MigrationTransactionStore().ReadAllAsync();
             UpdateGlobalStatusFromRecords(records);
+
+            // 正常使用时历史/待验证/异常事务统一由顶部「备份管理」中心与全局徽章承接，
+            // 重启软件后手动模式保持在「步骤 1. 选择路径」，不再每次强行跳到「步骤 4. 完成」。
+            // 仅在自动化安全回归实验室（IsTestLab）下保留旧版直达步骤 4 恢复，兼容既有 UI 自动化用例。
+            if (!MigrationRuntime.IsTestLab)
+            {
+                return;
+            }
+
             var record = records.OrderByDescending(r => r.UpdatedAtUtc).FirstOrDefault();
             if (record is null) return;
             _suppressPathDetection = true;

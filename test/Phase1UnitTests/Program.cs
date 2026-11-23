@@ -575,10 +575,12 @@ internal static class Program
                 Require(snap.Backend == ScanBackendKind.DirectoryWalkFallback, "Walker must declare DirectoryWalkFallback");
                 Require(snap.Coverage == ScanCoverageStatus.Partial && snap.ErrorCount >= 1, "ACL denied dir must yield Partial coverage & ErrorCount >= 1");
 
-                // 验证 JunctionToOutside 标记了 IsReparsePoint 且没有把 secret.bin (8192) 重复算入 Normal
+                // 验证 JunctionToOutside 标记了 IsReparsePoint、准确记录 ReparseTag 且没有把 secret.bin (8192) 重复算入 Normal
                 int normalId = snap.Nodes.First(n => snap.GetNodeName(n.NodeId) == "Normal").NodeId;
                 int juncId = snap.Nodes.First(n => snap.GetNodeName(n.NodeId) == "JunctionToOutside").NodeId;
                 Require(snap.Nodes[juncId].IsReparsePoint && snap.GetChildrenSpan(juncId).Length == 0, "Junction must not be traversed");
+                Require(snap.Nodes[juncId].ReparseTag == 0xA0000003u,
+                    $"Junction should expose IO_REPARSE_TAG_MOUNT_POINT (0xA0000003), got 0x{snap.Nodes[juncId].ReparseTag:X8}");
                 Require(snap.Nodes[normalId].LogicalBytes == 1024, $"Normal dir should only count a.bin (1024), got {snap.Nodes[normalId].LogicalBytes}");
                 // FIND-14: 子目录覆盖扫描 GetFullPath 必须包含子目录根前缀
                 Require(snap.GetFullPath(normalId).Equals(normalDir, StringComparison.OrdinalIgnoreCase),
@@ -592,6 +594,141 @@ internal static class Program
                 if (Directory.Exists(junctionDir)) Directory.Delete(junctionDir, false);
                 Directory.Delete(root, true);
             }
+        });
+
+        await test("DirectoryWalk-concurrent-deep-tree-and-real-sparse-allocation", async () =>
+        {
+            string root = Path.Combine(Path.GetTempPath(), "MoveFolder_P1WalkConc_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                long expectedLogical = 0;
+                int expectedFiles = 0;
+
+                // 构造多分支深层目录树，验证多线程并发队列汇总确定性与路径拼接
+                for (int b = 0; b < 6; b++)
+                {
+                    string branch = Path.Combine(root, $"Branch_{b}", "Sub_A", "Sub_B");
+                    Directory.CreateDirectory(branch);
+                    for (int f = 0; f < 10; f++)
+                    {
+                        int size = (b + 1) * 100 + f;
+                        File.WriteAllBytes(Path.Combine(branch, $"file_{f}.dat"), new byte[size]);
+                        expectedLogical += size;
+                        expectedFiles++;
+                    }
+                }
+
+                // 构造一个 1 MiB 逻辑大小但零实际磁盘分配的稀疏文件，验证梯度二真实 AllocationSize
+                string sparsePath = Path.Combine(root, "sparse_zero.bin");
+                const long sparseLogicalSize = 1024 * 1024;
+                bool sparseMarked;
+                using (var fs = new FileStream(sparsePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                {
+                    sparseMarked = Win32SparseHelper.TryMarkSparse(fs.SafeFileHandle);
+                    fs.SetLength(sparseLogicalSize);
+                    fs.Flush(flushToDisk: true);
+                }
+                expectedLogical += sparseLogicalSize;
+                expectedFiles++;
+
+                var vol = new ScanVolumeInfo(Path.GetPathRoot(root)!, "Temp", "", 0, "ReFS", 100_000_000, 50_000_000, false, "测试 ReFS 并发扫描");
+                var walker = new DirectoryWalkScanner();
+                var options = new DirectoryWalkOptions(MaxDegreeOfParallelism: 4, BufferSizeBytes: 64 * 1024, UseBackgroundIoPriority: true);
+                ScanSnapshot snap = await walker.ScanAsync(vol, rootDirectoryOverride: root, fallbackReason: "ReFS 并发测试", options: options);
+
+                Require(snap.Coverage == ScanCoverageStatus.Complete && snap.ErrorCount == 0,
+                    $"Expected Complete with 0 errors, got {snap.Coverage} / {snap.ErrorCount}");
+                Require(snap.Nodes[0].FileCount == expectedFiles,
+                    $"Expected {expectedFiles} files, got {snap.Nodes[0].FileCount}");
+                Require(snap.Nodes[0].LogicalBytes == expectedLogical,
+                    $"Expected logical {expectedLogical}, got {snap.Nodes[0].LogicalBytes}");
+
+                int sparseId = snap.Nodes.First(n => snap.GetNodeName(n.NodeId) == "sparse_zero.bin").NodeId;
+                Require(snap.Nodes[sparseId].LogicalBytes == sparseLogicalSize,
+                    $"Sparse file logical size mismatch: {snap.Nodes[sparseId].LogicalBytes}");
+                if (sparseMarked)
+                {
+                    Require(snap.Nodes[sparseId].IsSparseOrCompressed, "Sparse file should set IsSparseOrCompressed");
+                    Require(snap.Nodes[sparseId].AllocatedBytes == 0,
+                        $"Zero-filled sparse file should report AllocatedBytes=0, got {snap.Nodes[sparseId].AllocatedBytes}");
+                }
+
+                // 验证预取消令牌按标准异步契约抛出 OperationCanceledException
+                using var cancelledCts = new CancellationTokenSource();
+                cancelledCts.Cancel();
+                bool threwCancelled = false;
+                try
+                {
+                    await walker.ScanAsync(vol, rootDirectoryOverride: root, fallbackReason: "取消测试", options: options, ct: cancelledCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    threwCancelled = true;
+                }
+                Require(threwCancelled, "Pre-cancelled scan must throw OperationCanceledException");
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        });
+
+        await test("DirectoryWalk-buffer-parser-WOF-cloud-and-media-throttling-policy", async () =>
+        {
+            await Task.CompletedTask;
+
+            // 1. 验证不打满磁盘的保守并发度策略
+            Require(DirectoryWalkScanner.ResolveWorkerCount(StorageMediaKind.Hdd, null) == 1,
+                "HDD default concurrency must be 1 to avoid disk thrashing");
+            Require(DirectoryWalkScanner.ResolveWorkerCount(StorageMediaKind.Unknown, null) == 1,
+                "Unknown media default concurrency must conservatively be 1");
+            int ssdWorkers = DirectoryWalkScanner.ResolveWorkerCount(StorageMediaKind.Ssd, null);
+            Require(ssdWorkers is >= 2 and <= 4, $"SSD default concurrency must stay in [2..4], got {ssdWorkers}");
+
+            // 2. 构造合成 FILE_FULL_DIR_INFO 连续缓冲区，验证 "."/".." 过滤、WOF 压缩、云占位与普通文件解包
+            var raw = new List<byte>();
+            static void AppendEntry(List<byte> buf, string name, uint attrs, long logical, long alloc, uint eaSize, bool isLast)
+            {
+                byte[] nameBytes = System.Text.Encoding.Unicode.GetBytes(name);
+                int entryLen = Win32DirectoryEnumerator.FullDirInfoHeaderSize + nameBytes.Length;
+                int alignedLen = (entryLen + 7) & ~7;
+                byte[] chunk = new byte[isLast ? entryLen : alignedLen];
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(0, 4), isLast ? 0u : (uint)alignedLen);
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(chunk.AsSpan(24, 8), DateTime.UtcNow.ToFileTimeUtc());
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(chunk.AsSpan(40, 8), logical);
+                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(chunk.AsSpan(48, 8), alloc);
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(56, 4), attrs);
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(60, 4), (uint)nameBytes.Length);
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(64, 4), eaSize);
+                nameBytes.CopyTo(chunk, Win32DirectoryEnumerator.FullDirInfoHeaderSize);
+                buf.AddRange(chunk);
+            }
+
+            AppendEntry(raw, ".", Win32DirectoryEnumerator.FILE_ATTRIBUTE_DIRECTORY, 0, 0, 0, isLast: false);
+            AppendEntry(raw, "..", Win32DirectoryEnumerator.FILE_ATTRIBUTE_DIRECTORY, 0, 0, 0, isLast: false);
+            AppendEntry(raw, "wof.dll", Win32DirectoryEnumerator.FILE_ATTRIBUTE_REPARSE_POINT, 100_000, 32_768, NtfsMftRecordParser.IoReparseTagWof, isLast: false);
+            AppendEntry(raw, "cloud.mp4",
+                Win32DirectoryEnumerator.FILE_ATTRIBUTE_REPARSE_POINT | Win32DirectoryEnumerator.FILE_ATTRIBUTE_OFFLINE | Win32DirectoryEnumerator.FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS,
+                500_000_000, 500_000_000, 0x9000101Au, isLast: false);
+            AppendEntry(raw, "normal.bin", 0x20, 4096, 4096, 0, isLast: true);
+
+            byte[] buffer = raw.ToArray();
+            var parsed = new List<ParsedDirEntrySlice>();
+            Require(Win32DirectoryEnumerator.ParseFullDirectoryInfoBuffer(buffer, parsed), "Synthetic FILE_FULL_DIR_INFO buffer should parse cleanly");
+            Require(parsed.Count == 3, $"Should skip '.' and '..' and yield 3 entries, got {parsed.Count}");
+
+            string name0 = System.Text.Encoding.Unicode.GetString(buffer, parsed[0].NameOffset, parsed[0].NameByteLength);
+            Require(name0 == "wof.dll" && (parsed[0].Flags & ScanNodeFlags.IsWofCompressed) != 0 && parsed[0].AllocatedBytes == 32_768,
+                "WOF entry must set IsWofCompressed and preserve real AllocationSize");
+
+            string name1 = System.Text.Encoding.Unicode.GetString(buffer, parsed[1].NameOffset, parsed[1].NameByteLength);
+            Require(name1 == "cloud.mp4" && (parsed[1].Flags & ScanNodeFlags.IsCloudPlaceholder) != 0 && parsed[1].AllocatedBytes == 0 && parsed[1].LogicalBytes == 500_000_000,
+                "Dehydrated cloud placeholder must report AllocatedBytes=0 while keeping LogicalBytes");
+
+            string name2 = System.Text.Encoding.Unicode.GetString(buffer, parsed[2].NameOffset, parsed[2].NameByteLength);
+            Require(name2 == "normal.bin" && parsed[2].AllocatedBytes == 4096 && parsed[2].LastWriteUtcTicks > 0,
+                "Normal entry must preserve size and timestamp");
         });
     }
 
@@ -1204,4 +1341,24 @@ internal static class Program
         }
         return false;
     }
+}
+
+internal static class Win32SparseHelper
+{
+    private const uint FSCTL_SET_SPARSE = 0x000900C4;
+
+    public static bool TryMarkSparse(Microsoft.Win32.SafeHandles.SafeFileHandle handle) =>
+        DeviceIoControl(handle, FSCTL_SET_SPARSE, IntPtr.Zero, 0, IntPtr.Zero, 0, out _, IntPtr.Zero);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(
+        Microsoft.Win32.SafeHandles.SafeFileHandle hDevice,
+        uint dwIoControlCode,
+        IntPtr lpInBuffer,
+        uint nInBufferSize,
+        IntPtr lpOutBuffer,
+        uint nOutBufferSize,
+        out uint lpBytesReturned,
+        IntPtr lpOverlapped);
 }
