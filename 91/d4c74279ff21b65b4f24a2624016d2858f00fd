@@ -1,0 +1,50 @@
+MigrationCore/Models/BatchMigrationModels.cs
+  h_867dc18f6ff205 39-41,65-68
+MigrationCore/Models/Scanning/TargetedVerificationModels.cs
+  h_867dc18f6ff205 1-100
+MigrationCore/Models/Scanning/VolumeCacheModels.cs
+  h_867dc18f6ff205 1-86
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.cs
+  h_867dc18f6ff205 292,300,734-736,1302-1304,1324
+MigrationCore/Services/MigrationBatchService.cs
+  h_867dc18f6ff205 3,5,17-19,23-26,30-32,92-130
+MigrationCore/Services/MigrationPlanService.cs
+  h_867dc18f6ff205 264-267,499-516
+MigrationCore/Services/OperationExecutionGate.cs
+  h_867dc18f6ff205 29,115,118,124-134
+MigrationCore/Services/Safety/KnownDirectoryExplainer.cs
+  h_867dc18f6ff205 76,81-112
+MigrationCore/Services/Safety/MigrationSafetyPolicy.cs
+  h_867dc18f6ff205 5,93-97,99,102-105,109-125,129-162,286,288-289,291,591-746,967-969
+MigrationCore/Services/Scanning/DirectoryWalkScanner.cs
+  h_867dc18f6ff205 142-143,428,437-438,447,465-469,475,480-481,537,545-546,549-551,571-577,660-721,729-730,766
+MigrationCore/Services/Scanning/NtfsMftScanner.cs
+  h_867dc18f6ff205 363-400
+MigrationCore/Services/Scanning/TargetedPathVerifier.cs
+  h_867dc18f6ff205 1-581
+MigrationCore/Services/Scanning/VolumeSnapshotCache.cs
+  h_867dc18f6ff205 1-519
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.cs
+  h_867dc18f6ff205 56,59-80,127-136,283-284,367,371,474-475,647,651-652,654,671,678-713,806-901,1008-1010,1023,1089-1090,1452-1453,1516-1518,1697-1700,1718-1719,1722-1729,1829-1830,1948,2001-2003,2244,2438-2439,2441-2442
+MoveWithSymlinkWPF/ViewModels/FolderPickerViewModel.cs
+  h_867dc18f6ff205 4,267-269,273-277
+MoveWithSymlinkWPF/Views/DiskScanPage.xaml
+  h_867dc18f6ff205 107,109-163,490,572-588,590,616,1002
+test/Phase1UnitTests/CacheAndTargetedVerifyCases.cs
+  h_867dc18f6ff205 1-424
+test/Phase1UnitTests/Phase2AiCases.cs
+  h_867dc18f6ff205 147-150,1416-1418
+test/Phase1UnitTests/Program.cs
+  h_867dc18f6ff205 39-40,117-125,128,130-132,134-144,183-203,342-356,1276-1285,1303-1317,1322-1327,1367-1380
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91d4c74279ff21b65b4f24a2624016d2858f00fd",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
