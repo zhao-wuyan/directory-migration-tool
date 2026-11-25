@@ -1,0 +1,64 @@
+.openidea/changelists.json
+  h_867dc18f6ff205 12-36
+AGENTS.md
+  h_867dc18f6ff205 7,17,74-75
+CLAUDE.md
+  h_867dc18f6ff205 37,94
+MigrationCore/CLAUDE.md
+  h_867dc18f6ff205 38
+MigrationCore/MigrationCore.csproj
+  h_867dc18f6ff205 4,22-24
+MigrationCore/Models/Scanning/ScanModels.cs
+  h_867dc18f6ff205 254
+MigrationCore/Services/Ai/AiProposalInbox.cs
+  h_867dc18f6ff205 23
+MigrationCore/Services/Ai/AiProviderConfigStore.cs
+  h_867dc18f6ff205 22-23
+MigrationCore/Services/Ai/OpenAiCompatibleChatClient.cs
+  h_867dc18f6ff205 134
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.cs
+  h_867dc18f6ff205 44
+MigrationCore/Services/CopyOperationExecutor.cs
+  h_867dc18f6ff205 370
+MigrationCore/Services/OperationExecutionGate.cs
+  h_867dc18f6ff205 25
+MigrationCore/Services/QuickMigrateConfigLoader.cs
+  h_867dc18f6ff205 15-34,48,77,134
+MigrationCore/Services/Scanning/DirectoryWalkScanner.cs
+  h_867dc18f6ff205 105
+MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj
+  h_867dc18f6ff205 5,41-42,76,78,82,86,90
+MoveWithSymlinkWPF/Properties/PublishProfiles/win-x64-framework-dependent.pubxml
+  h_867dc18f6ff205 2
+README.md
+  h_867dc18f6ff205 31-34,78,252,320-321,325,331,473
+clean-build.ps1
+  h_867dc18f6ff205 27,32
+docs/单文件自更新与运行时补装规划.md
+  h_867dc18f6ff205 1-178
+mise.toml
+  h_867dc18f6ff205 14
+publish-framework-dependent.ps1
+  h_867dc18f6ff205 3,28,41,89,92-94,101,104,106,108,111
+publish.ps1
+  h_867dc18f6ff205 5,100,165,185,215,276,315-317,320,322,324,326
+run.ps1
+  h_867dc18f6ff205 22,24-25,32,34-35
+test/MigrationSafetyHarness/MigrationSafetyHarness.csproj
+  h_867dc18f6ff205 4
+test/Phase1UnitTests/Phase1UnitTests.csproj
+  h_867dc18f6ff205 5
+test/test-publish.ps1
+  h_867dc18f6ff205 75,107,110,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34802b6884603a71e47802ede776ffaff26f4a94",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
