@@ -1,0 +1,10 @@
+{
+  "schema_version": "evolve-openviking-project/1.0",
+  "project_id": "0cb453f5-acbd-4d03-baf1-9b4937a0342e",
+  "account_id": "default",
+  "user_id": "zhaowuyan",
+  "root_uri": "viking://user/zhaowuyan/resources/evolve/projects/0cb453f5-acbd-4d03-baf1-9b4937a0342e",
+  "evolution_policy": ".evolve/evolution.json",
+  "enabled": true,
+  "failure_policy": "local"
+}
