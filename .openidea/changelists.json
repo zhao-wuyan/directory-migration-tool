@@ -1,0 +1,16 @@
+{
+  "lists": [
+    {
+      "id": "default",
+      "name": "Changes",
+      "comment": "",
+      "appliedCommit": null
+    }
+  ],
+  "active": "default",
+  "files": {
+    ".gitignore": "default",
+    ".openidea/.gitignore": "default",
+    ".openidea/changelists.json": "default"
+  }
+}
