@@ -1,0 +1,64 @@
+MigrationCore/Services/Ai/AiProposalInbox.cs
+  h_867dc18f6ff205 23
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.cs
+  h_867dc18f6ff205 44
+test/MigrationSafetyHarness/MigrationSafetyHarness.csproj
+  h_867dc18f6ff205 4
+MigrationCore/Models/Scanning/ScanModels.cs
+  h_867dc18f6ff205 254
+MigrationCore/Services/QuickMigrateConfigLoader.cs
+  h_867dc18f6ff205 15-34,48,77,134
+clean-build.ps1
+  h_867dc18f6ff205 27,32
+MigrationCore/Services/OperationExecutionGate.cs
+  h_867dc18f6ff205 25
+CLAUDE.md
+  h_867dc18f6ff205 37,94
+MoveWithSymlinkWPF/Properties/PublishProfiles/win-x64-framework-dependent.pubxml
+  h_867dc18f6ff205 2
+docs/单文件自更新与运行时补装规划.md
+  h_867dc18f6ff205 1-178
+publish-framework-dependent.ps1
+  h_867dc18f6ff205 3,28,41,89,92-94,101,104,106,108,111
+AGENTS.md
+  h_867dc18f6ff205 7,17,74-75
+README.md
+  h_867dc18f6ff205 31-34,78,252,320-321,325,331,473
+MigrationCore/MigrationCore.csproj
+  h_867dc18f6ff205 4,22-24
+test/Phase1UnitTests/Phase1UnitTests.csproj
+  h_867dc18f6ff205 5
+MigrationCore/CLAUDE.md
+  h_867dc18f6ff205 38
+MigrationCore/Services/Ai/AiProviderConfigStore.cs
+  h_867dc18f6ff205 22-23
+run.ps1
+  h_867dc18f6ff205 22,24-25,32,34-35
+mise.toml
+  h_867dc18f6ff205 14
+MigrationCore/Services/CopyOperationExecutor.cs
+  h_867dc18f6ff205 370
+publish.ps1
+  h_867dc18f6ff205 5,100,165,185,215,276,315-317,320,322,324,326
+MoveWithSymlinkWPF/MoveWithSymlinkWPF.csproj
+  h_867dc18f6ff205 5,41-42,76,78,82,86,90
+MigrationCore/Services/Scanning/DirectoryWalkScanner.cs
+  h_867dc18f6ff205 105
+test/test-publish.ps1
+  h_867dc18f6ff205 75,107,110,113
+MigrationCore/Services/Ai/OpenAiCompatibleChatClient.cs
+  h_867dc18f6ff205 134
+.gitignore
+  h_867dc18f6ff205 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee10af4069cb87a044ca7f34e59d31478051cd97",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
