@@ -1,0 +1,18 @@
+.gitignore
+  h_b23cf7c6b3692f 100-104
+.openidea/.gitignore
+  h_b23cf7c6b3692f 1-3
+.openidea/changelists.json
+  h_b23cf7c6b3692f 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "36671915e1944e16a3eb92afde894978944544da",
+  "prompts": {},
+  "humans": {
+    "h_b23cf7c6b3692f": {
+      "author": "诏无言 <zhao-wuyan@foxmail.com>"
+    }
+  }
+}
