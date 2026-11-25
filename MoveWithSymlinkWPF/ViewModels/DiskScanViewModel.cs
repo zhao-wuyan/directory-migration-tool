@@ -53,7 +53,30 @@ public partial class VolumeCardItem : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActionText))]
+    [NotifyPropertyChangedFor(nameof(ShowRescanButton))]
     private bool _isCurrentlyScanning;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
+    [NotifyPropertyChangedFor(nameof(ShowRescanButton))]
+    [NotifyPropertyChangedFor(nameof(HasCacheBadge))]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeBorder))]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeFg))]
+    private bool _hasCachedSnapshot;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeBorder))]
+    [NotifyPropertyChangedFor(nameof(CacheBadgeFg))]
+    private bool _isCacheStale;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCacheBadge))]
+    private string _cacheStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _cacheStatusToolTip = string.Empty;
 
     public VolumeCardItem(ScanVolumeInfo info) => Info = info;
 
@@ -101,7 +124,16 @@ public partial class VolumeCardItem : ObservableObject
     public string CardBorderBrush => IsSelected || IsCurrentlyScanning ? "#0078D4" : "#E2E8F0";
     public string IconBgBrush => IsSelected || IsCurrentlyScanning ? "#EBF5FF" : "#EEF2F6";
     public string IconStrokeBrush => IsSelected || IsCurrentlyScanning ? "#0078D4" : "#334155";
-    public string ActionText => IsCurrentlyScanning ? "正在扫描…" : (Info.SupportsRawMft ? "开始扫描" : "普通扫描");
+    public bool ShowRescanButton => HasCachedSnapshot && !IsCurrentlyScanning;
+    public bool HasCacheBadge => HasCachedSnapshot && !string.IsNullOrWhiteSpace(CacheStatusText);
+    public string CacheBadgeBg => IsCacheStale ? "#FFFBEB" : "#ECFDF5";
+    public string CacheBadgeBorder => IsCacheStale ? "#FDE68A" : "#A7F3D0";
+    public string CacheBadgeFg => IsCacheStale ? "#B45309" : "#0F7B4B";
+    public string ActionText => IsCurrentlyScanning
+        ? "正在扫描…"
+        : HasCachedSnapshot
+            ? "查看结果"
+            : (Info.SupportsRawMft ? "开始扫描" : "普通扫描");
 }
 
 /// <summary>
@@ -248,6 +280,8 @@ public partial class BatchPlanRowItem : ObservableObject
     /// <summary>是否包含可在目标盘无损重建的纯目录内硬链接。</summary>
     public bool HasInternalHardLinks { get; init; }
     public bool HasIncompleteScanData { get; init; }
+    public int? ExpectedFileCount { get; init; }
+    public bool HasReparseDescendants { get; init; }
     public MigrationAdmissionLevel Level { get; init; }
     public BatchPlanItemSource Source { get; init; } = BatchPlanItemSource.ScanDiscovery;
 
@@ -330,9 +364,11 @@ public partial class DiskScanViewModel : ObservableObject
     private const int DirectoryPageSize = 200;
 
     private readonly DiskScanService _scanService = new();
+    private readonly VolumeSnapshotCache _snapshotCache;
     private readonly MigrationPlanService _planService;
     private readonly MigrationBatchService _batchService;
     private readonly ApplicationCatalog _catalog;
+    private readonly Dispatcher _uiDispatcher;
     private readonly DispatcherTimer _searchDebounceTimer;
     private readonly DispatcherTimer _scanElapsedTimer;
     private readonly Stopwatch _scanStopwatch = new();
@@ -435,6 +471,8 @@ public partial class DiskScanViewModel : ObservableObject
     [ObservableProperty] private bool _isSnapshotMftBackend;
     [ObservableProperty] private string _snapshotVolumeSummary = string.Empty;
     [ObservableProperty] private string _usnStatusNote = string.Empty;
+    [ObservableProperty] private bool _isSnapshotStale;
+    [ObservableProperty] private string _snapshotStaleMessage = string.Empty;
     [ObservableProperty] private string _breadcrumbText = "此电脑";
 
     [ObservableProperty]
@@ -606,12 +644,14 @@ public partial class DiskScanViewModel : ObservableObject
     [ObservableProperty]
     private bool _showDetailedLogs;
 
-    public DiskScanViewModel()
+    public DiskScanViewModel(VolumeSnapshotCache? snapshotCache = null)
     {
         ApplicationCatalog.RegisterWithSafetyPolicy();
         _catalog = ApplicationCatalog.Shared;
+        _uiDispatcher = Dispatcher.CurrentDispatcher;
+        _snapshotCache = snapshotCache ?? VolumeSnapshotCache.Shared;
         _planService = new MigrationPlanService(_catalog);
-        _batchService = new MigrationBatchService(_planService);
+        _batchService = new MigrationBatchService(_planService, snapshotCache: _snapshotCache);
 
         _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
         _searchDebounceTimer.Tick += (_, _) =>
@@ -628,12 +668,49 @@ public partial class DiskScanViewModel : ObservableObject
 
         PlanItems.CollectionChanged += (_, _) => NotifyPlanSummariesChanged();
         RecentScans.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasRecentScans));
+        _snapshotCache.CacheChanged += OnSnapshotCacheChanged;
 
         LoadVolumes();
         UpdateTargetSpaceHint();
 #if DEBUG
         LoadDevCachedRecents();
 #endif
+        RefreshVolumeCardCacheStates();
+    }
+
+    private void OnSnapshotCacheChanged(object? sender, EventArgs e)
+    {
+        if (!_uiDispatcher.CheckAccess())
+        {
+            if (!_uiDispatcher.HasShutdownStarted && !_uiDispatcher.HasShutdownFinished)
+            {
+                _uiDispatcher.BeginInvoke(RefreshCacheBindings);
+            }
+            return;
+        }
+        RefreshCacheBindings();
+    }
+
+    private void RefreshCacheBindings()
+    {
+        RefreshVolumeCardCacheStates();
+        SyncCurrentSnapshotFreshness();
+    }
+
+    partial void OnActiveSubViewChanged(DiskScanSubView value)
+    {
+        if (value == DiskScanSubView.VolumeSelectAndScan)
+        {
+            // 回到选盘页时解除固定，使超过硬过期（60 分钟）的旧快照可被自动回收释放内存
+            _snapshotCache.SetPinnedScanId(null);
+            RefreshVolumeCardCacheStates();
+        }
+        else if (_snapshot is not null)
+        {
+            // 正在浏览目录树/编辑清单/执行迁移时固定当前快照，避免后台定时器中途驱逐
+            _snapshotCache.SetPinnedScanId(_snapshot.ScanId);
+            SyncCurrentSnapshotFreshness();
+        }
     }
 
     public void SyncUnverifiedBackupCount(int count)
@@ -726,6 +803,102 @@ public partial class DiskScanViewModel : ObservableObject
             UnifiedTargetRoot = Path.Combine(preferredTarget.DriveRoot, "MigratedData");
         }
         UpdateTargetSpaceHint();
+        RefreshVolumeCardCacheStates();
+    }
+
+    /// <summary>
+    /// 磁盘卡片主按钮：命中有效会话缓存（新鲜或陈旧但未硬过期）时直接秒开目录树，否则发起新扫描。
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenOrScanVolumeAsync(VolumeCardItem? card)
+    {
+        VolumeCardItem? target = card ?? SelectedVolumeCard;
+        if (IsScanning || target is null) return;
+
+        SelectedVolumeCard = target;
+        VolumeSnapshotLookup? cached = _snapshotCache.TryGet(target.DriveRoot, runLiveProbe: true);
+        if (cached is not null)
+        {
+            ApplySnapshotCore(cached.Entry.Snapshot, cached.Entry.VolumeTitle, cached.Entry.ScanElapsedSeconds, cached);
+            ActiveSubView = DiskScanSubView.DirectoryTree;
+            return;
+        }
+
+        await StartScanForVolumeAsync(target);
+    }
+
+    public void RefreshVolumeCardCacheStates()
+    {
+        foreach (VolumeCardItem card in VolumeCards)
+        {
+            VolumeSnapshotLookup? lookup = _snapshotCache.TryGet(card.DriveRoot, runLiveProbe: true, touchAccessTime: false);
+            if (lookup is null)
+            {
+                card.HasCachedSnapshot = false;
+                card.IsCacheStale = false;
+                card.CacheStatusText = string.Empty;
+                card.CacheStatusToolTip = string.Empty;
+                continue;
+            }
+
+            card.HasCachedSnapshot = true;
+            card.IsCacheStale = lookup.IsStale;
+            string ageLabel = FormatCacheAge(lookup.Age);
+            card.CacheStatusText = lookup.IsStale
+                ? $"缓存已陈旧 · {ageLabel}"
+                : $"已缓存 · {ageLabel}";
+            card.CacheStatusToolTip = lookup.IsStale
+                ? (lookup.StaleReason ?? "快照已超过新鲜期，点击「查看结果」可秒开浏览，迁移前仍会自动定向复核")
+                : $"本会话临时缓存（{ageLabel}），点击「查看结果」零等待进入目录树；关闭软件后自动失效";
+        }
+
+        SyncRecentScansFromCache();
+    }
+
+    private void SyncRecentScansFromCache()
+    {
+        // 移除内存中已被硬过期/LRU 驱逐的条目（保留 #if DEBUG 开发磁盘缓存项）
+        var activeIds = _snapshotCache.ListActive(runLiveProbe: false)
+            .Select(x => x.Entry.Snapshot.ScanId)
+            .ToHashSet();
+
+        for (int i = RecentScans.Count - 1; i >= 0; i--)
+        {
+            RecentScanItem item = RecentScans[i];
+            if (item.Snapshot is not null && string.IsNullOrEmpty(item.DevCacheFilePath) && !activeIds.Contains(item.ScanId))
+            {
+                RecentScans.RemoveAt(i);
+            }
+        }
+    }
+
+    private void SyncCurrentSnapshotFreshness()
+    {
+        if (_snapshot is null)
+        {
+            IsSnapshotStale = false;
+            SnapshotStaleMessage = string.Empty;
+            return;
+        }
+
+        VolumeSnapshotLookup? lookup = _snapshotCache.TryGetByScanId(_snapshot.ScanId, runLiveProbe: true);
+        if (lookup is not null && lookup.IsStale)
+        {
+            IsSnapshotStale = true;
+            SnapshotStaleMessage = lookup.StaleReason ?? "当前扫描快照已陈旧，建议点击「重新扫描」获取最新空间状态。";
+        }
+        else
+        {
+            IsSnapshotStale = false;
+            SnapshotStaleMessage = string.Empty;
+        }
+    }
+
+    private static string FormatCacheAge(TimeSpan age)
+    {
+        if (age.TotalSeconds < 60) return "刚刚";
+        if (age.TotalMinutes < 60) return $"{(int)age.TotalMinutes} 分钟前";
+        return $"{(int)age.TotalHours} 小时前";
     }
 
     [RelayCommand]
@@ -832,6 +1005,9 @@ public partial class DiskScanViewModel : ObservableObject
             ScanStageBadgeText = $"扫描完成 · {target.DriveLetter}";
             ScanStageHeading = $"扫描完成，共解析 {snapshot.Nodes.Length:N0} 个对象";
 
+            // 写入进程级共享快照缓存（供磁盘扫描卡片秒开、AI 助手与后续垃圾清理共享）
+            _snapshotCache.Put(snapshot, target.DisplayTitle, elapsedSec, largeCount, l1Count, l1Bytes);
+
             ApplySnapshot(snapshot, target.DisplayTitle, elapsedSec);
 
             // 记录到最近扫描历史
@@ -844,6 +1020,7 @@ public partial class DiskScanViewModel : ObservableObject
                 $"已用 {FileStatsService.FormatBytes(snapshot.Volume.UsedBytes)} · 发现 {largeCount} 个 >1 GB 大目录",
                 snapshot));
             if (RecentScans.Count > 5) RecentScans.RemoveAt(RecentScans.Count - 1);
+            RefreshVolumeCardCacheStates();
 
 #if DEBUG
             if (!MigrationRuntime.IsTestLab && snapshot.CanUseForMigrationPlanning)
@@ -909,7 +1086,8 @@ public partial class DiskScanViewModel : ObservableObject
         if (recent.Snapshot is not null)
         {
             double sec = Math.Max(0.1, (recent.Snapshot.CompletedAtUtc - recent.Snapshot.StartedAtUtc).TotalSeconds);
-            ApplySnapshot(recent.Snapshot, recent.VolumeTitle, sec);
+            VolumeSnapshotLookup? lookup = _snapshotCache.TryGetByScanId(recent.Snapshot.ScanId, runLiveProbe: true);
+            ApplySnapshotCore(recent.Snapshot, recent.VolumeTitle, sec, lookup);
             ActiveSubView = DiskScanSubView.DirectoryTree;
             return;
         }
@@ -1271,6 +1449,8 @@ public partial class DiskScanViewModel : ObservableObject
             HasSubtreeHardLinks = hazards.HasBlockingHardLinks,
             HasInternalHardLinks = hazards.HasInternalOnlyHardLinks,
             HasIncompleteScanData = hazards.HasIncompleteNodes,
+            ExpectedFileCount = SelectedRow.FileCount,
+            HasReparseDescendants = hazards.HasReparseDescendants,
             Level = SelectedDecision.Level,
             L3RiskAcknowledged = SelectedDecision.Level == MigrationAdmissionLevel.ManualRiskConfirm && IsL3RiskConfirmedForSelection,
             StatusText = hazards.HasInternalOnlyHardLinks ? "待预检（无损重建内部硬链接）" : "待预检"
@@ -1333,7 +1513,9 @@ public partial class DiskScanViewModel : ObservableObject
             ScanId: p.ScanId,
             NodeId: p.NodeId,
             Source: p.Source,
-            HasInternalHardLinks: p.HasInternalHardLinks)).ToArray();
+            HasInternalHardLinks: p.HasInternalHardLinks,
+            ExpectedFileCount: p.ExpectedFileCount,
+            HasReparseDescendants: p.HasReparseDescendants)).ToArray();
 
         MigrationTransactionRecord[] existing = [];
         try { existing = await new MigrationTransactionStore().ReadAllAsync(); }
@@ -1512,7 +1694,10 @@ public partial class DiskScanViewModel : ObservableObject
         ActiveStageBadgeText = "正在安全停止…";
     }
 
-    private void ApplySnapshot(ScanSnapshot snapshot, string volumeTitle, double elapsedSec)
+    private void ApplySnapshot(ScanSnapshot snapshot, string volumeTitle, double elapsedSec) =>
+        ApplySnapshotCore(snapshot, volumeTitle, elapsedSec, cacheLookup: null);
+
+    private void ApplySnapshotCore(ScanSnapshot snapshot, string volumeTitle, double elapsedSec, VolumeSnapshotLookup? cacheLookup)
     {
         _snapshot = snapshot;
         _hotspotPathKeptNodes = null;
@@ -1530,7 +1715,17 @@ public partial class DiskScanViewModel : ObservableObject
             : snapshot.RequiresLiveReverification
                 ? "活跃卷或 USN 水位变化，执行前将强制实时复核"
                 : $"USN 水位稳定（{snapshot.UsnStartNextUsn}）";
+        IsSnapshotStale = cacheLookup?.IsStale == true;
+        SnapshotStaleMessage = cacheLookup?.StaleReason ?? string.Empty;
         BreadcrumbText = $"此电脑  ›  {snapshot.Volume.DriveRoot.TrimEnd('\\')}";
+
+        // 同步选中卡片，确保顶部「重新扫描」总是重扫当前查看的盘
+        VolumeCardItem? matchingCard = VolumeCards.FirstOrDefault(v =>
+            v.DriveRoot.Equals(snapshot.Volume.DriveRoot, StringComparison.OrdinalIgnoreCase));
+        if (matchingCard is not null)
+        {
+            SelectedVolumeCard = matchingCard;
+        }
 
         SelectedRow = null;
         RebuildVisibleRows();
@@ -1631,6 +1826,8 @@ public partial class DiskScanViewModel : ObservableObject
             HasSubtreeHardLinks = hazards.HasBlockingHardLinks,
             HasInternalHardLinks = hazards.HasInternalOnlyHardLinks,
             HasIncompleteScanData = hazards.HasIncompleteNodes,
+            ExpectedFileCount = node.FileCount,
+            HasReparseDescendants = hazards.HasReparseDescendants,
             Level = decision.Level,
             Source = BatchPlanItemSource.AiProposal,
             // L3 项严禁替用户自动勾选确认，必须由用户在清单页人工核对后勾选
@@ -1748,6 +1945,7 @@ public partial class DiskScanViewModel : ObservableObject
                 int childId = children[i];
                 ref readonly ScanNodeRecord child = ref snapshot.Nodes[childId];
                 if (!child.IsDirectory || child.IsOrphaned) continue;
+                if (IsHiddenSystemVolumeNode(snapshot, childId)) continue;
 
                 long size = child.UniqueAllocatedBytes;
                 if (size < minAllocatedBytes) continue;
@@ -1800,14 +1998,9 @@ public partial class DiskScanViewModel : ObservableObject
 
     private static bool ShouldDescendL0Container(string name, string fullPath)
     {
-        // 纯 OS 内部黑盒目录不下钻，节省遍历开销且无任何可迁项
-        if (name.Equals("Windows", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Windows.old", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Recovery", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Boot", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("WindowsApps", StringComparison.OrdinalIgnoreCase)
+        // 纯 OS 内部黑盒目录与卷根隐藏/系统保留目录不下钻，节省遍历开销且无任何可迁项
+        if (MigrationSafetyPolicy.IsVolumeRootHardDeniedName(name)
+            || name.Equals("Windows", StringComparison.OrdinalIgnoreCase)
             || name.Equals("WinSxS", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Temp", StringComparison.OrdinalIgnoreCase)
             || name.Equals("Microsoft", StringComparison.OrdinalIgnoreCase)
@@ -2048,7 +2241,7 @@ public partial class DiskScanViewModel : ObservableObject
             : GetNodeSizeForShare(parentNodeId);
 
         // 默认仅展示文件夹（隐藏无法迁移的单个文件如 hiberfil.sys/pagefile.sys），用户勾选“显示文件”时全部显示；
-        // 卷根系统元目录（$Recycle.Bin、System Volume Information）不具备迁移价值，始终在目录树中隐藏
+        // 卷根下 Windows 专属且隐藏的系统/更新/恢复/元数据目录（$WinREAgent、$WINDOWS.~BT、$Recycle.Bin、System Volume Information、Config.Msi 等）始终在目录树中隐藏
         int cursor = insertAt;
         int matched = 0;
         int displayed = 0;
@@ -2241,66 +2434,12 @@ public partial class DiskScanViewModel : ObservableObject
         };
     }
 
-    private static readonly string[] HiddenVolumeRootDirectoryNames =
-    [
-        "$Recycle.Bin",
-        "System Volume Information"
-    ];
-
     /// <summary>
-    /// 判断节点是否为卷根下应隐藏的系统元目录（回收站、System Volume Information）或其子项。
-    /// 仅在视图展示层过滤，保留底层 ScanSnapshot 的真实卷空间统计与 L0 安全策略。
+    /// 判断节点是否为卷根下应隐藏的 Windows 专属隐藏系统目录（如 $WinREAgent、$WINDOWS.~BT、$Recycle.Bin、System Volume Information、Config.Msi 等）或其子项。
+    /// 委托至 <see cref="MigrationSafetyPolicy.IsHiddenSystemVolumeNode"/> 单一事实源；仅在视图展示层过滤，保留底层 ScanSnapshot 的真实卷空间统计与 L0 安全策略。
     /// </summary>
-    internal static bool IsHiddenSystemVolumeNode(ScanSnapshot snapshot, int nodeId)
-    {
-        if ((uint)nodeId >= (uint)snapshot.Nodes.Length || nodeId == snapshot.RootNodeId)
-        {
-            return false;
-        }
-
-        // 仅当快照根为卷根目录（如 C:\、D:\）时按卷根保留名隐藏，避免误伤普通子目录下的同名文件夹
-        string? scanRoot = snapshot.ScanRootPath;
-        if (!string.IsNullOrEmpty(scanRoot)
-            && !string.Equals(scanRoot.TrimEnd('\\'), snapshot.Volume.DriveRoot.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        int topLevelId = nodeId;
-        int guard = 0;
-        while (guard++ < 128)
-        {
-            int parentId = snapshot.Nodes[topLevelId].ParentNodeId;
-            if (parentId == snapshot.RootNodeId)
-            {
-                break;
-            }
-
-            if ((uint)parentId >= (uint)snapshot.Nodes.Length || parentId == topLevelId)
-            {
-                return false;
-            }
-
-            topLevelId = parentId;
-        }
-
-        if (snapshot.Nodes[topLevelId].ParentNodeId != snapshot.RootNodeId
-            || !snapshot.Nodes[topLevelId].IsDirectory)
-        {
-            return false;
-        }
-
-        string topName = snapshot.GetNodeName(topLevelId);
-        foreach (string hiddenName in HiddenVolumeRootDirectoryNames)
-        {
-            if (topName.Equals(hiddenName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    internal static bool IsHiddenSystemVolumeNode(ScanSnapshot snapshot, int nodeId) =>
+        MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, nodeId);
 
     private static bool IsGenericContainerName(string folderName) =>
         folderName.Equals("Users", StringComparison.OrdinalIgnoreCase)

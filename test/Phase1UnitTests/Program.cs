@@ -36,7 +36,8 @@ internal static class Program
             await RunGroupAsync("ConcurrencyCases", RunConcurrencyCasesAsync),
             RunGroup("ExitConfirmCases", RunExitConfirmCases),
             RunGroup("WpfUiSmokeCases", RunWpfUiSmokeCases),
-            await RunGroupAsync("Phase2AiCases", Phase2AiCases.RunAsync)
+            await RunGroupAsync("Phase2AiCases", Phase2AiCases.RunAsync),
+            await RunGroupAsync("CacheAndTargetedVerifyCases", CacheAndTargetedVerifyCases.RunAsync)
         };
 
         int totalPassed = results.Sum(r => r.Passed);
@@ -113,10 +114,34 @@ internal static class Program
                 @"E:\Windows",
                 @"E:\Windows\System32",
                 @"E:\Windows.old\Users",
+                @"C:\$WinREAgent",
+                @"C:\$WinREAgent\Scratch",
+                @"E:\$WINDOWS.~BT\Sources",
+                @"C:\$Windows.~WS\Sources",
+                @"C:\$Windows.~LS",
+                @"C:\$WINDOWS.~Q",
+                @"C:\$SysReset\Logs",
+                @"C:\$GetCurrent",
+                @"C:\$INPLACE.~TR",
                 @"D:\Boot\BCD",
                 @"D:\Recovery\WindowsRE",
+                @"D:\EFI\Microsoft",
                 @"D:\$Recycle.Bin\S-1-5-21",
+                @"D:\RECYCLER\S-1-5-21",
+                @"D:\Recycled",
+                @"D:\$Extend",
                 @"D:\System Volume Information",
+                @"C:\Config.Msi\1a2b.rbf",
+                @"C:\Documents and Settings",
+                @"C:\MSOCache\All Users",
+                @"D:\OneDriveTemp",
+                @"D:\WUDownloadCache",
+                @"D:\DeliveryOptimization",
+                @"D:\FOUND.000\FILE0000.CHK",
+                @"D:\WindowsApps\Microsoft.GamingApp",
+                @"D:\ModifiableWindowsApps",
+                @"D:\WpSystem\S-1-5-21",
+                @"C:\PerfLogs",
                 @"D:\.MoveFolderQuarantine\item1",
                 @"E:\Program Files",
                 @"E:\Program Files (x86)",
@@ -155,6 +180,27 @@ internal static class Program
             SafetyPolicyDecision d = MigrationSafetyPolicy.EvaluateSource(@"E:\WindowsTools\MyAssets", matcher: null, context: SafetyEvaluationContext.ScanPreview, checkFilesystem: false, environment: nonCEnv);
             Require(!d.IsHardDenied && d.Level == MigrationAdmissionLevel.ManualRiskConfirm,
                 $"E:\\WindowsTools should not be misclassified as E:\\Windows (got {d.Level}: {d.Summary})");
+
+            // 非卷根同名业务子目录（如项目内的 Recovery / Config.Msi / Boot / FOUND.000）绝不能被卷根规则误杀
+            foreach (string normalPath in new[]
+            {
+                @"D:\Projects\MyApp\Recovery",
+                @"D:\Projects\MyApp\Config.Msi",
+                @"D:\Projects\MyApp\Boot",
+                @"D:\Projects\MyApp\FOUND.000"
+            })
+            {
+                SafetyPolicyDecision nd = MigrationSafetyPolicy.EvaluateL0HardDeny(normalPath, checkFilesystem: false, environment: nonCEnv);
+                Require(!nd.IsHardDenied, $"Non-root folder '{normalPath}' must not be misblocked by volume-root rules");
+            }
+
+            Require(MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("$WinREAgent"), "$WinREAgent must be hidden");
+            Require(MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("$WINDOWS.~BT"), "$WINDOWS.~BT must be hidden");
+            Require(MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("Config.Msi"), "Config.Msi must be hidden");
+            Require(MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("FOUND.000"), "FOUND.000 must be hidden");
+            Require(!MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("Windows.old"), "Visible Windows.old should remain visible as L0");
+            Require(!MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("ProgramData"), "ProgramData container must remain visible");
+            Require(!MigrationSafetyPolicy.IsHiddenSystemVolumeRootName("Users"), "Users container must remain visible");
         });
 
         test("ProgramFiles-root-denied-but-L1-subdir-allowed", () =>
@@ -293,6 +339,21 @@ internal static class Program
             Require(wechat is not null && wechat.RoleTitle.Contains("微信") && wechat.HintLevel == DirectoryHintLevel.Info, "WeChat Files explanation mismatch");
             Require(dockerAppData is not null && dockerAppData.RoleTitle.Contains("Docker") && dockerAppData.HintLevel == DirectoryHintLevel.Warning, "AppData Docker explanation mismatch");
             Require(dockerProject is not null && dockerProject.RoleTitle.Contains("普通本地目录") && dockerProject.HintLevel == DirectoryHintLevel.None, "User project under Docker folder should not be misclassified as Docker Desktop");
+
+            // 4. Windows 卷根更新缓存/恢复/隐藏系统目录说明（含 $WinREAgent、$WINDOWS.~BT、Windows.old、Config.Msi、FOUND.000、WindowsApps）
+            var winReAgent = KnownDirectoryExplainer.Explain(@"C:\$WinREAgent", catalog);
+            var winBt = KnownDirectoryExplainer.Explain(@"C:\$WINDOWS.~BT", catalog);
+            var winOld = KnownDirectoryExplainer.Explain(@"C:\Windows.old", catalog);
+            var configMsi = KnownDirectoryExplainer.Explain(@"C:\Config.Msi", catalog);
+            var foundDir = KnownDirectoryExplainer.Explain(@"D:\FOUND.000", catalog);
+            var storeApps = KnownDirectoryExplainer.Explain(@"D:\WindowsApps", catalog);
+
+            Require(winReAgent is not null && winReAgent.RoleTitle.Contains("$WinREAgent") && winReAgent.MigrationAdvice.Contains("垃圾清理"), "$WinREAgent explanation mismatch");
+            Require(winBt is not null && winBt.RoleTitle.Contains("升级") && winBt.MigrationAdvice.Contains("磁盘清理"), "$WINDOWS.~BT explanation mismatch");
+            Require(winOld is not null && winOld.RoleTitle.Contains("Windows.old") && winOld.HintLevel == DirectoryHintLevel.Info, "Windows.old explanation mismatch");
+            Require(configMsi is not null && configMsi.RoleTitle.Contains("Config.Msi"), "Config.Msi explanation mismatch");
+            Require(foundDir is not null && foundDir.RoleTitle.Contains("chkdsk"), "FOUND.000 explanation mismatch");
+            Require(storeApps is not null && storeApps.RoleTitle.Contains("Microsoft Store") && storeApps.HintLevel == DirectoryHintLevel.Warning, "WindowsApps explanation mismatch");
         });
     }
 
@@ -1212,6 +1273,16 @@ internal static class Program
                         "Tree view must hide volume root $RECYCLE.BIN");
                     Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)),
                         "Tree view must hide volume root System Volume Information");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("$WinREAgent", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root $WinREAgent");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("$WINDOWS.~BT", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root $WINDOWS.~BT");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("Config.Msi", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root Config.Msi");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("Recovery", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root Recovery");
+                    Require(!scanVm.VisibleTreeRows.Any(r => r.Name.Equals("FOUND.000", StringComparison.OrdinalIgnoreCase)),
+                        "Tree view must hide volume root FOUND.000");
                     Require(scanVm.VisibleTreeRows.Any(r => r.Name.Equals("Users", StringComparison.OrdinalIgnoreCase)),
                         "Tree view must still display normal directories like Users");
 
@@ -1229,10 +1300,31 @@ internal static class Program
                     scanVm.SearchFilter = "System Volume";
                     rebuildRows.Invoke(scanVm, null);
                     Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose System Volume Information");
+                    scanVm.SearchFilter = "WinREAgent";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose $WinREAgent");
+                    scanVm.SearchFilter = "Scratch";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose children under $WinREAgent");
+                    scanVm.SearchFilter = "WINDOWS.~BT";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose $WINDOWS.~BT");
+                    scanVm.SearchFilter = "Config.Msi";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose Config.Msi");
+                    scanVm.SearchFilter = "FOUND.000";
+                    rebuildRows.Invoke(scanVm, null);
+                    Require(scanVm.VisibleTreeRows.Count == 0, "Search must not expose FOUND.000");
                     scanVm.SearchFilter = string.Empty;
                     rebuildRows.Invoke(scanVm, null);
                     Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 11), "TryLocateNodeInTree must refuse hidden $RECYCLE.BIN");
                     Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 13), "TryLocateNodeInTree must refuse hidden System Volume Information");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 14), "TryLocateNodeInTree must refuse hidden $WinREAgent");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 15), "TryLocateNodeInTree must refuse children under $WinREAgent");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 16), "TryLocateNodeInTree must refuse hidden $WINDOWS.~BT");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 17), "TryLocateNodeInTree must refuse hidden Config.Msi");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 18), "TryLocateNodeInTree must refuse hidden Recovery");
+                    Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 19), "TryLocateNodeInTree must refuse hidden FOUND.000");
 
                     foreach (DiskScanSubView sub in Enum.GetValues<DiskScanSubView>())
                     {
@@ -1272,9 +1364,20 @@ internal static class Program
         // 0: C:\  1: Users  2: Alice  3: AppData  4: Local  5: Docker(100G)  6: JetBrains(60G)
         // 7: Programs(200G)  8: NovaStudio(200G)  9: comfyui(200G)  10: models(200G)
         // 11: $RECYCLE.BIN(20G)  12: S-1-5-21-test(20G)  13: System Volume Information(10G)
-        var names = new[] { @"C:\", "Users", "Alice", "AppData", "Local", "Docker", "JetBrains", "Programs", "NovaStudio", "comfyui", "models", "$RECYCLE.BIN", "S-1-5-21-test", "System Volume Information" };
-        var parents = new[] { -1, 0, 1, 2, 3, 4, 4, 4, 7, 8, 9, 0, 11, 0 };
-        var sizes = new[] { 390 * GB, 360 * GB, 360 * GB, 360 * GB, 360 * GB, 100 * GB, 60 * GB, 200 * GB, 200 * GB, 200 * GB, 200 * GB, 20 * GB, 20 * GB, 10 * GB };
+        // 14: $WinREAgent(4G)  15: Scratch(4G)  16: $WINDOWS.~BT(8G)  17: Config.Msi(2G)  18: Recovery(1G)  19: FOUND.000(1G)
+        var names = new[]
+        {
+            @"C:\", "Users", "Alice", "AppData", "Local", "Docker", "JetBrains", "Programs", "NovaStudio", "comfyui", "models",
+            "$RECYCLE.BIN", "S-1-5-21-test", "System Volume Information",
+            "$WinREAgent", "Scratch", "$WINDOWS.~BT", "Config.Msi", "Recovery", "FOUND.000"
+        };
+        var parents = new[] { -1, 0, 1, 2, 3, 4, 4, 4, 7, 8, 9, 0, 11, 0, 0, 14, 0, 0, 0, 0 };
+        var sizes = new[]
+        {
+            406 * GB, 360 * GB, 360 * GB, 360 * GB, 360 * GB, 100 * GB, 60 * GB, 200 * GB, 200 * GB, 200 * GB, 200 * GB,
+            20 * GB, 20 * GB, 10 * GB,
+            4 * GB, 4 * GB, 8 * GB, 2 * GB, 1 * GB, 1 * GB
+        };
 
         var nodes = new ScanNodeRecord[names.Length];
         for (int i = 0; i < names.Length; i++)

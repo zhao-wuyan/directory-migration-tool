@@ -26,6 +26,7 @@ public sealed class OperationExecutionGate
     private OperationGateStatus _status = OperationGateStatus.Idle;
 
     public event EventHandler? StateChanged;
+    public event EventHandler<OperationGateStatus>? OperationCompleted;
 
     public OperationGateStatus CurrentStatus
     {
@@ -111,13 +112,26 @@ public sealed class OperationExecutionGate
 
     private void Release()
     {
+        OperationGateStatus completed;
         lock (_sync)
         {
+            completed = _status;
             _status = OperationGateStatus.Idle;
         }
 
         _semaphore.Release();
         RaiseStateChanged();
+        if (completed.IsBusy)
+        {
+            try
+            {
+                OperationCompleted?.Invoke(this, completed);
+            }
+            catch
+            {
+                // 订阅方异常不得破坏锁释放
+            }
+        }
     }
 
     private void RaiseStateChanged()

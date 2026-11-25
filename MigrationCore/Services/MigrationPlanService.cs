@@ -261,7 +261,10 @@ public sealed class MigrationPlanService
                 L3RiskAcknowledged: draft.L3RiskAcknowledged,
                 ValidatedAtUtc: now,
                 Status: blockingReason is null ? BatchPlanItemStatus.Ready : BatchPlanItemStatus.Blocked,
-                BlockingReason: blockingReason));
+                BlockingReason: blockingReason,
+                IsCompressedOrSparse: draft.IsCompressedOrSparse,
+                ExpectedFileCount: draft.ExpectedFileCount,
+                HasReparseDescendants: draft.HasReparseDescendants));
         }
 
         // 7. 跨项检查：双向父子重叠（源-源、源-目标、目标-目标）与多源撞同一目标碰撞
@@ -490,6 +493,24 @@ public sealed class MigrationPlanService
             return $"目标卷 {volRoot} 当前可用空间不足（需要 {FileStatsService.FormatBytes(item.RequiredTargetBytes)}，可用 {FileStatsService.FormatBytes(avail)}）。";
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// 按最新实时复扫得到的大小重新核验目标卷剩余空间。
+    /// </summary>
+    public string? CheckTargetVolumeHasSpace(
+        string targetPath,
+        long requiredBytes,
+        Func<string, long>? volumeAvailableBytesProvider = null)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath) || targetPath.Length < 3) return null;
+        string volRoot = targetPath[..3];
+        long avail = GetVolumeAvailableBytes(volRoot, volumeAvailableBytesProvider);
+        if (avail < requiredBytes)
+        {
+            return $"按最新实时大小核算，目标卷 {volRoot} 可用空间不足（需要 {FileStatsService.FormatBytes(requiredBytes)}，当前可用 {FileStatsService.FormatBytes(avail)}）。";
+        }
         return null;
     }
 

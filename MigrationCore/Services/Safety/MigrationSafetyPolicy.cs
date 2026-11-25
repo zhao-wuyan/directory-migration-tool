@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using MigrationCore.Models.Safety;
+using MigrationCore.Models.Scanning;
 
 namespace MigrationCore.Services.Safety;
 
@@ -89,15 +90,74 @@ public static partial class MigrationSafetyPolicy
         FileAttributes.Encrypted |
         FileAttributes.Offline;
 
-    private static readonly string[] VolumeRootHardDeniedNames =
+    /// <summary>
+    /// 卷根下 Windows 专属且默认隐藏的系统/更新/恢复/元数据目录（同时强制 L0 硬拒绝并在扫描树、搜索与目录选择器中隐藏展示）。
+    /// 注意：不包含 ProgramData（虽为隐藏但承载第三方应用业务数据）及 Windows.old / WindowsApps / WpSystem（非隐藏或承载用户已装商店应用的大体积目录）。
+    /// </summary>
+    private static readonly string[] HiddenSystemVolumeRootNames =
     [
+        // 卷元数据与回收站
         "System Volume Information",
         "$Recycle.Bin",
+        "RECYCLER",
+        "Recycled",
+        "$Extend",
+        // Windows 引导与恢复
         "Boot",
         "Recovery",
         "EFI",
-        "Windows.old",
+        // Windows 更新 / 升级 / 恢复环境 / 重置暂存与回滚目录
+        "$WinREAgent",
+        "$WINDOWS.~BT",
+        "$Windows.~WS",
+        "$Windows.~LS",
+        "$WINDOWS.~Q",
+        "$SysReset",
+        "$GetCurrent",
+        "$INPLACE.~TR",
+        // Windows 安装事务 / 系统兼容联接 / 系统服务隐藏缓存
+        "Config.Msi",
+        "Documents and Settings",
+        "MSOCache",
+        "OneDriveTemp",
+        "WUDownloadCache",
+        "DeliveryOptimization",
+        // 本工具同卷隔离区隐藏目录
         ".MoveFolderQuarantine"
+    ];
+
+    /// <summary>
+    /// 卷根下可见（非隐藏）但同样强制 L0 硬拒绝的 Windows 系统目录。
+    /// </summary>
+    private static readonly string[] VisibleSystemVolumeRootHardDeniedNames =
+    [
+        "Windows.old",
+        "WindowsApps",
+        "ModifiableWindowsApps",
+        "WpSystem",
+        "PerfLogs"
+    ];
+
+    private static readonly string[] VolumeMetadataRootNames =
+    [
+        "System Volume Information",
+        "$Recycle.Bin",
+        "RECYCLER",
+        "Recycled",
+        "$Extend"
+    ];
+
+    private static readonly string[] WindowsComponentRootNames =
+    [
+        "Config.Msi",
+        "MSOCache",
+        "OneDriveTemp",
+        "WUDownloadCache",
+        "DeliveryOptimization",
+        "WindowsApps",
+        "ModifiableWindowsApps",
+        "WpSystem",
+        "PerfLogs"
     ];
 
     private static readonly string[] ProgramFilesBlockedSubtrees =
@@ -223,25 +283,12 @@ public static partial class MigrationSafetyPolicy
             return HardDeny(SafetyReasonCodes.L0DriveRoot, "不允许操作驱动器根目录。");
         }
 
-        // 2. 卷根级保留、启动、恢复、回收站、隔离区与旧系统目录（不硬编码盘符，适用任意卷）
+        // 2. 卷根级保留、启动、恢复、更新暂存、回收站、隔离区与旧系统目录（不硬编码盘符，适用任意卷）
         string driveRoot = full[..3];
-        foreach (string reserved in VolumeRootHardDeniedNames)
+        string firstSegment = GetFirstRelativeSegment(full);
+        if (TryGetVolumeRootHardDeny(driveRoot, firstSegment, out string volumeDenyCode, out string volumeDenyMessage))
         {
-            string reservedFull = Path.Combine(driveRoot, reserved);
-            if (PathIdentityService.IsWithin(full, reservedFull))
-            {
-                string code = reserved.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)
-                    || reserved.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase)
-                    ? SafetyReasonCodes.L0VolumeMetadata
-                    : reserved.Equals(".MoveFolderQuarantine", StringComparison.OrdinalIgnoreCase)
-                        ? SafetyReasonCodes.L0SelfOrActiveTransaction
-                        : SafetyReasonCodes.L0BootRecovery;
-
-                string message = reserved.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)
-                    ? "不允许操作卷系统信息目录。"
-                    : $"不允许操作系统关键目录：{reservedFull}";
-                return HardDeny(code, message);
-            }
+            return HardDeny(volumeDenyCode, volumeDenyMessage);
         }
 
         // 3. 当前与已识别 Windows 操作系统目录（组件边界比较，C:\WindowsTools 不会被 C:\Windows 误判）
@@ -541,6 +588,162 @@ public static partial class MigrationSafetyPolicy
         return EvaluateL0HardDeny(normalizedPath, allowLeafReparseForRestore: false, checkFilesystem: false, environment: environment).IsHardDenied;
     }
 
+    /// <summary>
+    /// 判断卷根直接子目录名是否属于 Windows 专属且默认隐藏的系统/更新/恢复/元数据目录（应在扫描展示层与目录选择器中过滤）。
+    /// </summary>
+    public static bool IsHiddenSystemVolumeRootName(string? directoryName)
+    {
+        if (string.IsNullOrWhiteSpace(directoryName))
+        {
+            return false;
+        }
+
+        foreach (string hiddenName in HiddenSystemVolumeRootNames)
+        {
+            if (directoryName.Equals(hiddenName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return ChkdskFoundDirectoryRegex().IsMatch(directoryName);
+    }
+
+    /// <summary>
+    /// 判断卷根直接子目录名是否属于强制 L0 硬拒绝的 Windows 卷根系统目录（含隐藏与可见系统目录）。
+    /// </summary>
+    public static bool IsVolumeRootHardDeniedName(string? directoryName)
+    {
+        if (string.IsNullOrWhiteSpace(directoryName))
+        {
+            return false;
+        }
+
+        if (IsHiddenSystemVolumeRootName(directoryName))
+        {
+            return true;
+        }
+
+        foreach (string visibleName in VisibleSystemVolumeRootHardDeniedNames)
+        {
+            if (directoryName.Equals(visibleName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 判断扫描快照中的节点是否为卷根下应隐藏的 Windows 系统专属隐藏目录（如 $WinREAgent、$WINDOWS.~BT、$Recycle.Bin、System Volume Information、Config.Msi 等）或其子项。
+    /// 仅在视图/只读工具展示层过滤，保留底层 ScanSnapshot 的真实卷空间统计与 L0 安全策略。
+    /// </summary>
+    public static bool IsHiddenSystemVolumeNode(ScanSnapshot snapshot, int nodeId)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if ((uint)nodeId >= (uint)snapshot.Nodes.Length || nodeId == snapshot.RootNodeId)
+        {
+            return false;
+        }
+
+        // 仅当快照根为卷根目录（如 C:\、D:\）时按卷根保留名隐藏，避免误伤普通子目录下的同名文件夹
+        string? scanRoot = snapshot.ScanRootPath;
+        if (!string.IsNullOrEmpty(scanRoot)
+            && !string.Equals(scanRoot.TrimEnd('\\'), snapshot.Volume.DriveRoot.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        int topLevelId = nodeId;
+        int guard = 0;
+        while (guard++ < 128)
+        {
+            int parentId = snapshot.Nodes[topLevelId].ParentNodeId;
+            if (parentId == snapshot.RootNodeId)
+            {
+                break;
+            }
+
+            if ((uint)parentId >= (uint)snapshot.Nodes.Length || parentId == topLevelId)
+            {
+                return false;
+            }
+
+            topLevelId = parentId;
+        }
+
+        if (snapshot.Nodes[topLevelId].ParentNodeId != snapshot.RootNodeId
+            || !snapshot.Nodes[topLevelId].IsDirectory)
+        {
+            return false;
+        }
+
+        return IsHiddenSystemVolumeRootName(snapshot.GetNodeName(topLevelId));
+    }
+
+    private static string GetFirstRelativeSegment(string normalizedFullPath)
+    {
+        if (normalizedFullPath.Length <= 3)
+        {
+            return string.Empty;
+        }
+
+        int slash = normalizedFullPath.IndexOf('\\', 3);
+        return slash < 0 ? normalizedFullPath[3..] : normalizedFullPath[3..slash];
+    }
+
+    private static bool TryGetVolumeRootHardDeny(string driveRoot, string firstSegment, out string reasonCode, out string message)
+    {
+        if (!IsVolumeRootHardDeniedName(firstSegment))
+        {
+            reasonCode = string.Empty;
+            message = string.Empty;
+            return false;
+        }
+
+        string reservedFull = Path.Combine(driveRoot, firstSegment);
+        if (firstSegment.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase))
+        {
+            reasonCode = SafetyReasonCodes.L0VolumeMetadata;
+            message = "不允许操作卷系统信息目录。";
+            return true;
+        }
+
+        if (firstSegment.Equals(".MoveFolderQuarantine", StringComparison.OrdinalIgnoreCase))
+        {
+            reasonCode = SafetyReasonCodes.L0SelfOrActiveTransaction;
+            message = $"不允许操作工具隔离区目录：{reservedFull}";
+            return true;
+        }
+
+        if (firstSegment.Equals("Documents and Settings", StringComparison.OrdinalIgnoreCase))
+        {
+            reasonCode = SafetyReasonCodes.L0SystemContainerRoot;
+            message = $"不允许操作 Windows 旧版路径兼容系统联接点：{reservedFull}";
+            return true;
+        }
+
+        if (VolumeMetadataRootNames.Any(n => firstSegment.Equals(n, StringComparison.OrdinalIgnoreCase))
+            || ChkdskFoundDirectoryRegex().IsMatch(firstSegment))
+        {
+            reasonCode = SafetyReasonCodes.L0VolumeMetadata;
+            message = $"不允许操作系统关键目录：{reservedFull}";
+            return true;
+        }
+
+        if (WindowsComponentRootNames.Any(n => firstSegment.Equals(n, StringComparison.OrdinalIgnoreCase)))
+        {
+            reasonCode = SafetyReasonCodes.L0WindowsComponent;
+            message = $"不允许操作系统关键目录：{reservedFull}";
+            return true;
+        }
+
+        reasonCode = SafetyReasonCodes.L0BootRecovery;
+        message = $"不允许操作系统关键目录：{reservedFull}";
+        return true;
+    }
+
     private static SafetyPolicyDecision? CheckFilesystemBoundary(
         string fullPath,
         bool allowLeafReparse,
@@ -761,4 +964,7 @@ public static partial class MigrationSafetyPolicy
 
     [GeneratedRegex(@"(\.bak_|\.copy_|\.restore_|_lock_test_)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", RegexOptions.CultureInvariant)]
     private static partial Regex TransactionArtifactRegex();
+
+    [GeneratedRegex(@"^FOUND\.\d{3}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ChkdskFoundDirectoryRegex();
 }

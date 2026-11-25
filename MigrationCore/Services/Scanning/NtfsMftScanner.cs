@@ -360,6 +360,44 @@ public sealed class NtfsMftScanner
         return checked((int)bytesRead);
     }
 
+    /// <summary>
+    /// 只读查询 NTFS 卷当前的 USN Journal ID 与 NextUsn 水位（绝不创建或修改 USN 日志）。
+    /// 非 NTFS、非管理员或未开启 USN 日志时返回 false。
+    /// </summary>
+    public static bool TryQueryVolumeUsn(string driveRoot, out long journalId, out long nextUsn)
+    {
+        journalId = 0;
+        nextUsn = 0;
+        if (string.IsNullOrWhiteSpace(driveRoot) || driveRoot.Length < 2 || driveRoot[1] != ':')
+        {
+            return false;
+        }
+
+        string devicePath = @"\\.\" + char.ToUpperInvariant(driveRoot[0]) + ":";
+        try
+        {
+            using SafeFileHandle handle = CreateFileW(
+                devicePath,
+                GenericRead,
+                FileShareReadWriteDelete,
+                IntPtr.Zero,
+                OpenExisting,
+                0,
+                IntPtr.Zero);
+
+            if (handle.IsInvalid)
+            {
+                return false;
+            }
+
+            return TryQueryUsnJournal(handle, out journalId, out nextUsn);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static bool TryQueryUsnJournal(SafeFileHandle volumeHandle, out long journalId, out long nextUsn)
     {
         journalId = 0;

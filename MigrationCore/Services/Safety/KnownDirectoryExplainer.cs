@@ -73,11 +73,43 @@ public static class KnownDirectoryExplainer
         string leaf = parts[^1];
         string lowerFull = normalized.ToLowerInvariant();
 
-        // 1. Windows 顶级系统目录
+        // 1. Windows 顶级系统目录（含隐藏更新/恢复/元数据目录与卷根受保护系统目录）
         if (parts.Length == 1)
         {
             if (Eq(leaf, "Windows"))
                 return new("Windows 操作系统核心", "存放操作系统内核、驱动、系统库（System32/WinSxS）及系统服务。", "严禁迁移；若需释放空间，请等待三期官方 DISM 组件清理或使用 Windows 磁盘清理。");
+            if (Eq(leaf, "Windows.old"))
+                return new("旧版 Windows 系统备份目录（Windows.old）", "大版本升级后由 Windows 保留的旧系统备份（通常 10 天后系统自动清理），常占用 15–30 GB。", "严禁迁移；确认无需回退旧版系统后，请使用 Windows「磁盘清理（清理系统文件 → 以前的 Windows 安装）」或系统存储感知安全清理（后续三期垃圾清理也将纳入支持）。", DirectoryHintLevel.Info);
+            if (Eq(leaf, "$WinREAgent"))
+                return new("Windows 恢复环境更新缓存（$WinREAgent）", "Windows 专属隐藏系统目录，由系统更新与 WinRE 恢复环境维护服务创建，用于存放更新暂存与回滚备份文件。", "严禁通过符号链接迁移（会导致系统更新或恢复环境异常）；待 Windows 更新完成且系统稳定重启后，可通过 Windows「磁盘清理（清理系统文件）」或后续三期垃圾清理安全释放。");
+            if (Eq(leaf, "$WINDOWS.~BT") || Eq(leaf, "$Windows.~WS") || Eq(leaf, "$Windows.~LS")
+                || Eq(leaf, "$WINDOWS.~Q") || Eq(leaf, "$GetCurrent") || Eq(leaf, "$INPLACE.~TR"))
+                return new("Windows 系统升级与更新临时目录", "Windows 专属隐藏系统目录，用于存放大版本升级或功能更新期间的安装包、临时解压文件与回滚数据。", "严禁迁移；升级完成且确认无需回退旧版本后，请使用 Windows「磁盘清理（清理系统文件 → 以前的 Windows 安装 / 临时 Windows 安装文件）」或后续三期垃圾清理释放。");
+            if (Eq(leaf, "$SysReset"))
+                return new("Windows 重置此电脑暂存与日志目录（$SysReset）", "Windows 专属隐藏系统目录，记录“重置此电脑”流程的配置、回滚数据与诊断日志。", "严禁迁移；确认系统已稳定运行且无需排查重置问题后，可通过系统清理或后续三期垃圾清理处理。");
+            if (Eq(leaf, "System Volume Information"))
+                return new("Windows 卷系统信息目录", "Windows 专属隐藏保护目录，存放卷影副本、系统还原点、BitLocker 及索引元数据。", "严禁迁移或手动删除；如需减少还原点占用，请在 Windows「系统保护」设置中调整最大磁盘使用量。");
+            if (Eq(leaf, "$Recycle.Bin") || Eq(leaf, "RECYCLER") || Eq(leaf, "Recycled"))
+                return new("Windows 回收站元数据目录", "Windows 专属隐藏系统目录，存放当前磁盘分区中已删除但尚未清空的回收站文件。", "严禁迁移；如需释放空间，请直接右键桌面「回收站」执行清空。");
+            if (Eq(leaf, "Recovery") || Eq(leaf, "Boot") || Eq(leaf, "EFI"))
+                return new("Windows 启动与系统恢复目录", "Windows 专属隐藏系统目录，存放操作系统引导配置（BCD）或 WinRE 恢复镜像。", "严禁迁移或删除，否则将导致系统无法启动或无法进入恢复环境。");
+            if (Eq(leaf, "Config.Msi"))
+                return new("Windows Installer 事务回滚目录（Config.Msi）", "Windows 专属隐藏系统目录，由 MSI 安装服务在软件安装/卸载期间用于记录回滚脚本与备份文件。", "严禁迁移；正常安装完成后由系统自动清理，若确认无安装程序运行且残留占用较大，可交由后续垃圾清理处理。");
+            if (Eq(leaf, "MSOCache"))
+                return new("Microsoft Office 本地安装源缓存（MSOCache）", "Office 安装程序留在卷根的隐藏本地安装源缓存，用于修复或增量安装组件。", "不建议符号链接迁移；若无需离线修复 Office，可通过 Windows「磁盘清理」或后续垃圾清理安全释放。");
+            if (Eq(leaf, "Documents and Settings"))
+                return new("Windows 旧版路径兼容联接点", "Windows 专属隐藏系统联接点（指向 Users），仅为兼容旧版软件而保留。", "严禁迁移或删除，实际不包含独立文件占用。");
+            if (Eq(leaf, "OneDriveTemp"))
+                return new("OneDrive 卷根隐藏临时缓存（OneDriveTemp）", "Windows 内置 OneDrive 同步客户端在卷根创建的隐藏系统临时目录，用于暂存同步与校验文件。", "严禁迁移；退出 OneDrive 后若仍有残留，可交由后续垃圾清理处理。");
+            if (Eq(leaf, "WUDownloadCache") || Eq(leaf, "DeliveryOptimization"))
+                return new("Windows 更新与传递优化缓存目录", "Windows 更新服务或传递优化功能在卷根创建的隐藏系统下载缓存目录。", "严禁迁移；可通过 Windows「设置 → 系统 → 存储 → 临时文件」或后续垃圾清理安全释放。");
+            if (Eq(leaf, "WindowsApps") || Eq(leaf, "ModifiableWindowsApps") || Eq(leaf, "WpSystem"))
+                return new("Microsoft Store / UWP 应用系统容器", "Windows 应用商店与 Xbox 游戏在该磁盘创建的受保护安装与数据容器，绑定 AppX 系统权限。", "严禁使用符号链接迁移；如需更换盘符，请前往 Windows「设置 → 应用 → 已安装的应用」中使用系统自带的「移动」功能。", DirectoryHintLevel.Warning);
+            if (Eq(leaf, "PerfLogs"))
+                return new("Windows 性能日志目录（PerfLogs）", "Windows 性能监视器默认日志存放目录，通常为空。", "属于系统默认目录，无需迁移。");
+            if (leaf.Length == 9 && leaf.StartsWith("FOUND.", StringComparison.OrdinalIgnoreCase)
+                && char.IsAsciiDigit(leaf[6]) && char.IsAsciiDigit(leaf[7]) && char.IsAsciiDigit(leaf[8]))
+                return new("Windows 磁盘修复恢复目录（chkdsk）", "Windows 磁盘检查（chkdsk）修复文件系统异常时自动生成的隐藏恢复碎片目录。", "严禁迁移；确认无需恢复其中的 .chk 碎片文件后，可交由系统或后续垃圾清理删除。");
             if (Eq(leaf, "Users"))
                 return new("Windows 用户账户总目录", "包含所有本地用户的个人文件、桌面、文档以及 AppData 软件配置。", "不可整体迁移，请展开进入具体用户目录后再挑选大体积数据子目录。");
             if (Eq(leaf, "Program Files") || Eq(leaf, "Program Files (x86)"))

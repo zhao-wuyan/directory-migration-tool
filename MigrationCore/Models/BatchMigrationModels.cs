@@ -36,7 +36,9 @@ public sealed record MigrationPlanDraftItem(
     Guid? ScanId = null,
     int? NodeId = null,
     BatchPlanItemSource Source = BatchPlanItemSource.ScanDiscovery,
-    bool HasInternalHardLinks = false);
+    bool HasInternalHardLinks = false,
+    int? ExpectedFileCount = null,
+    bool HasReparseDescendants = false);
 
 /// <summary>
 /// 已冻结并经过安全策略、去重、碰撞与容量校验的批量迁移清单项。
@@ -60,7 +62,10 @@ public sealed record MigrationPlanItem(
     BatchPlanItemStatus Status,
     string? BlockingReason = null,
     Guid? TransactionId = null,
-    MigrationResult? ExecutionResult = null);
+    MigrationResult? ExecutionResult = null,
+    bool IsCompressedOrSparse = false,
+    int? ExpectedFileCount = null,
+    bool HasReparseDescendants = false);
 
 /// <summary>
 /// 冻结后的批量迁移计划（携带递增 PlanRevision 与确定性 SHA-256 PlanDigest；任一变更即作废先前预检）。

@@ -1,6 +1,8 @@
 using MigrationCore.Models;
 using MigrationCore.Models.Safety;
+using MigrationCore.Models.Scanning;
 using MigrationCore.Services.Safety;
+using MigrationCore.Services.Scanning;
 
 namespace MigrationCore.Services;
 
@@ -12,13 +14,22 @@ public sealed class MigrationBatchService
 {
     private readonly MigrationPlanService _planService;
     private readonly OperationExecutionGate _gate;
+    private readonly TargetedPathVerifier _pathVerifier;
+    private readonly VolumeSnapshotCache? _snapshotCache;
+    private readonly TargetedMigrationVerifyOptions _verifyOptions;
 
     public MigrationBatchService(
         MigrationPlanService? planService = null,
-        OperationExecutionGate? gate = null)
+        OperationExecutionGate? gate = null,
+        TargetedPathVerifier? pathVerifier = null,
+        VolumeSnapshotCache? snapshotCache = null,
+        TargetedMigrationVerifyOptions? verifyOptions = null)
     {
         _planService = planService ?? new MigrationPlanService();
         _gate = gate ?? OperationExecutionGate.Shared;
+        _pathVerifier = pathVerifier ?? new TargetedPathVerifier();
+        _snapshotCache = snapshotCache ?? VolumeSnapshotCache.Shared;
+        _verifyOptions = verifyOptions ?? new TargetedMigrationVerifyOptions();
     }
 
     public async Task<BatchMigrationSummary> ExecuteBatchAsync(
@@ -78,6 +89,45 @@ public sealed class MigrationBatchService
 
             // 2. 单项执行前实时重验（复用 _planService 的 matcher/env、校验身份/策略/目标空/进程/目标卷空间）
             string? liveError = _planService.ReverifyItemBeforeExecution(item);
+            if (liveError is null)
+            {
+                // 2b. 指定路径定向实时复扫（仅复扫 item.SourcePath，绝不全盘重扫；支持 NTFS USN 零 IO 快检）
+                ScanSnapshot? cachedSnapshot = item.ScanId.HasValue
+                    ? _snapshotCache?.TryGetByScanId(item.ScanId.Value, runLiveProbe: false)?.Entry.Snapshot
+                    : null;
+
+                TargetedMigrationVerificationResult targeted = await _pathVerifier.VerifyDirectoryForMigrationAsync(
+                    sourcePath: item.SourcePath,
+                    expectedRootIdentity: item.SourceIdentity,
+                    expectedLogicalBytes: item.LogicalBytes,
+                    expectedAllocatedBytes: item.AllocatedBytes,
+                    expectedFileCount: item.ExpectedFileCount,
+                    expectedHasReparseDescendants: item.HasReparseDescendants,
+                    cachedSnapshot: cachedSnapshot,
+                    cachedNodeId: item.NodeId,
+                    options: _verifyOptions,
+                    ct: ct).ConfigureAwait(false);
+
+                if (!targeted.IsAllowed)
+                {
+                    liveError = targeted.Message ?? $"定向实时复扫未通过（{targeted.ReasonCode}）。";
+                }
+                else
+                {
+                    long liveRequired = MigrationPlanService.ComputeConservativeTargetBytes(
+                        targeted.LiveLogicalBytes,
+                        targeted.LiveAllocatedBytes,
+                        item.IsCompressedOrSparse);
+                    liveError = _planService.CheckTargetVolumeHasSpace(item.TargetPath, liveRequired);
+                    if (liveError is null)
+                    {
+                        log?.Report(targeted.UsedUsnFastPath
+                            ? $"[{i + 1}/{workingItems.Length}] USN 零变动快检通过：{item.SourcePath}"
+                            : $"[{i + 1}/{workingItems.Length}] 定向路径复扫通过：{item.SourcePath}（最新 {FileStatsService.FormatBytes(Math.Max(targeted.LiveLogicalBytes, targeted.LiveAllocatedBytes))} / {targeted.LiveFileCount:N0} 文件）");
+                    }
+                }
+            }
+
             if (liveError is not null)
             {
                 workingItems[i] = item with { Status = BatchPlanItemStatus.Failed, BlockingReason = liveError };

@@ -144,6 +144,10 @@ internal static class Phase2AiCases
             Require(summary.TopLevelDirectories is { Length: >= 2 }, "Summary should include top-level directories for immediate drill-down");
             Require(summary.TopLevelDirectories!.Any(d => d.Name == "Users" && d.CanDrillDown), "Users container root should allow drill-down");
             Require(summary.TopLevelDirectories!.Any(d => d.Name == "Windows" && !d.CanDrillDown), "L0 Windows core directory should not allow drill-down");
+            Require(!summary.TopLevelDirectories!.Any(d => d.Name.Equals("$WinREAgent", StringComparison.OrdinalIgnoreCase)),
+                "AI TopLevelDirectories must hide volume-root $WinREAgent");
+            Require(!summary.TopLevelDirectories!.Any(d => d.Name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase)),
+                "AI TopLevelDirectories must hide volume-root $Recycle.Bin");
 
             // 验证层级钻入：Users -> <USER> 允许，minSizeMb 过滤生效，非容器 L0（Windows\System32）禁止钻入
             int usersNodeId = summary.TopLevelDirectories!.Single(d => d.Name == "Users").NodeId;
@@ -1409,7 +1413,9 @@ internal static class Phase2AiCases
             ("Local", 8, true, 14 * GB, 120),
             ("BuildTool", 9, true, 14 * GB, 120),
             ("tmp_cache", 10, true, 14 * GB, 120),
-            ("old_build.tmp", 11, false, 14 * GB, 120)
+            ("old_build.tmp", 11, false, 14 * GB, 120),
+            ("$WinREAgent", 0, true, 3 * GB, 2),
+            ("$Recycle.Bin", 0, true, 5 * GB, 1)
         };
 
         var nodes = new ScanNodeRecord[specs.Length];

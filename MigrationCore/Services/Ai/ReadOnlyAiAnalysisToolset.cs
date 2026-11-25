@@ -289,7 +289,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
             ? Math.Min(minSizeMb, 1024L * 1024L) * 1024L * 1024L
             : 0L;
 
-        // 仅返回目录级子节点（防止百万级单文件泄漏隐私与消耗 Token）
+        // 仅返回目录级子节点（防止百万级单文件泄漏隐私与消耗 Token），并过滤卷根 Windows 专属隐藏系统目录
         int[] rawChildren = snapshot.GetChildren(nodeId);
         var dirChildren = new List<int>(rawChildren.Length);
         int filteredOutSmallCount = 0;
@@ -297,7 +297,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         {
             int cid = rawChildren[i];
             ref readonly ScanNodeRecord child = ref snapshot.Nodes[cid];
-            if (child.IsDirectory && !child.IsOrphaned)
+            if (child.IsDirectory && !child.IsOrphaned && !MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, cid))
             {
                 long childSize = Math.Max(child.UniqueAllocatedBytes, child.LogicalBytes);
                 if (minBytes > 0 && childSize < minBytes)
@@ -731,9 +731,9 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
             HardDeniedCategories:
             [
                 "Windows 操作系统核心与维护目录（Windows / System32 / WinSxS / Installer / SoftwareDistribution / Windows.old）",
-                "启动、恢复与卷元数据（Boot / Recovery / EFI / System Volume Information / $Recycle.Bin / .MoveFolderQuarantine）",
-                "系统级容器根（卷根 / Program Files 根 / ProgramData 根 / Users 根 / 用户配置根 / AppData 根）",
-                "Windows 组件与安全/驱动目录（WindowsApps / Common Files / Defender / 杀软 / EDR）",
+                "启动、恢复、系统更新暂存与卷元数据（Boot / Recovery / EFI / $WinREAgent / $WINDOWS.~BT / $Windows.~WS / $SysReset / $GetCurrent / $INPLACE.~TR / System Volume Information / $Recycle.Bin / Config.Msi / MSOCache / FOUND.000 / .MoveFolderQuarantine）",
+                "系统级容器根（卷根 / Program Files 根 / ProgramData 根 / Users 根 / 用户配置根 / AppData 根 / Documents and Settings）",
+                "Windows 组件与安全/驱动目录（WindowsApps / WpSystem / Common Files / Defender / 杀软 / EDR）",
                 "特殊文件系统结构（重解析点 / 硬链接 / EFS 加密 / 云占位）",
                 "迁移工具本体、事务日志、待验证备份目录"
             ],
@@ -1299,8 +1299,9 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
         for (int i = 0; i < children.Length; i++)
         {
-            ref readonly ScanNodeRecord c = ref snapshot.Nodes[children[i]];
-            if (c.IsDirectory && !c.IsOrphaned)
+            int cid = children[i];
+            ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
+            if (c.IsDirectory && !c.IsOrphaned && !MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, cid))
             {
                 return true;
             }
@@ -1320,6 +1321,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
                 int cid = children[i];
                 ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
                 if (!c.IsDirectory || c.IsOrphaned) continue;
+                if (MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, cid)) continue;
 
                 long size = Math.Max(c.UniqueAllocatedBytes, c.LogicalBytes);
                 if (size < minAllocatedBytes) continue;

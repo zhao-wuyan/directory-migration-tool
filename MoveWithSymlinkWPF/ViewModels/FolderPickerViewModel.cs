@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Services;
+using MigrationCore.Services.Safety;
 using MoveWithSymlinkWPF.Helpers;
 using System;
 using System.Collections.ObjectModel;
@@ -263,9 +264,17 @@ public partial class FolderPickerViewModel : ObservableObject
         {
             var directoryInfo = new DirectoryInfo(CurrentPath);
             var directories = directoryInfo.GetDirectories();
+            string? pathRoot = Path.GetPathRoot(CurrentPath);
+            bool isVolumeRoot = !string.IsNullOrEmpty(pathRoot)
+                && string.Equals(CurrentPath.TrimEnd('\\'), pathRoot.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
 
             foreach (var dir in directories.OrderBy(d => d.Name))
             {
+                if (isVolumeRoot && MigrationSafetyPolicy.IsHiddenSystemVolumeRootName(dir.Name))
+                {
+                    continue;
+                }
+
                 try
                 {
                     bool isSymlink = SymbolicLinkHelper.IsSymbolicLink(dir.FullName);

@@ -139,6 +139,8 @@ public sealed class DirectoryWalkScanner
                     {
                         NodeId = nodeId,
                         ParentNodeId = parentNodeId,
+                        MftRecordNumber = entry.FileId & 0x0000_FFFF_FFFF_FFFFUL,
+                        SequenceNumber = (ushort)(entry.FileId >> 48),
                         NamePageIndex = pooled.PageIndex,
                         NameOffset = pooled.Offset,
                         NameLength = pooled.Length,
@@ -423,6 +425,7 @@ internal readonly struct ParsedDirEntrySlice
     public readonly long AllocatedBytes;
     public readonly uint ReparseTag;
     public readonly long LastWriteUtcTicks;
+    public readonly ulong FileId;
 
     public ParsedDirEntrySlice(
         int nameOffset,
@@ -431,7 +434,8 @@ internal readonly struct ParsedDirEntrySlice
         long logicalBytes,
         long allocatedBytes,
         uint reparseTag,
-        long lastWriteUtcTicks)
+        long lastWriteUtcTicks,
+        ulong fileId = 0)
     {
         NameOffset = nameOffset;
         NameByteLength = nameByteLength;
@@ -440,6 +444,7 @@ internal readonly struct ParsedDirEntrySlice
         AllocatedBytes = allocatedBytes;
         ReparseTag = reparseTag;
         LastWriteUtcTicks = lastWriteUtcTicks;
+        FileId = fileId;
     }
 
     public bool IsDirectory => (Flags & ScanNodeFlags.IsDirectory) != 0;
@@ -457,15 +462,23 @@ internal static class Win32DirectoryEnumerator
     private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
     private const uint FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000;
 
+    // FILE_INFO_BY_HANDLE_CLASS.FileIdBothDirectoryInfo = 10 (0x0A)
+    private const int FileIdBothDirectoryInfoClass = 10;
+    // FILE_ID_BOTH_DIR_INFO 固定头字节数：含 ShortNameLength(68)+pad(69)+ShortName[12](70..93)+pad(94..95)+FileId(96..103)，FileName 起始于偏移 104
+    internal const int IdBothDirInfoHeaderSize = 104;
+
     // FILE_INFO_BY_HANDLE_CLASS.FileFullDirectoryInfo = 14 (0x0E)
     private const int FileFullDirectoryInfoClass = 14;
     // FILE_FULL_DIR_INFO 固定头字节数：FileName 起始于偏移 68
     internal const int FullDirInfoHeaderSize = 68;
 
+    private const int ERROR_INVALID_FUNCTION = 1;
     private const int ERROR_FILE_NOT_FOUND = 2;
     private const int ERROR_PATH_NOT_FOUND = 3;
     private const int ERROR_ACCESS_DENIED = 5;
     private const int ERROR_NO_MORE_FILES = 18;
+    private const int ERROR_NOT_SUPPORTED = 50;
+    private const int ERROR_INVALID_PARAMETER = 87;
     private const int ERROR_INSUFFICIENT_BUFFER = 122;
     private const int ERROR_MORE_DATA = 234;
 
@@ -521,6 +534,7 @@ internal static class Win32DirectoryEnumerator
         }
 
         bool producedAny = false;
+        bool useIdInfo = true;
         while (true)
         {
             if (ct.IsCancellationRequested)
@@ -528,10 +542,13 @@ internal static class Win32DirectoryEnumerator
                 return DirectoryEnumStatus.Cancelled;
             }
 
-            if (GetFileInformationByHandleEx(handle, FileFullDirectoryInfoClass, buffer, (uint)buffer.Length))
+            int infoClass = useIdInfo ? FileIdBothDirectoryInfoClass : FileFullDirectoryInfoClass;
+            if (GetFileInformationByHandleEx(handle, infoClass, buffer, (uint)buffer.Length))
             {
                 batchBuffer.Clear();
-                bool parsedOk = ParseFullDirectoryInfoBuffer(buffer.AsSpan(), batchBuffer);
+                bool parsedOk = useIdInfo
+                    ? ParseIdBothDirectoryInfoBuffer(buffer.AsSpan(), batchBuffer)
+                    : ParseFullDirectoryInfoBuffer(buffer.AsSpan(), batchBuffer);
                 if (batchBuffer.Count > 0)
                 {
                     producedAny = true;
@@ -549,6 +566,13 @@ internal static class Win32DirectoryEnumerator
             if (err == ERROR_NO_MORE_FILES)
             {
                 return DirectoryEnumStatus.Ok;
+            }
+
+            if (useIdInfo && !producedAny && err is ERROR_INVALID_PARAMETER or ERROR_NOT_SUPPORTED or ERROR_INVALID_FUNCTION)
+            {
+                // 个别文件系统不支持 FileIdBothDirectoryInfo，无缝回退到 FileFullDirectoryInfo
+                useIdInfo = false;
+                continue;
             }
 
             if ((err == ERROR_MORE_DATA || err == ERROR_INSUFFICIENT_BUFFER) && buffer.Length < MaxExpandedBufferBytes)
@@ -633,6 +657,68 @@ internal static class Win32DirectoryEnumerator
         return false;
     }
 
+    /// <summary>
+    /// 纯 Safe C# 解包 <c>FILE_ID_BOTH_DIR_INFO</c> 连续缓冲区（单次内核调用同时获取 64 位 FileId 与分配大小）。
+    /// </summary>
+    internal static bool ParseIdBothDirectoryInfoBuffer(ReadOnlySpan<byte> buffer, List<ParsedDirEntrySlice> results)
+    {
+        int offset = 0;
+        int guard = 0;
+
+        while (offset >= 0 && offset + IdBothDirInfoHeaderSize <= buffer.Length)
+        {
+            if (++guard > 1_000_000)
+            {
+                return false;
+            }
+
+            uint nextEntryOffset = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(offset, 4));
+            long lastWriteFileTime = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset + 24, 8));
+            long endOfFile = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset + 40, 8));
+            long allocationSize = BinaryPrimitives.ReadInt64LittleEndian(buffer.Slice(offset + 48, 8));
+            uint fileAttributes = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(offset + 56, 4));
+            uint fileNameLength = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(offset + 60, 4));
+            uint eaSize = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(offset + 64, 4));
+            ulong fileId = BinaryPrimitives.ReadUInt64LittleEndian(buffer.Slice(offset + 96, 8));
+
+            int nameStart = offset + IdBothDirInfoHeaderSize;
+            if (fileNameLength > int.MaxValue ||
+                (fileNameLength & 1) != 0 ||
+                nameStart + (int)fileNameLength > buffer.Length)
+            {
+                return false;
+            }
+
+            ReadOnlySpan<byte> nameUtf16 = buffer.Slice(nameStart, (int)fileNameLength);
+            if (!IsDotOrDotDot(nameUtf16))
+            {
+                results.Add(ClassifyEntrySlice(
+                    nameStart,
+                    (int)fileNameLength,
+                    fileAttributes,
+                    endOfFile,
+                    allocationSize,
+                    eaSize,
+                    lastWriteFileTime,
+                    fileId));
+            }
+
+            if (nextEntryOffset == 0)
+            {
+                return true;
+            }
+
+            if (nextEntryOffset < IdBothDirInfoHeaderSize || nextEntryOffset > (uint)(buffer.Length - offset))
+            {
+                return false;
+            }
+
+            offset += (int)nextEntryOffset;
+        }
+
+        return false;
+    }
+
     internal static ParsedDirEntrySlice ClassifyEntrySlice(
         int nameOffset,
         int nameByteLength,
@@ -640,7 +726,8 @@ internal static class Win32DirectoryEnumerator
         long endOfFile,
         long allocationSize,
         uint eaSize,
-        long lastWriteFileTime)
+        long lastWriteFileTime,
+        ulong fileId = 0)
     {
         bool isDir = (fileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
         bool isReparse = (fileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
@@ -676,7 +763,7 @@ internal static class Win32DirectoryEnumerator
         }
 
         long writeTicks = FileTimeToUtcTicks(lastWriteFileTime);
-        return new ParsedDirEntrySlice(nameOffset, nameByteLength, flags, logicalBytes, allocatedBytes, reparseTag, writeTicks);
+        return new ParsedDirEntrySlice(nameOffset, nameByteLength, flags, logicalBytes, allocatedBytes, reparseTag, writeTicks, fileId);
     }
 
     internal static string ToExtendedPath(string path)
