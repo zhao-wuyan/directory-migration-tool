@@ -41,7 +41,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         "get_proposal_status"
     ];
 
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private readonly Dictionary<Guid, ScanSnapshot> _authorizedScans = new();
     private readonly List<Guid> _scanOrder = new();
     private readonly ApplicationCatalog _catalog;

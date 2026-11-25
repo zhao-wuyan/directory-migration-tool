@@ -12,6 +12,26 @@ public static class QuickMigrateConfigLoader
     private const string ConfigFileName = "quick-migrate.json";
     private const string EmbeddedResourceName = "quick-migrate.json";
 
+    private static readonly JsonSerializerOptions TestLoadJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowDuplicateProperties = false
+    };
+
+    private static readonly JsonSerializerOptions LoadJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowDuplicateProperties = false
+    };
+
+    private static readonly JsonSerializerOptions SaveJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = true
+    };
+
     /// <summary>
     /// 加载配置文件
     /// </summary>
@@ -25,7 +45,7 @@ public static class QuickMigrateConfigLoader
             if (configPath is not null && !Path.GetFullPath(configPath).Equals(expected, StringComparison.OrdinalIgnoreCase))
                 throw new IOException("测试实例不能加载其他配置。");
             return JsonSerializer.Deserialize<QuickMigrateConfig>(MigrationRuntime.ReadTestConfiguration(),
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                TestLoadJsonOptions)
                 ?? throw new IOException("测试配置损坏，不得回退生产配置。");
         }
         try
@@ -54,14 +74,7 @@ public static class QuickMigrateConfigLoader
                 }
             }
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                AllowTrailingCommas = true,
-                ReadCommentHandling = JsonCommentHandling.Skip
-            };
-
-            var config = JsonSerializer.Deserialize<QuickMigrateConfig>(json, options);
+            var config = JsonSerializer.Deserialize<QuickMigrateConfig>(json, LoadJsonOptions);
             return config;
         }
         catch
@@ -118,13 +131,7 @@ public static class QuickMigrateConfigLoader
                 configPath = Path.Combine(exeDir, ConfigFileName);
             }
 
-            var options = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            };
-
-            string json = JsonSerializer.Serialize(config, options);
+            string json = JsonSerializer.Serialize(config, SaveJsonOptions);
             File.WriteAllText(configPath, json);
             return true;
         }

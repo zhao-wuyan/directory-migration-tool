@@ -19,20 +19,20 @@ if ($selfContainedFiles -and $selfContainedFiles.Count -gt 0) {
     $exeType = "Self-Contained"
     $exeSize = [math]::Round($selfContainedFiles[0].Length/1MB, 2)
     Write-Host "✓ Found Self-Contained version: $($selfContainedFiles[0].Name)" -ForegroundColor Green
-    Write-Host "  Size: $exeSize MB | Runtime: Embedded .NET 8.0" -ForegroundColor Gray
+    Write-Host "  Size: $exeSize MB | Runtime: Embedded .NET 10.0" -ForegroundColor Gray
 } elseif ($liteFiles -and $liteFiles.Count -gt 0) {
-    # Check if .NET 8.0 Desktop Runtime is available
-    $hasRuntime = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 8\."
+    # Check if .NET 10.0 Desktop Runtime is available
+    $hasRuntime = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 10\."
     
     if ($hasRuntime) {
         $exePath = $liteFiles[0].FullName
         $exeType = "Framework-Dependent"
         $exeSize = [math]::Round($liteFiles[0].Length/1MB, 2)
         Write-Host "✓ Found Framework-Dependent version: $($liteFiles[0].Name)" -ForegroundColor Green
-        Write-Host "  Size: $exeSize MB | Runtime: System .NET 8.0" -ForegroundColor Gray
+        Write-Host "  Size: $exeSize MB | Runtime: System .NET 10.0" -ForegroundColor Gray
     } else {
-        Write-Host "⚠ Framework-Dependent version found, but .NET 8.0 Desktop Runtime is not installed" -ForegroundColor Yellow
-        Write-Host "  Install from: https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor Yellow
+        Write-Host "⚠ Framework-Dependent version found, but .NET 10.0 Desktop Runtime is not installed" -ForegroundColor Yellow
+        Write-Host "  Install from: https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0" -ForegroundColor Yellow
         Write-Host "  Falling back to 'dotnet run'..." -ForegroundColor Yellow
         $exeType = "DotnetRun"
     }

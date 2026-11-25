@@ -22,7 +22,7 @@ public sealed class OperationExecutionGate
     public static OperationExecutionGate Shared { get; } = new();
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private OperationGateStatus _status = OperationGateStatus.Idle;
 
     public event EventHandler? StateChanged;

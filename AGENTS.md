@@ -4,7 +4,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ## 项目概述
 
-这是一个用于Windows系统的目录迁移工具，使用符号链接技术实现目录迁移。项目采用.NET 8.0 + WPF技术栈，支持手动迁移和一键迁移两种模式。
+这是一个用于Windows系统的目录迁移工具，使用符号链接技术实现目录迁移。项目采用.NET 10.0 + WPF技术栈，支持手动迁移和一键迁移两种模式。
 
 ## 构建和运行命令
 
@@ -14,7 +14,7 @@ This file provides guidance to agents when working with code in this repository.
 
 ### 构建和发布
 - `.\publish.ps1` - 发布自包含版本（默认，70-100MB）
-- `.\publish.ps1 -Mode lite` - 发布框架依赖版本（2-5MB，需.NET 8.0运行时）
+- `.\publish.ps1 -Mode lite` - 发布框架依赖版本（需.NET 10.0运行时）
 - `.\publish.ps1 -Mode both` - 同时发布两个版本
 - `.\publish.ps1 -Mode debug -s` - 发布带控制台调试版本（不增加版本号）
 - `.\publish.ps1 -s` - 发布但不增加版本号
@@ -71,8 +71,8 @@ This file provides guidance to agents when working with code in this repository.
 
 ## 发布配置
 
-- 自包含版本：包含完整.NET 8.0运行时，单文件发布
-- 框架依赖版本：需要系统安装.NET 8.0 Desktop Runtime
+- 自包含版本：包含完整.NET 10.0运行时，单文件发布
+- 框架依赖版本：需要系统安装.NET 10.0 Desktop Runtime
 - 发布输出目录：`MoveWithSymlinkWPF/bin/publish/`
 
 ## 代码风格注意点

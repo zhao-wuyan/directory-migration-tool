@@ -34,7 +34,7 @@
 ## 架构总览
 
 ### 技术栈
-- **语言**: C# (.NET 8.0)
+- **语言**: C# (.NET 10.0)
 - **UI 框架**: WPF (Windows Presentation Foundation)
 - **架构模式**: MVVM (CommunityToolkit.Mvvm)
 - **核心技术**: robocopy、mklink、Windows Registry、RecycleBin API
@@ -91,7 +91,7 @@ graph TD
 
 ### 前置要求
 - Windows 10/11 (x64)
-- .NET 8.0 SDK（开发）或 .NET 8.0 Desktop Runtime（运行）
+- .NET 10.0 SDK（开发）或 .NET 10.0 Desktop Runtime（运行）
 - 管理员权限（或启用开发者模式）
 - Visual Studio 2022 或更高版本（开发）
 

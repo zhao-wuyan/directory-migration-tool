@@ -251,7 +251,7 @@ public sealed class ScanSnapshot
         return sb.ToString();
     }
 
-    private readonly object _hazardCacheSync = new();
+    private readonly Lock _hazardCacheSync = new();
     private byte[]? _subtreeHazardFlagCache;
 
     /// <summary>

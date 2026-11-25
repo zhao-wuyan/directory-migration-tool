@@ -24,12 +24,12 @@ if ($objDirs) {
 }
 
 # Always clean win-x64 intermediate directories (but not publish directories)
-$winX64Dirs = Get-ChildItem -Path "MoveWithSymlinkWPF\bin\Release\net8.0-windows10.0.19041.0\win-x64" -ErrorAction SilentlyContinue
+$winX64Dirs = Get-ChildItem -Path "MoveWithSymlinkWPF\bin\Release\net10.0-windows10.0.19041.0\win-x64" -ErrorAction SilentlyContinue
 if ($winX64Dirs) {
     $itemsToClean += $winX64Dirs
 }
 
-$migrationWinX64Dirs = Get-ChildItem -Path "MigrationCore\bin\Release\net8.0-windows10.0.19041.0\win-x64" -ErrorAction SilentlyContinue
+$migrationWinX64Dirs = Get-ChildItem -Path "MigrationCore\bin\Release\net10.0-windows10.0.19041.0\win-x64" -ErrorAction SilentlyContinue
 if ($migrationWinX64Dirs) {
     $itemsToClean += $migrationWinX64Dirs
 }

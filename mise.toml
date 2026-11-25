@@ -11,7 +11,7 @@ description = "打包自包含 Release 版本（包含 .NET 运行时）"
 run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode selfcontained"
 
 [tasks."package:lite"]
-description = "打包轻量 Release 版本（需要 .NET 8 Desktop Runtime）"
+description = "打包轻量 Release 版本（需要 .NET 10 Desktop Runtime）"
 run = "$ErrorActionPreference = 'Stop'; & ./publish.ps1 -Mode lite"
 
 [tasks."package:both"]

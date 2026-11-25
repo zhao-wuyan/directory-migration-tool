@@ -20,7 +20,7 @@ public sealed class AiProposalInbox
         public string StatusNote { get; set; } = "已收到 AI 建议，等待用户人工审阅；绝不会自动执行。";
     }
 
-    private readonly object _sync = new();
+    private readonly Lock _sync = new();
     private readonly Dictionary<Guid, StoredProposal> _byProposalId = new();
     private readonly Dictionary<string, (Guid ProposalId, string RequestDigest)> _byClientRequestId = new(StringComparer.Ordinal);
     private readonly List<Guid> _orderedIds = new();

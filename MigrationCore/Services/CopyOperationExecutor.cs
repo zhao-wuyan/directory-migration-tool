@@ -367,7 +367,7 @@ public sealed class CopyOperationExecutor(MigrationTransactionRecord transaction
         long lastReportMs = 0;
         long lastReportedBytes = 0;
         double smoothedSpeed = 0;
-        var reportLock = new object();
+        var reportLock = new Lock();
 
         void MaybeReport(bool force = false)
         {

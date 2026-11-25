@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -38,8 +38,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
-    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.122" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.161" />
   </ItemGroup>
 
   <ItemGroup>
@@ -73,21 +73,21 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- 包含 Handle 工具到输出目录 -->
+  <!-- 包含 Handle 工具到输出目录（本地存在时复制打包，缺失时不阻断构建） -->
   <ItemGroup>
-    <None Include="Resources\bin\Handle\handle.exe">
+    <None Include="Resources\bin\Handle\handle.exe" Condition="Exists('Resources\bin\Handle\handle.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Include="Resources\bin\Handle\handle64.exe">
+    <None Include="Resources\bin\Handle\handle64.exe" Condition="Exists('Resources\bin\Handle\handle64.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Include="Resources\bin\Handle\handle64a.exe">
+    <None Include="Resources\bin\Handle\handle64a.exe" Condition="Exists('Resources\bin\Handle\handle64a.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Include="Resources\bin\Handle\Eula.txt">
+    <None Include="Resources\bin\Handle\Eula.txt" Condition="Exists('Resources\bin\Handle\Eula.txt')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>

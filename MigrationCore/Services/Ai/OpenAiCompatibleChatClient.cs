@@ -131,11 +131,9 @@ public sealed class OpenAiCompatibleChatClient : IChatClient
         var toolCallBuffers = new Dictionary<int, ToolCallAccumulator>();
         ChatFinishReason? finishReason = null;
 
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string? line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-            if (line is null) break;
             if (!line.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) continue;
 
             string data = line[5..].Trim();

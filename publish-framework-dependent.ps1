@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Publish script for MoveWithSymlink WPF Application (Framework-Dependent Version)
-# 框架依赖版本：需要系统安装 .NET 8.0 Desktop Runtime
+# 框架依赖版本：需要系统安装 .NET 10.0 Desktop Runtime
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Publishing Framework-Dependent Version" -ForegroundColor Cyan
@@ -25,7 +25,7 @@ Write-Host ""
 Write-Host "Checking .NET SDK version..." -ForegroundColor Yellow
 $dotnetVersion = dotnet --version
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to detect .NET SDK. Please install .NET 8.0 SDK or later."
+    Write-Error "Failed to detect .NET SDK. Please install .NET 10.0 SDK or later."
     exit 1
 }
 Write-Host "Found .NET SDK: $dotnetVersion" -ForegroundColor Green
@@ -38,7 +38,7 @@ Write-Host ""
 
 # Publish the WPF application (Framework-Dependent)
 Write-Host "Publishing Framework-Dependent version..." -ForegroundColor Yellow
-Write-Host "Note: This version requires .NET 8.0 Desktop Runtime to be installed on target system" -ForegroundColor Yellow
+Write-Host "Note: This version requires .NET 10.0 Desktop Runtime to be installed on target system" -ForegroundColor Yellow
 dotnet publish MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj `
     -p:PublishProfile=win-x64-framework-dependent `
     -c Release
@@ -86,29 +86,29 @@ Write-Host "  ✓ 体积小巧（约 2-5 MB）" -ForegroundColor Green
 Write-Host "  ✓ 单个 EXE 文件" -ForegroundColor Green
 Write-Host "  ✓ 支持 Windows 10/11 (x64)" -ForegroundColor Green
 Write-Host "  ✓ 启动时自动申请管理员权限" -ForegroundColor Green
-Write-Host "  ⚠ 需要系统安装 .NET 8.0 Desktop Runtime" -ForegroundColor Yellow
+Write-Host "  ⚠ 需要系统安装 .NET 10.0 Desktop Runtime" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "系统要求:" -ForegroundColor Cyan
-Write-Host "  目标系统需要安装 .NET 8.0 Desktop Runtime" -ForegroundColor Yellow
-Write-Host "  下载地址: https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor White
-Write-Host "  选择: .NET Desktop Runtime 8.0.x (x64)" -ForegroundColor White
+Write-Host "  目标系统需要安装 .NET 10.0 Desktop Runtime" -ForegroundColor Yellow
+Write-Host "  下载地址: https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0" -ForegroundColor White
+Write-Host "  选择: .NET Desktop Runtime 10.0.x (x64)" -ForegroundColor White
 Write-Host ""
 Write-Host "运行应用程序:" -ForegroundColor Cyan
 Write-Host "  双击 目录迁移工具-v$currentVersion-lite.exe" -ForegroundColor White
 Write-Host ""
 Write-Host "对比说明:" -ForegroundColor Cyan
 Write-Host "  📦 标准版 (SelfContained): ~70-100 MB, 无需安装运行时" -ForegroundColor White
-Write-Host "  🪶 轻量版 (Framework-Dependent): ~2-5 MB, 需要安装运行时" -ForegroundColor White
+Write-Host "  🪶 轻量版 (Framework-Dependent): ~20-30 MB, 需要安装运行时" -ForegroundColor White
 Write-Host ""
 
-# Check if .NET 8.0 runtime is installed on current system
+# Check if .NET 10.0 runtime is installed on current system
 Write-Host "Checking local .NET runtime..." -ForegroundColor Yellow
-$runtimes = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 8\."
+$runtimes = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 10\."
 if ($runtimes) {
-    Write-Host "✓ .NET 8.0 Desktop Runtime is installed on this system" -ForegroundColor Green
+    Write-Host "✓ .NET 10.0 Desktop Runtime is installed on this system" -ForegroundColor Green
     Write-Host "  You can run the lite version directly" -ForegroundColor Green
 } else {
-    Write-Host "✗ .NET 8.0 Desktop Runtime NOT found on this system" -ForegroundColor Red
+    Write-Host "✗ .NET 10.0 Desktop Runtime NOT found on this system" -ForegroundColor Red
     Write-Host "  Please install it before running the lite version" -ForegroundColor Yellow
 }
 Write-Host ""

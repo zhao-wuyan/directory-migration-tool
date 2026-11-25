@@ -28,7 +28,10 @@
 ## 系统要求
 
 - Windows 10/11 (x64)
-- .NET 8.0 Desktop Runtime（仅框架依赖版本需要）
+- **.NET 10.0 (LTS) 环境**（官方下载：[Microsoft .NET 10.0 下载页](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)）：
+  - **完整版（自包含发布）**：无需安装 .NET
+  - **轻量版（框架依赖）**：需要 **.NET 10.0 Desktop Runtime (x64)**（`winget install Microsoft.DotNet.DesktopRuntime.10`）
+  - **从源码构建 / 开发调试（`dotnet run`、`mise run dev`、`publish.ps1`）**：需要 **.NET 10.0 SDK (x64)**（`winget install Microsoft.DotNet.SDK.10`）
 - 管理员权限（或启用开发者模式）
 - 本地固定 NTFS 卷（迁移的源盘和目标盘都必须是；ReFS 卷仅支持只读扫描浏览）
 
@@ -72,7 +75,7 @@
 # 发布完整版（包含运行时，约 70+ MB）
 .\publish.ps1
 
-# 发布轻量版（框架依赖，约 20+ MB，需要系统安装 .NET 8.0）
+# 发布轻量版（框架依赖，约 20+ MB，需要系统安装 .NET 10.0）
 .\publish.ps1 -Mode lite
 
 # 同时发布两个版本
@@ -246,7 +249,7 @@
 - 使用 `mklink` 创建符号链接
 
 ### C# GUI 版本（WPF）
-- **.NET 8.0** 平台
+- **.NET 10.0 (LTS)** 平台
 - **WPF** 框架（支持单文件自包含发布）
 - **MVVM 架构** (CommunityToolkit.Mvvm)
 - **核心库分离** (MigrationCore) 便于复用
@@ -314,18 +317,18 @@ moveFloder/
 ## 构建说明
 
 ### 前置要求
-- Visual Studio 2022 或更高版本
-- .NET 8.0 SDK
+- [.NET 10.0 SDK (x64)](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)（也可执行 `winget install Microsoft.DotNet.SDK.10` 安装）
+- Visual Studio 2022 或更高版本（可选，仅用 IDE 构建时需要）
 
 ### 使用 mise（推荐）
 
-安装 [mise](https://mise.jdx.dev/) 和 .NET 8.0 SDK 后，可从仓库根目录或子目录执行以下任务。任务固定在仓库根目录运行，使用 Windows 自带的 `powershell.exe`，不要求额外安装 PowerShell 7。
+安装 [mise](https://mise.jdx.dev/) 和 .NET 10.0 SDK 后，可从仓库根目录或子目录执行以下任务。任务固定在仓库根目录运行，使用 Windows 自带的 `powershell.exe`，不要求额外安装 PowerShell 7。
 
 | 命令 | 用途 |
 | --- | --- |
 | `mise run dev` | 从当前源码启动 WPF Debug 开发环境，显示调试控制台，不使用已有发布包 |
 | `mise run package` | 打包自包含 Release 版本，包含 .NET 运行时 |
-| `mise run package:lite` | 打包轻量 Release 版本，运行时需要 .NET 8.0 Desktop Runtime |
+| `mise run package:lite` | 打包轻量 Release 版本，运行时需要 .NET 10.0 Desktop Runtime |
 | `mise run package:both` | 同时打包自包含和轻量 Release 版本 |
 | `mise run package:debug` | 打包带控制台的 Debug 版本，不递增版本号 |
 
@@ -467,7 +470,7 @@ MIT License
 
 - **如何获取帮助**？点击主界面右上角的 **[❓ 使用说明]** 按钮，查看完整的用户指南。
 - 为什么 EXE 文件较大？自包含发布包含 .NET 运行时与依赖，通常 60–80MB。
-- 没有安装 .NET 可以运行吗？可以，自包含发布无需预装 .NET。
+- 没有安装 .NET 可以运行吗？完整版（自包含发布）无需预装 .NET；轻量版（框架依赖）需安装 [.NET 10.0 Desktop Runtime (x64)](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)；从源码构建/运行需安装 [.NET 10.0 SDK (x64)](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)。
 - 是否需要管理员权限？是。应用含 UAC 清单，启动时会自动申请管理员权限。
 - 修复模式和还原模式有什么区别？修复模式不复制数据，只重建符号链接；还原模式会将数据从目标复制回源，并删除符号链接。
 - 双击 EXE 与运行 `run.ps1` 有何区别？功能相同，脚本提供额外提示与错误处理，直接双击更简便。

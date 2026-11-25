@@ -2,7 +2,7 @@
 # Publish script for MoveWithSymlink WPF Application
 # 支持多种发布模式：
 #   1. 自包含版本 (SelfContained): 包含完整运行时，体积大，无需安装 .NET
-#   2. 框架依赖版本 (Framework-Dependent): 轻量级，需要系统安装 .NET 8.0 Desktop Runtime
+#   2. 框架依赖版本 (Framework-Dependent): 轻量级，需要系统安装 .NET 10.0 Desktop Runtime
 #   3. 调试版本 (Debug): 显示控制台窗口，便于排查问题
 
 param(
@@ -97,7 +97,7 @@ Write-Host ""
 Write-Host "Checking .NET SDK version..." -ForegroundColor Yellow
 $dotnetVersion = dotnet --version
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to detect .NET SDK. Please install .NET 8.0 SDK or later."
+    Write-Error "Failed to detect .NET SDK. Please install .NET 10.0 SDK or later."
     exit 1
 }
 Write-Host "Found .NET SDK: $dotnetVersion" -ForegroundColor Green
@@ -162,7 +162,7 @@ if ($publishSelfContained) {
             Name = "目录迁移工具-v$newVersion.exe"
             Size = "$exeSize MB"
             Path = $publishDir
-            Runtime = "包含完整 .NET 8.0 运行时"
+            Runtime = "包含完整 .NET 10.0 运行时"
         }
     }
 }
@@ -182,7 +182,7 @@ if ($publishFrameworkDependent) {
     
     # Publish the WPF application
     Write-Host "Publishing Framework-Dependent version..." -ForegroundColor Yellow
-    Write-Host "Note: This version requires .NET 8.0 Desktop Runtime on target system" -ForegroundColor Yellow
+    Write-Host "Note: This version requires .NET 10.0 Desktop Runtime on target system" -ForegroundColor Yellow
     dotnet publish MoveWithSymlinkWPF\MoveWithSymlinkWPF.csproj `
         -p:PublishProfile=win-x64-framework-dependent `
         -c Release
@@ -212,7 +212,7 @@ if ($publishFrameworkDependent) {
             Name = "目录迁移工具-v$newVersion-lite.exe"
             Size = "$exeSize MB"
             Path = $publishDir
-            Runtime = "需要系统安装 .NET 8.0 Desktop Runtime"
+            Runtime = "需要系统安装 .NET 10.0 Desktop Runtime"
         }
     }
 }
@@ -273,7 +273,7 @@ if ($publishDebug) {
             Name = "目录迁移工具-v$newVersion-debug.exe"
             Size = "$exeSize MB"
             Path = $publishDir
-            Runtime = "需要系统安装 .NET 8.0 Desktop Runtime | 控制台输出可见"
+            Runtime = "需要系统安装 .NET 10.0 Desktop Runtime | 控制台输出可见"
         }
     }
 }
@@ -312,18 +312,18 @@ Write-Host ""
 
 if ($publishFrameworkDependent) {
     Write-Host "框架依赖版本系统要求:" -ForegroundColor Yellow
-    Write-Host "  目标系统需要安装 .NET 8.0 Desktop Runtime" -ForegroundColor White
-    Write-Host "  下载: https://dotnet.microsoft.com/download/dotnet/8.0" -ForegroundColor White
-    Write-Host "  选择: .NET Desktop Runtime 8.0.x (x64)" -ForegroundColor White
+    Write-Host "  目标系统需要安装 .NET 10.0 Desktop Runtime" -ForegroundColor White
+    Write-Host "  下载: https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0" -ForegroundColor White
+    Write-Host "  选择: .NET Desktop Runtime 10.0.x (x64)" -ForegroundColor White
     Write-Host ""
     
-    # Check if .NET 8.0 runtime is installed on current system
+    # Check if .NET 10.0 runtime is installed on current system
     Write-Host "Checking local .NET runtime..." -ForegroundColor Yellow
-    $runtimes = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 8\."
+    $runtimes = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 10\."
     if ($runtimes) {
-        Write-Host "  ✓ .NET 8.0 Desktop Runtime is installed on this system" -ForegroundColor Green
+        Write-Host "  ✓ .NET 10.0 Desktop Runtime is installed on this system" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ .NET 8.0 Desktop Runtime NOT found on this system" -ForegroundColor Red
+        Write-Host "  ✗ .NET 10.0 Desktop Runtime NOT found on this system" -ForegroundColor Red
     }
     Write-Host ""
 }

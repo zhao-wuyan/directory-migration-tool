@@ -19,7 +19,8 @@ public sealed class AiProviderConfigStore
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        AllowDuplicateProperties = false
     };
 
     private readonly string _directoryPath;

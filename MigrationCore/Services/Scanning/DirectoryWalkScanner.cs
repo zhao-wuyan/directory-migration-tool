@@ -102,7 +102,7 @@ public sealed class DirectoryWalkScanner
         using var workAvailable = new SemaphoreSlim(1, int.MaxValue);
         using var doneCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        object commitLock = new();
+        Lock commitLock = new();
         int errorCount = 0;
         int incompleteCount = 0;
         long processed = 0;

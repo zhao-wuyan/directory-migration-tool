@@ -72,7 +72,7 @@ if ($selfContainedPath -and $frameworkDependentPath) {
             文件名 = $frameworkDependentPath.Name
             大小 = "$size2 MB"
             构建时间 = "$([math]::Round($duration2, 1)) 秒"
-            运行时依赖 = ".NET 8.0"
+            运行时依赖 = ".NET 10.0"
             推荐场景 = "内部使用"
         }
     )
@@ -104,13 +104,13 @@ if ($selfContainedPath -and $frameworkDependentPath) {
     Write-Host ""
     
     # Check runtime
-    $hasRuntime = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 8\."
+    $hasRuntime = dotnet --list-runtimes 2>$null | Select-String "Microsoft.WindowsDesktop.App 10\."
     Write-Host "💻 本机运行时检查:" -ForegroundColor Yellow
     if ($hasRuntime) {
-        Write-Host "  ✓ 已安装 .NET 8.0 Desktop Runtime" -ForegroundColor Green
+        Write-Host "  ✓ 已安装 .NET 10.0 Desktop Runtime" -ForegroundColor Green
         Write-Host "  → 两个版本都可以在本机运行" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ 未安装 .NET 8.0 Desktop Runtime" -ForegroundColor Red
+        Write-Host "  ✗ 未安装 .NET 10.0 Desktop Runtime" -ForegroundColor Red
         Write-Host "  → 仅自包含版本可以在本机运行" -ForegroundColor Yellow
         Write-Host "  → 框架依赖版本需要先安装运行时" -ForegroundColor Yellow
     }
