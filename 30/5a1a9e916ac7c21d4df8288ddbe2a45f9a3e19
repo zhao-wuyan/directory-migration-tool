@@ -1,0 +1,422 @@
+.agents/agents/cli-explore-agent.md
+  h_b23cf7c6b3692f 1-31
+.agents/agents/impeccable-agent.md
+  h_b23cf7c6b3692f 1-44
+.agents/agents/impeccable-asset-producer.md
+  h_b23cf7c6b3692f 1-53
+.agents/agents/impeccable-documenter.md
+  h_b23cf7c6b3692f 1-34
+.agents/agents/impeccable-finish-reviewer.md
+  h_b23cf7c6b3692f 1-47
+.agents/agents/impeccable-manual-edit-applier.md
+  h_b23cf7c6b3692f 1-104
+.agents/agents/impeccable-motion-reviewer.md
+  h_b23cf7c6b3692f 1-38
+.agents/agents/team-worker.md
+  h_b23cf7c6b3692f 1-33
+.agents/agents/workflow-analyzer.md
+  h_b23cf7c6b3692f 1-33
+.agents/agents/workflow-codebase-mapper.md
+  h_b23cf7c6b3692f 1-32
+.agents/agents/workflow-collab-planner.md
+  h_b23cf7c6b3692f 1-30
+.agents/agents/workflow-debugger.md
+  h_b23cf7c6b3692f 1-33
+.agents/agents/workflow-executor.md
+  h_b23cf7c6b3692f 1-37
+.agents/agents/workflow-external-researcher.md
+  h_b23cf7c6b3692f 1-25
+.agents/agents/workflow-integration-checker.md
+  h_b23cf7c6b3692f 1-27
+.agents/agents/workflow-nyquist-auditor.md
+  h_b23cf7c6b3692f 1-28
+.agents/agents/workflow-plan-checker.md
+  h_b23cf7c6b3692f 1-33
+.agents/agents/workflow-planner.md
+  h_b23cf7c6b3692f 1-38
+.agents/agents/workflow-research-synthesizer.md
+  h_b23cf7c6b3692f 1-26
+.agents/agents/workflow-reviewer.md
+  h_b23cf7c6b3692f 1-32
+.agents/agents/workflow-roadmapper.md
+  h_b23cf7c6b3692f 1-28
+.agents/agents/workflow-verifier.md
+  h_b23cf7c6b3692f 1-32
+.agents/skills/ew-impeccable/LICENSE
+  h_b23cf7c6b3692f 1-191
+.agents/skills/ew-impeccable/NOTICE.md
+  h_b23cf7c6b3692f 1-19
+.agents/skills/ew-impeccable/SKILL.md
+  h_b23cf7c6b3692f 1-153
+.agents/skills/ew-impeccable/UPSTREAM.md
+  h_b23cf7c6b3692f 1-23
+.agents/skills/ew-impeccable/reference/adapt.md
+  h_b23cf7c6b3692f 1-320
+.agents/skills/ew-impeccable/reference/adapt.native.md
+  h_b23cf7c6b3692f 1-60
+.agents/skills/ew-impeccable/reference/android.md
+  h_b23cf7c6b3692f 1-46
+.agents/skills/ew-impeccable/reference/animate.md
+  h_b23cf7c6b3692f 1-108
+.agents/skills/ew-impeccable/reference/audit.md
+  h_b23cf7c6b3692f 1-152
+.agents/skills/ew-impeccable/reference/audit.native.md
+  h_b23cf7c6b3692f 1-145
+.agents/skills/ew-impeccable/reference/bolder.md
+  h_b23cf7c6b3692f 1-35
+.agents/skills/ew-impeccable/reference/clarify.md
+  h_b23cf7c6b3692f 1-96
+.agents/skills/ew-impeccable/reference/colorize.md
+  h_b23cf7c6b3692f 1-88
+.agents/skills/ew-impeccable/reference/component-review.md
+  h_b23cf7c6b3692f 1-65
+.agents/skills/ew-impeccable/reference/craft-floor.md
+  h_b23cf7c6b3692f 1-44
+.agents/skills/ew-impeccable/reference/craft.md
+  h_b23cf7c6b3692f 1-5
+.agents/skills/ew-impeccable/reference/critique-rubric.md
+  h_b23cf7c6b3692f 1-496
+.agents/skills/ew-impeccable/reference/critique.md
+  h_b23cf7c6b3692f 1-329
+.agents/skills/ew-impeccable/reference/degraded/asset-producer.md
+  h_b23cf7c6b3692f 1-43
+.agents/skills/ew-impeccable/reference/degraded/documenter.md
+  h_b23cf7c6b3692f 1-25
+.agents/skills/ew-impeccable/reference/degraded/finish-reviewer.md
+  h_b23cf7c6b3692f 1-39
+.agents/skills/ew-impeccable/reference/degraded/manual-edit-applier.md
+  h_b23cf7c6b3692f 1-94
+.agents/skills/ew-impeccable/reference/degraded/motion-reviewer.md
+  h_b23cf7c6b3692f 1-30
+.agents/skills/ew-impeccable/reference/delight.md
+  h_b23cf7c6b3692f 1-72
+.agents/skills/ew-impeccable/reference/distill.md
+  h_b23cf7c6b3692f 1-113
+.agents/skills/ew-impeccable/reference/doctor.md
+  h_b23cf7c6b3692f 1-56
+.agents/skills/ew-impeccable/reference/document.md
+  h_b23cf7c6b3692f 1-420
+.agents/skills/ew-impeccable/reference/extract.md
+  h_b23cf7c6b3692f 1-71
+.agents/skills/ew-impeccable/reference/foundations.md
+  h_b23cf7c6b3692f 1-46
+.agents/skills/ew-impeccable/reference/generate.md
+  h_b23cf7c6b3692f 1-103
+.agents/skills/ew-impeccable/reference/harden.md
+  h_b23cf7c6b3692f 1-364
+.agents/skills/ew-impeccable/reference/hooks.md
+  h_b23cf7c6b3692f 1-122
+.agents/skills/ew-impeccable/reference/init.md
+  h_b23cf7c6b3692f 1-135
+.agents/skills/ew-impeccable/reference/ios.md
+  h_b23cf7c6b3692f 1-51
+.agents/skills/ew-impeccable/reference/layout.md
+  h_b23cf7c6b3692f 1-86
+.agents/skills/ew-impeccable/reference/live-setup.md
+  h_b23cf7c6b3692f 1-106
+.agents/skills/ew-impeccable/reference/live.md
+  h_b23cf7c6b3692f 1-344
+.agents/skills/ew-impeccable/reference/mode-operate.md
+  h_b23cf7c6b3692f 1-21
+.agents/skills/ew-impeccable/reference/mode-persuade.md
+  h_b23cf7c6b3692f 1-19
+.agents/skills/ew-impeccable/reference/mode-read.md
+  h_b23cf7c6b3692f 1-21
+.agents/skills/ew-impeccable/reference/new-work-comp.md
+  h_b23cf7c6b3692f 1-26
+.agents/skills/ew-impeccable/reference/new-work-world.md
+  h_b23cf7c6b3692f 1-22
+.agents/skills/ew-impeccable/reference/new-work.md
+  h_b23cf7c6b3692f 1-128
+.agents/skills/ew-impeccable/reference/onboard.md
+  h_b23cf7c6b3692f 1-237
+.agents/skills/ew-impeccable/reference/operate.md
+  h_b23cf7c6b3692f 1-61
+.agents/skills/ew-impeccable/reference/optimize.md
+  h_b23cf7c6b3692f 1-259
+.agents/skills/ew-impeccable/reference/overdrive.md
+  h_b23cf7c6b3692f 1-129
+.agents/skills/ew-impeccable/reference/polish.md
+  h_b23cf7c6b3692f 1-107
+.agents/skills/ew-impeccable/reference/quieter.md
+  h_b23cf7c6b3692f 1-101
+.agents/skills/ew-impeccable/reference/region-map.md
+  h_b23cf7c6b3692f 1-28
+.agents/skills/ew-impeccable/reference/routing.md
+  h_b23cf7c6b3692f 1-48
+.agents/skills/ew-impeccable/reference/shape.md
+  h_b23cf7c6b3692f 1-59
+.agents/skills/ew-impeccable/reference/typeset.md
+  h_b23cf7c6b3692f 1-98
+.agents/skills/ew-impeccable/reference/visualize.md
+  h_b23cf7c6b3692f 1-49
+.agents/skills/ew-impeccable/scripts/VERSION
+  h_b23cf7c6b3692f 1
+.agents/skills/ew-impeccable/scripts/command-metadata.json
+  h_b23cf7c6b3692f 1-114
+.agents/skills/ew-impeccable/scripts/data/font-index-failures.json
+  h_b23cf7c6b3692f 1-121
+.agents/skills/ew-impeccable/scripts/data/font-index.json
+  h_b23cf7c6b3692f 1
+.agents/skills/ew-impeccable/scripts/engine-checksums.txt
+  h_b23cf7c6b3692f 1-9
+.agents/skills/ew-impeccable/scripts/impeccable
+  h_b23cf7c6b3692f 1-332
+.agents/skills/ew-impeccable/scripts/impeccable.cmd
+  h_b23cf7c6b3692f 1-372
+.agents/skills/ew-impeccable/scripts/impeccable.mjs
+  h_b23cf7c6b3692f 1-742
+.agents/skills/ew-impeccable/scripts/live-browser-dom.js
+  h_b23cf7c6b3692f 1-320
+.agents/skills/ew-impeccable/scripts/live-browser-ignores.js
+  h_b23cf7c6b3692f 1-246
+.agents/skills/ew-impeccable/scripts/live-browser-session.js
+  h_b23cf7c6b3692f 1-183
+.agents/skills/ew-impeccable/scripts/live-browser.js
+  h_b23cf7c6b3692f 1-13901
+.agents/skills/ew-impeccable/scripts/modern-screenshot.umd.js
+  h_b23cf7c6b3692f 1-14
+.agents/skills/ew-knowledge/SKILL.md
+  h_b23cf7c6b3692f 1-38
+.agents/skills/ew-knowledge/references/closeout-protocol.md
+  h_b23cf7c6b3692f 1-90
+.agents/skills/ew-knowledge/references/knowledge-route.md
+  h_b23cf7c6b3692f 1-91
+.agents/skills/ew-knowledge/references/wiki-maintenance.md
+  h_b23cf7c6b3692f 1-41
+.agents/skills/ew-odyssey/SKILL.md
+  h_b23cf7c6b3692f 1-108
+.agents/skills/ew-odyssey/references/audit-artifacts.md
+  h_b23cf7c6b3692f 1-7
+.agents/skills/ew-odyssey/references/odyssey-arch.md
+  h_b23cf7c6b3692f 1-253
+.agents/skills/ew-odyssey/references/odyssey-base.md
+  h_b23cf7c6b3692f 1-144
+.agents/skills/ew-odyssey/references/odyssey-debug.md
+  h_b23cf7c6b3692f 1-253
+.agents/skills/ew-odyssey/references/odyssey-defensive.md
+  h_b23cf7c6b3692f 1-333
+.agents/skills/ew-odyssey/references/odyssey-improve.md
+  h_b23cf7c6b3692f 1-216
+.agents/skills/ew-odyssey/references/odyssey-planex.md
+  h_b23cf7c6b3692f 1-296
+.agents/skills/ew-odyssey/references/odyssey-review.md
+  h_b23cf7c6b3692f 1-216
+.agents/skills/ew-odyssey/references/odyssey-security.md
+  h_b23cf7c6b3692f 1-226
+.agents/skills/ew-odyssey/references/odyssey-ui.md
+  h_b23cf7c6b3692f 1-219
+.agents/skills/ew-odyssey/references/prepare/odyssey-arch.md
+  h_b23cf7c6b3692f 1-88
+.agents/skills/ew-odyssey/references/prepare/odyssey-debug.md
+  h_b23cf7c6b3692f 1-105
+.agents/skills/ew-odyssey/references/prepare/odyssey-defensive.md
+  h_b23cf7c6b3692f 1-115
+.agents/skills/ew-odyssey/references/prepare/odyssey-improve.md
+  h_b23cf7c6b3692f 1-93
+.agents/skills/ew-odyssey/references/prepare/odyssey-planex.md
+  h_b23cf7c6b3692f 1-103
+.agents/skills/ew-odyssey/references/prepare/odyssey-review.md
+  h_b23cf7c6b3692f 1-96
+.agents/skills/ew-odyssey/references/prepare/odyssey-security.md
+  h_b23cf7c6b3692f 1-88
+.agents/skills/ew-odyssey/references/prepare/odyssey-ui.md
+  h_b23cf7c6b3692f 1-89
+.agents/skills/ew-odyssey/references/runtime-adapters.md
+  h_b23cf7c6b3692f 1-50
+.agents/skills/ew-openviking/SKILL.md
+  h_b23cf7c6b3692f 1-42
+.agents/skills/ew-openviking/references/experience.md
+  h_b23cf7c6b3692f 1-72
+.agents/skills/ew-openviking/references/operations.md
+  h_b23cf7c6b3692f 1-78
+.agents/skills/ew-orchestrate/SKILL.md
+  h_b23cf7c6b3692f 1-131
+.agents/skills/ew-orchestrate/references/agent-usage.md
+  h_b23cf7c6b3692f 1-132
+.agents/skills/ew-orchestrate/references/auto-policy.md
+  h_b23cf7c6b3692f 1-80
+.agents/skills/ew-orchestrate/references/boundary-grill.md
+  h_b23cf7c6b3692f 1-51
+.agents/skills/ew-orchestrate/references/companion-route.md
+  h_b23cf7c6b3692f 1-45
+.agents/skills/ew-orchestrate/references/ew-orchestrate.md
+  h_b23cf7c6b3692f 1-60
+.agents/skills/ew-orchestrate/references/goal.md
+  h_b23cf7c6b3692f 1-55
+.agents/skills/ew-orchestrate/references/orchestrator-run-loop.md
+  h_b23cf7c6b3692f 1-82
+.agents/skills/ew-orchestrate/references/planning.md
+  h_b23cf7c6b3692f 1-48
+.agents/skills/ew-orchestrate/references/visual-report.md
+  h_b23cf7c6b3692f 1-71
+.agents/skills/ew-orchestrate/steps/ew-analyze/SKILL.md
+  h_b23cf7c6b3692f 1-82
+.agents/skills/ew-orchestrate/steps/ew-analyze/references/issue-gaps-analyze.md
+  h_b23cf7c6b3692f 1-31
+.agents/skills/ew-orchestrate/steps/ew-analyze/references/prepare.md
+  h_b23cf7c6b3692f 1-8
+.agents/skills/ew-orchestrate/steps/ew-analyze/references/workflow.md
+  h_b23cf7c6b3692f 1-139
+.agents/skills/ew-orchestrate/steps/ew-auto-test/SKILL.md
+  h_b23cf7c6b3692f 1-80
+.agents/skills/ew-orchestrate/steps/ew-auto-test/references/prepare.md
+  h_b23cf7c6b3692f 1-23
+.agents/skills/ew-orchestrate/steps/ew-auto-test/references/workflow.md
+  h_b23cf7c6b3692f 1-31
+.agents/skills/ew-orchestrate/steps/ew-blueprint/SKILL.md
+  h_b23cf7c6b3692f 1-128
+.agents/skills/ew-orchestrate/steps/ew-blueprint/references/prepare.md
+  h_b23cf7c6b3692f 1-21
+.agents/skills/ew-orchestrate/steps/ew-blueprint/references/workflow.md
+  h_b23cf7c6b3692f 1-32
+.agents/skills/ew-orchestrate/steps/ew-brainstorm/SKILL.md
+  h_b23cf7c6b3692f 1-54
+.agents/skills/ew-orchestrate/steps/ew-companion/SKILL.md
+  h_b23cf7c6b3692f 1-50
+.agents/skills/ew-orchestrate/steps/ew-debug/SKILL.md
+  h_b23cf7c6b3692f 1-85
+.agents/skills/ew-orchestrate/steps/ew-debug/references/prepare.md
+  h_b23cf7c6b3692f 1-34
+.agents/skills/ew-orchestrate/steps/ew-debug/references/workflow.md
+  h_b23cf7c6b3692f 1-43
+.agents/skills/ew-orchestrate/steps/ew-execute/SKILL.md
+  h_b23cf7c6b3692f 1-78
+.agents/skills/ew-orchestrate/steps/ew-execute/references/prepare.md
+  h_b23cf7c6b3692f 1-30
+.agents/skills/ew-orchestrate/steps/ew-execute/references/workflow.md
+  h_b23cf7c6b3692f 1-97
+.agents/skills/ew-orchestrate/steps/ew-grill/SKILL.md
+  h_b23cf7c6b3692f 1-68
+.agents/skills/ew-orchestrate/steps/ew-grill/references/prepare.md
+  h_b23cf7c6b3692f 1-29
+.agents/skills/ew-orchestrate/steps/ew-grill/references/workflow.md
+  h_b23cf7c6b3692f 1-35
+.agents/skills/ew-orchestrate/steps/ew-init/SKILL.md
+  h_b23cf7c6b3692f 1-61
+.agents/skills/ew-orchestrate/steps/ew-init/references/prepare.md
+  h_b23cf7c6b3692f 1-27
+.agents/skills/ew-orchestrate/steps/ew-init/references/workflow.md
+  h_b23cf7c6b3692f 1-30
+.agents/skills/ew-orchestrate/steps/ew-plan/SKILL.md
+  h_b23cf7c6b3692f 1-137
+.agents/skills/ew-orchestrate/steps/ew-plan/references/prepare.md
+  h_b23cf7c6b3692f 1-8
+.agents/skills/ew-orchestrate/steps/ew-plan/references/tdd.md
+  h_b23cf7c6b3692f 1-63
+.agents/skills/ew-orchestrate/steps/ew-plan/references/workflow.md
+  h_b23cf7c6b3692f 1-113
+.agents/skills/ew-orchestrate/steps/ew-retrospective/SKILL.md
+  h_b23cf7c6b3692f 1-74
+.agents/skills/ew-orchestrate/steps/ew-retrospective/references/prepare.md
+  h_b23cf7c6b3692f 1-24
+.agents/skills/ew-orchestrate/steps/ew-retrospective/references/workflow.md
+  h_b23cf7c6b3692f 1-44
+.agents/skills/ew-orchestrate/steps/ew-review/SKILL.md
+  h_b23cf7c6b3692f 1-56
+.agents/skills/ew-orchestrate/steps/ew-review/references/prepare.md
+  h_b23cf7c6b3692f 1-21
+.agents/skills/ew-orchestrate/steps/ew-review/references/workflow.md
+  h_b23cf7c6b3692f 1-146
+.agents/skills/ew-orchestrate/steps/ew-roadmap/SKILL.md
+  h_b23cf7c6b3692f 1-68
+.agents/skills/ew-orchestrate/steps/ew-roadmap/references/prepare.md
+  h_b23cf7c6b3692f 1-28
+.agents/skills/ew-orchestrate/steps/ew-roadmap/references/workflow.md
+  h_b23cf7c6b3692f 1-28
+.agents/skills/ew-orchestrate/steps/ew-test/SKILL.md
+  h_b23cf7c6b3692f 1-100
+.agents/skills/ew-orchestrate/steps/ew-test/references/prepare.md
+  h_b23cf7c6b3692f 1-24
+.agents/skills/ew-orchestrate/steps/ew-test/references/workflow.md
+  h_b23cf7c6b3692f 1-24
+.agents/skills/ew-orchestrate/steps/ew-verify/SKILL.md
+  h_b23cf7c6b3692f 1-73
+.agents/skills/ew-orchestrate/steps/ew-verify/references/prepare.md
+  h_b23cf7c6b3692f 1-21
+.agents/skills/ew-orchestrate/steps/ew-verify/references/workflow.md
+  h_b23cf7c6b3692f 1-32
+.agents/skills/ew-prototype/SKILL.md
+  h_b23cf7c6b3692f 1-43
+.agents/skills/ew-prototype/references/logic.md
+  h_b23cf7c6b3692f 1-58
+.agents/skills/ew-prototype/references/ui.md
+  h_b23cf7c6b3692f 1-68
+.agents/skills/ew-skill-design/SKILL.md
+  h_b23cf7c6b3692f 1-37
+.agents/skills/ew-skill-design/references/package-contract.md
+  h_b23cf7c6b3692f 1-52
+.agents/skills/ew-skill-design/references/validation.md
+  h_b23cf7c6b3692f 1-34
+.agents/skills/ew-swarm/SKILL.md
+  h_b23cf7c6b3692f 1-71
+.agents/skills/ew-swarm/references/host-adapters.md
+  h_b23cf7c6b3692f 1-35
+.agents/skills/ew-swarm/references/team-coordination.md
+  h_b23cf7c6b3692f 1-14
+.agents/skills/ew-swarm/roles/analyst/role.md
+  h_b23cf7c6b3692f 1-183
+.agents/skills/ew-swarm/roles/ant/role.md
+  h_b23cf7c6b3692f 1-155
+.agents/skills/ew-swarm/roles/coordinator/commands/converge.md
+  h_b23cf7c6b3692f 1-113
+.agents/skills/ew-swarm/roles/coordinator/commands/init-swarm.md
+  h_b23cf7c6b3692f 1-142
+.agents/skills/ew-swarm/roles/coordinator/commands/iterate.md
+  h_b23cf7c6b3692f 1-188
+.agents/skills/ew-swarm/roles/coordinator/role.md
+  h_b23cf7c6b3692f 1-163
+.agents/skills/ew-swarm/roles/scorer/role.md
+  h_b23cf7c6b3692f 1-157
+.agents/skills/ew-swarm/scripts/aco.py
+  h_b23cf7c6b3692f 1-646
+.agents/skills/ew-swarm/scripts/pheromone.py
+  h_b23cf7c6b3692f 1-144
+.agents/skills/ew-swarm/scripts/scoring.py
+  h_b23cf7c6b3692f 1-111
+.agents/skills/ew-swarm/scripts/test_aco.py
+  h_b23cf7c6b3692f 1-606
+.agents/skills/ew-swarm/specs/ant-output-schema.md
+  h_b23cf7c6b3692f 1-128
+.agents/skills/ew-swarm/specs/convergence-criteria.md
+  h_b23cf7c6b3692f 1-115
+.agents/skills/ew-swarm/specs/pheromone-schema.md
+  h_b23cf7c6b3692f 1-126
+.agents/skills/ew-swarm/specs/swarm-config-template.json
+  h_b23cf7c6b3692f 1-66
+.agents/skills/ew-swarm/specs/swarm-protocol.md
+  h_b23cf7c6b3692f 1-124
+.agents/skills/workflow-evolve/SKILL.md
+  h_b23cf7c6b3692f 1-79
+.agents/skills/workflow-evolve/references/agy-gate.md
+  h_b23cf7c6b3692f 1-57
+.agents/skills/workflow-evolve/references/auto-loop.md
+  h_b23cf7c6b3692f 1-33
+.agents/skills/workflow-evolve/references/history-review.md
+  h_b23cf7c6b3692f 1-16
+.agents/skills/workflow-evolve/scripts/codex-memory-replay.mjs
+  h_b23cf7c6b3692f 1-141
+.agents/skills/workflow-evolve/scripts/codex-replay.mjs
+  h_b23cf7c6b3692f 1
+.agents/skills/workflow-evolve/scripts/evolve-loop.mjs
+  h_b23cf7c6b3692f 1-418
+.agents/skills/workflow-evolve/scripts/memory-codex-cli.mjs
+  h_b23cf7c6b3692f 1-164
+.evolve/install-manifest.json
+  h_b23cf7c6b3692f 1-204
+.openidea/.gitignore
+  h_b23cf7c6b3692f 1-3
+AGENTS.md
+  h_b23cf7c6b3692f 136-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "305a1a9e916ac7c21d4df8288ddbe2a45f9a3e19",
+  "prompts": {},
+  "humans": {
+    "h_b23cf7c6b3692f": {
+      "author": "诏无言 <zhao-wuyan@foxmail.com>"
+    }
+  }
+}
