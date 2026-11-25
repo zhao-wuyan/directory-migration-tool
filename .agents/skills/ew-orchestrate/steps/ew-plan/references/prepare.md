@@ -1,8 +1,0 @@
-# Pre-flight: ew-plan
-
-Confirm inputs, agent topology, and non-negotiable task quality rules before running [workflow](workflow.md) (open [test-first planning](tdd.md) when `--tdd` is active):
-
-- **Input resolution**: read upstream artifacts only via injected `upstream_aliases` (`current-analysis` takes priority; `--gaps` merges issues + `latest-review` + `latest-verification` + `latest-auto-test` + `latest-test` + `uat-log` + `latest-debug`). Fail with `E001` if no usable context exists.
-- **Mode & topology**: `--revise` modifies an existing plan (`--dir` or bound `current-plan`); `--check <dir>` validates read-only; `--tdd` enforces RED -> GREEN -> REFACTOR chains. Topology consumes `current-analysis.scope_verdict`: `small`/`medium` (or `<= 3` modules) -> single planner subagent (`<= 8` tasks); `large` (or `> 3` modules) -> `2+1` split (`<= 16` tasks total); `unknown` -> pause/fail `E001` and require clarification before decomposition (even under `-y`). Inline planning in the main flow is forbidden.
-- **Knowledge reuse**: follow the Run Knowledge Gate (`evolve skill workflows show session-run`): consume bound `session-priors` without re-searching identical scope, query `evolve search "<query>" --mode context` / `evolve kb get <id>` (with CLI `--reads` with `--task plan`) when introducing new paths or categories, and forward resolved Wiki constraints to planners.
-- **Task quality**: one feature = one task (vertical UI slices with `>= 1` `[UI-observable]` criterion per delivery wave; batch trivial `< 5`-minute edits); concrete `action`/`implementation` values (no "align X with Y"); grep/command-verifiable `convergence_criteria[]`; complete `read_first[]`; no same-wave `files[]` write collisions.
