@@ -1,0 +1,178 @@
+MigrationCore/MigrationCore.csproj
+  h_867dc18f6ff205 21-24
+MigrationCore/Models/Ai/AiAgentModels.cs
+  h_867dc18f6ff205 157-189,197,214-216,231-234,249-251
+MigrationCore/Models/Ai/AiAnalysisModels.cs
+  h_867dc18f6ff205 270-281,297-300
+MigrationCore/Models/Ai/AiCleanupAnalysisModels.cs
+  h_867dc18f6ff205 1-156
+MigrationCore/Models/Cleanup/CleanupModels.cs
+  h_867dc18f6ff205 1-448
+MigrationCore/Resources/Rules/application-rules.json
+  h_867dc18f6ff205 1-164
+MigrationCore/Resources/Rules/cleanup-rules.json
+  h_867dc18f6ff205 1-1109
+MigrationCore/Resources/Rules/directory-explanations.json
+  h_867dc18f6ff205 1-427
+MigrationCore/Services/Ai/AiProposalInbox.cs
+  h_867dc18f6ff205 5,29-34,36,257-444
+MigrationCore/Services/Ai/BuiltInAiAgentService.cs
+  h_867dc18f6ff205 81-82,122,128-130,133-140,476,478-480,502-504,589-590,690-785,789-835,847-850,852-878,902,915,927-932,944,952,992-997
+MigrationCore/Services/Ai/IAiAnalysisToolset.cs
+  h_867dc18f6ff205 33-42
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.Cleanup.cs
+  h_867dc18f6ff205 1-427
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.Environment.cs
+  h_867dc18f6ff205 1-365
+MigrationCore/Services/Ai/ReadOnlyAiAnalysisToolset.cs
+  h_867dc18f6ff205 5,8,21,43-47,53-54,63,89-104,114-115,121-123,126,128-131,133-135,148-154,183,192-241,245-255,262
+MigrationCore/Services/Cleanup/BuiltInCleanupRules.cs
+  h_867dc18f6ff205 1-50
+MigrationCore/Services/Cleanup/CleanupChannelAExecutor.cs
+  h_867dc18f6ff205 1-624
+MigrationCore/Services/Cleanup/CleanupExclusionPolicy.cs
+  h_867dc18f6ff205 1-563
+MigrationCore/Services/Cleanup/CleanupOfficialApiHandlers.cs
+  h_867dc18f6ff205 1-751
+MigrationCore/Services/Cleanup/CleanupRootPathResolver.cs
+  h_867dc18f6ff205 1-773
+MigrationCore/Services/Cleanup/CleanupRuleLoader.cs
+  h_867dc18f6ff205 1-388
+MigrationCore/Services/Cleanup/CleanupRuleScanner.cs
+  h_867dc18f6ff205 1-670
+MigrationCore/Services/Cleanup/CleanupService.cs
+  h_867dc18f6ff205 1-574
+MigrationCore/Services/Cleanup/QuarantineStore.cs
+  h_867dc18f6ff205 1-860
+MigrationCore/Services/Cleanup/SystemToolRunner.cs
+  h_867dc18f6ff205 1-315
+MigrationCore/Services/Safety/BuiltInApplicationRules.cs
+  h_867dc18f6ff205 1-3,10,15,17-23,25,27-31,33-34,36-38,40-43,45-86
+MigrationCore/Services/Safety/KnownDirectoryExplainer.cs
+  h_867dc18f6ff205 1-4,29,34-45,92,95-97,100-105,109,113-116,119-123,125-127,131-132,134-135,141,145-154,160-163,174-285
+MigrationCore/Services/Safety/MigrationSafetyPolicy.cs
+  h_867dc18f6ff205 93-94,96-118,267,271,480-481,494-495,587,595,743
+MigrationCore/Services/Safety/ProtectedPathVocabulary.cs
+  h_867dc18f6ff205 1-168
+MigrationCore/Services/Scanning/ScanHotspotAnalyzer.cs
+  h_867dc18f6ff205 1-207
+MigrationCore/Services/SharedWorkspaceStateCache.cs
+  h_867dc18f6ff205 1-441
+MoveWithSymlinkWPF/MainWindow.xaml
+  h_867dc18f6ff205 133-134,143-155,1176-1181
+MoveWithSymlinkWPF/Resources/FluentTheme.xaml
+  h_867dc18f6ff205 76-106,276-307
+MoveWithSymlinkWPF/Resources/QuickMigrateStyles.xaml
+  h_867dc18f6ff205 1-779
+MoveWithSymlinkWPF/ViewModels/Ai/AiChatSessionViewModel.cs
+  h_867dc18f6ff205 1-857
+MoveWithSymlinkWPF/ViewModels/Ai/AiTimelineItemViewModels.cs
+  h_867dc18f6ff205 1-765
+MoveWithSymlinkWPF/ViewModels/AiAssistantViewModel.Config.cs
+  h_867dc18f6ff205 1-274
+MoveWithSymlinkWPF/ViewModels/AiAssistantViewModel.cs
+  h_867dc18f6ff205 6,11,17-20,22,24-38,40-44,46-47,49-52,55-66,68-73,75,77-80,82-84,86-89,91,93-94,97-98,100-101,104,107,110,113,116,119,122,125,128,133,180,220-221,223-234,236-239,253-260,265,271-281,291-292,294-302,304,308,310-312,315,317,319,321,324-327,329,331-332,334,340,343,345,349,351,353-357,359-361,363-366,368,371-374,376,378-380,384-387,389,391,393,397-400,402,404-406,410-413,415-418,420-422,424,426-433,435,439,441-442,445-449,451-455,457-459,462-465,501-512,517-530,549-551,553-554,556-561,564,566-569,571,573,575,577-578,580-581,584,586-593,595,598-601,603-604,606,608,611,614,616-619,621-645,647-657,659-660,662-664,667-700,702-703,705-706,709,711-712,714,716-717,719-736,738-742,744,747-775,779,789-791,795,804,840-932,936-939,943-944,946-949,953-971,973,980,997-998,1001,1003-1004,1006-1009,1012-1015,1018,1020-1023,1026,1028-1032,1034,1036-1038,1041-1045,1048
+MoveWithSymlinkWPF/ViewModels/Cleanup/CleanupItemViewModels.cs
+  h_867dc18f6ff205 1-698
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.AiResidual.cs
+  h_867dc18f6ff205 1-331
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.ExecutionAndQuarantine.cs
+  h_867dc18f6ff205 1-562
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.ScanAndOverview.cs
+  h_867dc18f6ff205 1-805
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.cs
+  h_867dc18f6ff205 1-1064
+MoveWithSymlinkWPF/ViewModels/DiskScan/DiskScanItemViewModels.cs
+  h_867dc18f6ff205 1-360
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.BatchExecution.cs
+  h_867dc18f6ff205 1-643
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.Scanning.cs
+  h_867dc18f6ff205 1-547
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.TreeAndInspector.cs
+  h_867dc18f6ff205 1-767
+MoveWithSymlinkWPF/ViewModels/MainViewModel.ManualWorkflow.cs
+  h_867dc18f6ff205 1-703
+MoveWithSymlinkWPF/ViewModels/MainViewModel.ModeAndRepair.cs
+  h_867dc18f6ff205 1-320
+MoveWithSymlinkWPF/ViewModels/MainViewModel.cs
+  h_867dc18f6ff205 37-40,53-55,63,183-184,215,218-227,251-293,305-309,346-357,391,398,559
+MoveWithSymlinkWPF/Views/AiAssistantDrawerControl.xaml
+  h_867dc18f6ff205 26,34-35,37-49,59,61,77,79,84-116,118-119,122-123,125-126,129-130,132-133,136-137,142,146,150-151,153,168,174,251,286-426,433,447,458-468,490,499,507
+MoveWithSymlinkWPF/Views/AiAssistantDrawerControl.xaml.cs
+  h_867dc18f6ff205 19-24,31-36,41,52-60,62-65,69,71,73,75-76,137-150
+MoveWithSymlinkWPF/Views/AiAssistantPage.xaml
+  h_867dc18f6ff205 8,24,27,29,39-72,74,76-78,80-89,91-111,114-121,123-136,139-242,244,246-248,354,361,424,433,435-437
+MoveWithSymlinkWPF/Views/Cleanup/CleanupAiResidualView.xaml
+  h_867dc18f6ff205 1-277
+MoveWithSymlinkWPF/Views/Cleanup/CleanupAiResidualView.xaml.cs
+  h_867dc18f6ff205 1-11
+MoveWithSymlinkWPF/Views/Cleanup/CleanupQuarantineView.xaml
+  h_867dc18f6ff205 1-238
+MoveWithSymlinkWPF/Views/Cleanup/CleanupQuarantineView.xaml.cs
+  h_867dc18f6ff205 1-23
+MoveWithSymlinkWPF/Views/CleanupConfirmWindow.xaml
+  h_867dc18f6ff205 1-97
+MoveWithSymlinkWPF/Views/CleanupConfirmWindow.xaml.cs
+  h_867dc18f6ff205 1-80
+MoveWithSymlinkWPF/Views/CleanupDetailListWindow.xaml
+  h_867dc18f6ff205 1-190
+MoveWithSymlinkWPF/Views/CleanupDetailListWindow.xaml.cs
+  h_867dc18f6ff205 1-375
+MoveWithSymlinkWPF/Views/CleanupDiskOverviewWindow.xaml
+  h_867dc18f6ff205 1-204
+MoveWithSymlinkWPF/Views/CleanupDiskOverviewWindow.xaml.cs
+  h_867dc18f6ff205 1-136
+MoveWithSymlinkWPF/Views/CleanupPage.xaml
+  h_867dc18f6ff205 1-1266
+MoveWithSymlinkWPF/Views/CleanupPage.xaml.cs
+  h_867dc18f6ff205 1-114
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanBatchExecutionView.xaml
+  h_867dc18f6ff205 1-232
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanBatchExecutionView.xaml.cs
+  h_867dc18f6ff205 1-11
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanMigrationQueueView.xaml
+  h_867dc18f6ff205 1-235
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanMigrationQueueView.xaml.cs
+  h_867dc18f6ff205 1-11
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanVolumeSelectView.xaml
+  h_867dc18f6ff205 1-475
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanVolumeSelectView.xaml.cs
+  h_867dc18f6ff205 1-11
+MoveWithSymlinkWPF/Views/DiskScanPage.xaml
+  h_867dc18f6ff205 8,25-26,392,568-569,571-572
+MoveWithSymlinkWPF/Views/QuarantineDeleteConfirmWindow.xaml
+  h_867dc18f6ff205 1-94
+MoveWithSymlinkWPF/Views/QuarantineDeleteConfirmWindow.xaml.cs
+  h_867dc18f6ff205 1-90
+MoveWithSymlinkWPF/Views/QuickMigratePage.xaml
+  h_867dc18f6ff205 24-28
+test/Phase1UnitTests/Phase2AiCases.cs
+  h_867dc18f6ff205 1150-1458
+test/Phase1UnitTests/Phase3CleanupCases.cs
+  h_867dc18f6ff205 1-1522
+test/Phase1UnitTests/Program.cs
+  h_867dc18f6ff205 40-41
+wiki/entries/entry-4d388b8476.md
+  h_867dc18f6ff205 1-18
+wiki/entries/entry-5842d50801.md
+  h_867dc18f6ff205 1-15
+wiki/entries/entry-b2fde818eb.md
+  h_867dc18f6ff205 1-13
+wiki/entries/entry-c1c0ef16e7.md
+  h_867dc18f6ff205 1-13
+wiki/purpose.md
+  h_867dc18f6ff205 1-7
+wiki/schema.md
+  h_867dc18f6ff205 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fe8c4a6fa9a539e8421bc51ba39f2a87060a47ec",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
