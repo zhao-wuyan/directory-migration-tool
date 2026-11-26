@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources\Rules\*.json" LogicalName="MigrationCore.Rules.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.11.1" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.15" />

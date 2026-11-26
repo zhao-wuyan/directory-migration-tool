@@ -1,0 +1,1266 @@
+<UserControl x:Class="MoveWithSymlinkWPF.Views.CleanupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+             xmlns:vm="clr-namespace:MoveWithSymlinkWPF.ViewModels"
+             xmlns:views="clr-namespace:MoveWithSymlinkWPF.Views"
+             xmlns:cleanupViews="clr-namespace:MoveWithSymlinkWPF.Views.Cleanup"
+             mc:Ignorable="d"
+             d:DesignHeight="640"
+             d:DesignWidth="1000"
+             Background="#F4F6F9"
+             FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
+             UseLayoutRounding="True">
+
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+    </UserControl.Resources>
+
+    <Grid x:Name="CleanupRootGrid" SizeChanged="CleanupRootGrid_OnSizeChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="MainWorkspaceColumn" Width="*" MinWidth="560"/>
+            <ColumnDefinition x:Name="AiDrawerSplitterColumn" Width="0"/>
+            <ColumnDefinition x:Name="AiDrawerColumn" Width="0"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 左侧主清理工作区（承载画板 07 / 08 / 11 三子视图） -->
+        <Grid Grid.Column="0">
+
+            <!-- ========================================================================= -->
+            <!-- 子视图 07：独立垃圾清理 · 三档建议度与谨慎原因提示（对齐 docs/untitled.pen 07） -->
+            <!-- ========================================================================= -->
+            <Grid Margin="18,11"
+                  AutomationProperties.AutomationId="CleanupRulesMainView"
+                  Visibility="{Binding IsRulesMainView, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- S07Head：标题 + 三档图例徽章 + 右侧操作按钮 -->
+                <Grid Grid.Row="0" Margin="0,0,0,9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="独立垃圾清理与系统空间回收" FontSize="18.5" FontWeight="Bold" Foreground="#0F172A"
+                                       VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconCheckCircle}" Width="11" Height="11" Stretch="Uniform"
+                                          Stroke="#0F7B4B" StrokeThickness="2" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="建议清理" FontSize="11" FontWeight="SemiBold" Foreground="#0F7B4B"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconInfo}" Width="11" Height="11" Stretch="Uniform"
+                                          Stroke="#0078D4" StrokeThickness="2" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="按需清理" FontSize="11" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconTriangleAlert}" Width="11" Height="11" Stretch="Uniform"
+                                          Stroke="#B45309" StrokeThickness="2" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="谨慎清理" FontSize="11" FontWeight="SemiBold" Foreground="#B45309"/>
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+                        <TextBlock Text="文件缓存默认移入同卷隔离区（可恢复）；系统组件走官方接口；谨慎项附悬浮与右侧风险说明。"
+                                   FontSize="11.5" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="0,2,8,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Command="{Binding ToggleAiDrawerCommand}"
+                                AutomationProperties.AutomationId="CleanupToggleAiDrawerButton"
+                                Style="{StaticResource FluentSoftPrimaryButtonStyle}"
+                                Height="30" Padding="10,0" Margin="0,0,7,0"
+                                ToolTip="展开或收起右侧 AI 联合诊断抽屉（只读，绝不自动清理）">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform"
+                                      Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="AI 诊断" FontSize="11.5" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding OpenAiResidualViewCommand}"
+                                AutomationProperties.AutomationId="CleanupOpenAiResidualButton"
+                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Background="#FFFBEB" BorderBrush="#FDE68A" Foreground="#B45309"
+                                Height="30" Padding="10,0" Margin="0,0,7,0"
+                                ToolTip="查看规则库外「AI 疑似残留」受限隔离分组（仅通道 A 同卷隔离）">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconBot}" Width="13" Height="13" Stretch="Uniform"
+                                      Stroke="#B45309" StrokeThickness="1.8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding AiResidualButtonText}" FontSize="11.5" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding OpenQuarantineViewCommand}"
+                                AutomationProperties.AutomationId="CleanupOpenQuarantineButton"
+                                Style="{StaticResource FluentSoftPrimaryButtonStyle}"
+                                Height="30" Padding="11,0" Margin="0,0,7,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconShield}" Width="13" Height="13" Stretch="Uniform"
+                                      Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding QuarantineButtonText}" FontSize="12" FontWeight="Medium"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ScanCommand}"
+                                AutomationProperties.AutomationId="CleanupRescanButton"
+                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Height="30" Padding="11,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconRefreshCw}" Width="13" Height="13" Stretch="Uniform"
+                                      Stroke="#0F172A" StrokeThickness="1.8" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ScanActionButtonText}" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- S07Main：三栏布局（左 196px 分类与永久排除 | 中 426px+ 规则列表 | 右 * 风险说明与明细） -->
+                <Grid Grid.Row="1" Margin="0,0,0,9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="196"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="1.25*" MinWidth="360"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*" MinWidth="260"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 左栏 Categories（196px） -->
+                    <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="9">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock Text="{Binding CategoryHeaderText}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="2,0,0,6"/>
+
+                                <ItemsControl ItemsSource="{Binding CategoryNavItems}" IsEnabled="{Binding IsNotExecuting}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Command="{Binding DataContext.SelectCategoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource FluentBareButtonStyle}"
+                                                    Margin="0,0,0,5">
+                                                <Border Background="{Binding CardBg}"
+                                                        BorderBrush="{Binding CardBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="7"
+                                                        Padding="9,7">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Path Width="14" Height="14" Stretch="Uniform" Margin="0,0,7,0" VerticalAlignment="Center"
+                                                              Stroke="{Binding IconStroke}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round">
+                                                            <Path.Style>
+                                                                <Style TargetType="Path">
+                                                                    <Setter Property="Data" Value="{StaticResource IconCpu}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IconKey}" Value="IconRefreshCw">
+                                                                            <Setter Property="Data" Value="{StaticResource IconRefreshCw}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IconKey}" Value="IconLayers">
+                                                                            <Setter Property="Data" Value="{StaticResource IconLayers}"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IconKey}" Value="IconTriangleAlert">
+                                                                            <Setter Property="Data" Value="{StaticResource IconTriangleAlert}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Path.Style>
+                                                        </Path>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="SemiBold" Foreground="{Binding TitleFg}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Subtitle}" FontSize="10.5" Foreground="#64748B" Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- 1px 分割线 -->
+                                <Border Height="1" Background="#E2E8F0" Margin="0,4,0,6"/>
+
+                                <!-- 永久排除区（永不提供勾选入口） -->
+                                <TextBlock Text="永久排除（永不可清理）" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" Margin="2,0,0,5"/>
+
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,5">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconArchive}" Width="12.5" Height="12.5" Stretch="Uniform"
+                                              Stroke="#64748B" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <StackPanel>
+                                            <TextBlock Text="迁移原始备份" FontSize="11" FontWeight="Medium" Foreground="#334155"/>
+                                            <TextBlock Text="仅在备份管理处理" FontSize="10" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,6">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconKeyRound}" Width="12.5" Height="12.5" Stretch="Uniform"
+                                              Stroke="#64748B" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <StackPanel>
+                                            <TextBlock Text="凭据 / 文档 / 模型库" FontSize="11" FontWeight="Medium" Foreground="#334155"/>
+                                            <TextBlock Text="永不触碰用户数据" FontSize="10" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- 中栏 RulesList -->
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- RCH：标题 + 显示谨慎项切换 + 仅勾选建议清理 -->
+                            <DockPanel Grid.Row="0" Margin="0,0,0,7">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" IsEnabled="{Binding IsNotExecuting}">
+                                    <Button Command="{Binding ToggleShowCautionItemsCommand}"
+                                            AutomationProperties.AutomationId="CleanupToggleCautionButton"
+                                            Style="{StaticResource FluentBareButtonStyle}"
+                                            Margin="0,0,6,0">
+                                        <Border Background="{Binding CautionToggleBg}"
+                                                BorderBrush="{Binding CautionToggleBorder}"
+                                                BorderThickness="1" CornerRadius="6" Padding="8,4">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource IconEye}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="{Binding CautionToggleFg}" StrokeThickness="1.8" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding CautionToggleText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding CautionToggleFg}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+
+                                    <Button Command="{Binding SelectRecommendedOnlyCommand}"
+                                            AutomationProperties.AutomationId="CleanupSelectRecommendedButton"
+                                            IsEnabled="{Binding HasSelectableRecommendedInScope}"
+                                            ToolTip="{Binding SelectRecommendedButtonToolTip}"
+                                            ToolTipService.ShowOnDisabled="True"
+                                            Height="26" Padding="10,0" FontSize="11.5">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource FluentSoftPrimaryButtonStyle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrentScopeRecommendedSelected}" Value="True">
+                                                        <Setter Property="Background" Value="#ECFDF5"/>
+                                                        <Setter Property="BorderBrush" Value="#A7F3D0"/>
+                                                        <Setter Property="Foreground" Value="#0F7B4B"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource IconCheckCircle}" Width="12" Height="12" Stretch="Uniform"
+                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                  StrokeThickness="1.9" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding SelectRecommendedButtonText}" FontSize="11.5" FontWeight="Medium"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <TextBlock Text="清理项与建议度（默认全不勾）" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+
+                            <!-- 待扫描引导态（进入页面不自动扫描，由用户主动点击开始；下方展示 79+ 项规则覆盖范围预览） -->
+                            <Grid Grid.Row="1" Margin="0,4,0,0"
+                                  Visibility="{Binding ShowIdleScanPrompt, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- 顶部主引导卡 -->
+                                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="9" Padding="14,12" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,5">
+                                            <Border DockPanel.Dock="Right" Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1"
+                                                    CornerRadius="9" Padding="8,2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <TextBlock Text="{Binding CrossDriveBadgeText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                            </Border>
+                                            <TextBlock Text="准备就绪 · 点击下方按钮开始只读垃圾扫描" FontSize="13.5" FontWeight="Bold" Foreground="#0F172A"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding MftCacheHintText}" FontSize="11.2" Foreground="#475569" TextWrapping="Wrap" LineHeight="17" Margin="0,0,0,10"/>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right"
+                                                    Command="{Binding ScanCommand}"
+                                                    AutomationProperties.AutomationId="CleanupStartScanButton"
+                                                    Style="{StaticResource FluentPrimaryButtonStyle}"
+                                                    Height="32" Padding="16,0" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Path Data="{StaticResource IconPlay}" Width="12" Height="12" Stretch="Uniform"
+                                                          Stroke="#FFFFFF" StrokeThickness="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="开始扫描垃圾" FontSize="12" FontWeight="SemiBold"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="点击左侧分类可预先浏览对应扫描规则" FontSize="11" Foreground="#64748B"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 下方：内置规则覆盖范围能力预览（填满待扫描空态，支持左栏分类联动） -->
+                                <Grid Grid.Row="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Text="{Binding IdleScopeHeaderText}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#64748B" Margin="2,0,0,6" TextTrimming="CharacterEllipsis"/>
+
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding VisibleIdleScopePreviews}"
+                                                      AutomationProperties.AutomationId="CleanupIdleScopePreviewList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8"
+                                                            Padding="10,8" Margin="0,0,0,6">
+                                                        <StackPanel>
+                                                            <DockPanel Margin="0,0,0,4">
+                                                                <Border DockPanel.Dock="Right" Background="{Binding TierBadgeBg}" BorderBrush="{Binding TierBadgeBorder}"
+                                                                        BorderThickness="1" CornerRadius="9" Padding="7,1.5" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding TierBadgeText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding TierBadgeFg}"/>
+                                                                </Border>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Title}" FontSize="11.8" FontWeight="Bold" Foreground="#0F172A"
+                                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                    <Border Background="#F1F5F9" CornerRadius="8" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding RuleCountText}" FontSize="10" FontWeight="SemiBold" Foreground="#475569"/>
+                                                                    </Border>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                            <TextBlock Text="{Binding SampleSummary}" FontSize="10.8" Foreground="#475569"
+                                                                       TextWrapping="Wrap" LineHeight="16"/>
+                                                            <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6"
+                                                                    Padding="6,1.5" Margin="0,5,0,0" HorizontalAlignment="Left"
+                                                                    Visibility="{Binding HasCrossDriveHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="{Binding CrossDriveHint}" FontSize="10" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Grid>
+
+                            <!-- 扫描中实时态势区（进度条 + 3张实时跳动统计卡 + 按体积实时浮现的大项榜单） -->
+                            <Grid Grid.Row="1" Margin="0,4,0,0"
+                                  Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- 顶行：确定性进度条 -->
+                                <Border Grid.Row="0" Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,5">
+                                            <Button DockPanel.Dock="Right" Command="{Binding CancelScanCommand}"
+                                                    AutomationProperties.AutomationId="CleanupCancelScanButton"
+                                                    Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                    Height="24" MinWidth="0" Padding="9,0" FontSize="11">
+                                                <TextBlock Text="取消扫描"/>
+                                            </Button>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="正在只读扫描可清理空间…" FontSize="13" FontWeight="Bold" Foreground="#0078D4" VerticalAlignment="Center"/>
+                                                <Border Background="#FFFFFF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="9" Padding="7,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ScanProgressBadgeText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                                </Border>
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding StatusMessage}" FontSize="11.2" Foreground="#334155" TextTrimming="CharacterEllipsis" Margin="0,0,0,7"/>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ScanProgressPercent}" Height="6" Style="{StaticResource FluentProgressBarStyle}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 中行：3 张实时跳动统计小卡 -->
+                                <UniformGrid Grid.Row="1" Rows="1" Columns="3" Margin="0,0,0,8">
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <TextBlock Text="已发现可清理空间" FontSize="10.5" Foreground="#64748B"/>
+                                            <TextBlock Text="{Binding LiveDiscoveredSizeText}" FontSize="15.5" FontWeight="Bold" Foreground="#0078D4" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <TextBlock Text="已命中规则 / 盘符" FontSize="10.5" Foreground="#64748B"/>
+                                            <TextBlock Text="{Binding LiveHitSummaryText}" FontSize="13.5" FontWeight="Bold" Foreground="#0F172A"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,7">
+                                        <StackPanel>
+                                            <TextBlock Text="自动跳过保护（24h/活跃）" FontSize="10.5" Foreground="#64748B"/>
+                                            <TextBlock Text="{Binding LiveSkippedCountText}" FontSize="13.5" FontWeight="Bold" Foreground="#0F7B4B" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+
+                                <!-- 底行：实时发现的大项榜单（按体积实时排序，最新命中带高亮标签） -->
+                                <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="9,8">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <DockPanel Grid.Row="0" Margin="2,0,2,6">
+                                            <TextBlock DockPanel.Dock="Right" Text="扫描完成后可逐项勾选" FontSize="10.5" Foreground="#64748B"/>
+                                            <TextBlock Text="实时发现的可清理大项（按体积排序）" FontSize="11" FontWeight="SemiBold" Foreground="#334155"/>
+                                        </DockPanel>
+
+                                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                                      Visibility="{Binding HasLiveScanHits, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl ItemsSource="{Binding LiveScanHits}"
+                                                          AutomationProperties.AutomationId="CleanupLiveScanHitsList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="1"
+                                                                CornerRadius="7" Padding="9,6" Margin="0,0,0,5">
+                                                            <DockPanel>
+                                                                <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12" FontWeight="Bold"
+                                                                           Foreground="#0F172A" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                                <StackPanel>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <Border Background="{Binding TierBadgeBg}" BorderBrush="{Binding TierBadgeBorder}"
+                                                                                BorderThickness="1" CornerRadius="7" Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding TierBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding TierBadgeFg}"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11.3" FontWeight="SemiBold" Foreground="#0F172A"
+                                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                        <Border Background="#0EA5E9" CornerRadius="7" Padding="5,0.5" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                                Visibility="{Binding IsLatestHighlight, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <TextBlock Text="刚发现" FontSize="9.5" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0" VerticalAlignment="Center">
+                                                                        <Border Background="{Binding DriveBg}" BorderBrush="{Binding DriveBorder}" BorderThickness="1"
+                                                                                CornerRadius="6" Padding="5,0.5" Margin="0,0,6,0"
+                                                                                Visibility="{Binding HasDrives, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <TextBlock Text="{Binding DrivesText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding DriveFg}"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding CountText}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+
+                                        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                    Visibility="{Binding HasLiveScanHits, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                            <TextBlock Text="正在高速只读检测系统与跨盘缓存…" FontSize="12" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="一旦发现可清理空间，将按体积大小实时在此浮现。" FontSize="11" Foreground="#94A3B8" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- 规则卡片列表（含顶部执行中实时进度条、方案 A 页内完成回执横幅 + 多盘筛选 + 分组/平铺规则） -->
+                            <Grid Grid.Row="1"
+                                  Visibility="{Binding ShowRuleList, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0">
+                                    <!-- 执行中实时进度横幅（后台线程执行 + 逐文件进度 + 可中途取消） -->
+                                    <Border Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7"
+                                            Visibility="{Binding IsExecuting, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            AutomationProperties.AutomationId="CleanupExecutionProgressBanner">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <Button DockPanel.Dock="Right" Command="{Binding CancelExecutionCommand}"
+                                                        AutomationProperties.AutomationId="CleanupCancelExecutionButton"
+                                                        Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                        Height="24" MinWidth="0" Padding="9,0" FontSize="11">
+                                                    <TextBlock Text="取消清理"/>
+                                                </Button>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ExecutionProgressHeader}" FontSize="12.2" FontWeight="Bold" Foreground="#0078D4"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <Border Background="#FFFFFF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="9"
+                                                            Padding="7,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ExecutionProgressBadgeText}" FontSize="10.2" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding ExecutionProgressMessage}" FontSize="11" Foreground="#334155"
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,6"/>
+                                            <ProgressBar Minimum="0" Maximum="100"
+                                                         Value="{Binding ExecutionProgressPercent}"
+                                                         IsIndeterminate="{Binding ExecutionProgressIndeterminate}"
+                                                         Height="6" Style="{StaticResource FluentProgressBarStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 方案 A：清理完成页内回执横幅（不打断连续操作，支持一键看详情 / 进隔离区 / 关闭） -->
+                                    <Border Background="{Binding ExecutionReceiptBg}"
+                                            BorderBrush="{Binding ExecutionReceiptBorder}"
+                                            BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,7"
+                                            Visibility="{Binding HasExecutionReceipt, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            AutomationProperties.AutomationId="CleanupExecutionReceiptBanner">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                <Button Command="{Binding OpenQuarantineViewCommand}"
+                                                        Visibility="{Binding ExecutionReceiptHasQuarantined, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                        Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                        Height="24" MinWidth="0" Padding="8,0" Margin="0,0,5,0" FontSize="10.8">
+                                                    <TextBlock Text="前往隔离区"/>
+                                                </Button>
+                                                <Button Command="{Binding ShowExecutionReceiptDetailsCommand}"
+                                                        AutomationProperties.AutomationId="CleanupShowReceiptDetailsButton"
+                                                        Style="{StaticResource FluentLinkButtonStyle}"
+                                                        FontSize="10.8" Padding="4,0" Margin="0,0,4,0"
+                                                        Content="查看回执"/>
+                                                <Button Command="{Binding DismissExecutionReceiptCommand}"
+                                                        AutomationProperties.AutomationId="CleanupDismissReceiptButton"
+                                                        Style="{StaticResource FluentIconButtonStyle}"
+                                                        Width="22" Height="22" ToolTip="关闭此回执提示">
+                                                    <Path Data="{StaticResource IconX}" Width="10" Height="10" Stretch="Uniform"
+                                                          Stroke="#64748B" StrokeThickness="2"/>
+                                                </Button>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Path Width="14" Height="14" Stretch="Uniform" Margin="0,1,7,0" VerticalAlignment="Top"
+                                                      Stroke="{Binding ExecutionReceiptFg}" StrokeThickness="2">
+                                                    <Path.Style>
+                                                        <Style TargetType="Path">
+                                                            <Setter Property="Data" Value="{StaticResource IconCheckCircle}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ExecutionReceiptIsWarning}" Value="True">
+                                                                    <Setter Property="Data" Value="{StaticResource IconTriangleAlert}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Path.Style>
+                                                </Path>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding ExecutionReceiptTitle}" FontSize="11.8" FontWeight="Bold"
+                                                               Foreground="{Binding ExecutionReceiptFg}"/>
+                                                    <TextBlock Text="{Binding ExecutionReceiptMessage}" FontSize="10.8" Foreground="#334155"
+                                                               TextWrapping="Wrap" LineHeight="15.5" Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                              IsEnabled="{Binding IsNotExecuting}">
+                                <StackPanel>
+                                    <!-- 多盘快捷筛选胶囊（仅当扫描结果涉及 2 个及以上磁盘时自动显示） -->
+                                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,6"
+                                               Visibility="{Binding HasMultipleDrivesInResults, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="按磁盘筛选：" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B"
+                                                   VerticalAlignment="Center" Margin="0,0,4,4"/>
+                                        <ItemsControl ItemsSource="{Binding DriveFilterChips}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding DataContext.SelectDriveFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource FluentBareButtonStyle}"
+                                                            Margin="0,0,5,4">
+                                                        <Border Background="{Binding ChipBg}" BorderBrush="{Binding ChipBorder}"
+                                                                BorderThickness="1" CornerRadius="10" Padding="8,2">
+                                                            <TextBlock Text="{Binding DisplayText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding ChipFg}"/>
+                                                        </Border>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </WrapPanel>
+
+                                    <!-- 分组快捷展开/收起栏（仅当当前视图含软件分组时显示） -->
+                                    <DockPanel Margin="0,0,0,5"
+                                               Visibility="{Binding HasVisibleGroups, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Button DockPanel.Dock="Right"
+                                                Command="{Binding ToggleExpandCollapseAllGroupsCommand}"
+                                                AutomationProperties.AutomationId="CleanupToggleExpandAllGroupsButton"
+                                                Style="{StaticResource FluentLinkButtonStyle}"
+                                                FontSize="11"
+                                                Content="{Binding ExpandCollapseAllGroupsText}"/>
+                                        <TextBlock Text="软件与开发者缓存已按用途分组，点击分组卡片可向下展开单选"
+                                                   FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,6"
+                                            Visibility="{Binding ShowNoVisibleRulesHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="当前分类下未检测到可清理缓存文件，系统或软件已经很干净。" FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap"/>
+                                    </Border>
+
+                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                        <ItemsControl.Resources>
+                                            <!-- 模板 1：可展开软件分组卡片（默认收起，点击展开单选） -->
+                                            <DataTemplate DataType="{x:Type vm:CleanupRuleGroupViewModel}">
+                                                <Border Background="#F8FAFC"
+                                                        BorderBrush="{Binding CardBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="9"
+                                                        Margin="0,0,0,7"
+                                                        Opacity="{Binding CardOpacity}">
+                                                    <StackPanel>
+                                                        <!-- 分组头：三态勾选框 + 展开箭头 + 分组名 + 命中数 + 体积 -->
+                                                        <Border Background="Transparent" Padding="10,8" Cursor="Hand"
+                                                                MouseLeftButtonUp="GroupHeader_OnMouseLeftButtonUp"
+                                                                ToolTip="{Binding ExpandTooltip}">
+                                                            <StackPanel>
+                                                                <DockPanel Margin="0,0,0,3">
+                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A"
+                                                                               Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <CheckBox IsThreeState="True"
+                                                                                  IsChecked="{Binding GroupCheckState, Mode=OneWay}"
+                                                                                  IsEnabled="{Binding CanCheckGroup}"
+                                                                                  VerticalAlignment="Center"
+                                                                                  Margin="0,0,6,0"
+                                                                                  Click="GroupCheckBox_OnClick"/>
+                                                                        <Path Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                              Stroke="#475569" StrokeThickness="2.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round">
+                                                                            <Path.Style>
+                                                                                <Style TargetType="Path">
+                                                                                    <Setter Property="Data" Value="{StaticResource IconChevronRight}"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                                            <Setter Property="Data" Value="{StaticResource IconChevronDown}"/>
+                                                                                            <Setter Property="Stroke" Value="#0078D4"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Path.Style>
+                                                                        </Path>
+                                                                        <TextBlock Text="{Binding GroupTitle}" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
+                                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                        <Border Background="#EEF2F6" CornerRadius="9" Padding="7,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding CountPillText}" FontSize="10" FontWeight="SemiBold" Foreground="#475569"/>
+                                                                        </Border>
+                                                                        <Border Background="{Binding GroupDriveBadgeBg}" BorderBrush="{Binding GroupDriveBadgeBorder}" BorderThickness="1"
+                                                                                CornerRadius="8" Padding="6,1" Margin="5,0,0,0" VerticalAlignment="Center"
+                                                                                Visibility="{Binding HasGroupDriveBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                            <TextBlock Text="{Binding GroupDriveBadgeText}" FontSize="9.8" FontWeight="SemiBold" Foreground="{Binding GroupDriveBadgeFg}"/>
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </DockPanel>
+
+                                                                <!-- 组内命中软件快览 -->
+                                                                <TextBlock Text="{Binding SummaryText}" FontSize="10.8" Foreground="#334155"
+                                                                           TextWrapping="Wrap" LineHeight="16" Margin="22,0,0,5"/>
+
+                                                                <!-- 底行：建议度徽章 + 状态提示 -->
+                                                                <DockPanel Margin="22,0,0,0">
+                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding StatusRightText}" FontSize="10.5" FontWeight="Medium"
+                                                                               Foreground="{Binding StatusRightFg}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                    <Border Background="{Binding TierBadgeBg}" BorderBrush="{Binding TierBadgeBorder}"
+                                                                            BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left">
+                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                            <Path Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                                  Stroke="{Binding TierBadgeFg}" StrokeThickness="2">
+                                                                                <Path.Style>
+                                                                                    <Style TargetType="Path">
+                                                                                        <Setter Property="Data" Value="{StaticResource IconCheckCircle}"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding TierIconKey}" Value="IconInfo">
+                                                                                                <Setter Property="Data" Value="{StaticResource IconInfo}"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Path.Style>
+                                                                            </Path>
+                                                                            <TextBlock Text="{Binding TierBadgeText}" FontSize="10.8" FontWeight="SemiBold" Foreground="{Binding TierBadgeFg}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DockPanel>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- 展开后的组内单款软件列表（支持单独勾选任意几款软件） -->
+                                                        <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0"
+                                                                CornerRadius="0,0,8,8" Padding="10,7,10,4"
+                                                                Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Border Background="{Binding CardBg}"
+                                                                                BorderBrush="{Binding CardBorder}"
+                                                                                BorderThickness="1"
+                                                                                CornerRadius="7"
+                                                                                Padding="9,6"
+                                                                                Margin="0,0,0,5"
+                                                                                Opacity="{Binding CardOpacity}"
+                                                                                Cursor="Hand"
+                                                                                MouseLeftButtonUp="RuleCard_OnMouseLeftButtonUp">
+                                                                            <StackPanel>
+                                                                                <DockPanel Margin="0,0,0,2">
+                                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
+                                                                                               Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                                                                  IsEnabled="{Binding CanCheck}"
+                                                                                                  VerticalAlignment="Center"
+                                                                                                  Margin="0,0,7,0"
+                                                                                                  Click="RuleCheckBox_OnClick"/>
+                                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11.5" FontWeight="SemiBold" Foreground="{Binding TitleFg}"
+                                                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                                        <Border Background="{Binding DriveBadgeBg}" BorderBrush="{Binding DriveBadgeBorder}" BorderThickness="1"
+                                                                                                CornerRadius="7" Padding="5,0.5" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                                                Visibility="{Binding HasDriveBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                                            <TextBlock Text="{Binding DriveBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding DriveBadgeFg}"/>
+                                                                                        </Border>
+                                                                                    </StackPanel>
+                                                                                </DockPanel>
+                                                                                <TextBlock Text="{Binding InlineDescription}" FontSize="10.5" Foreground="#475569"
+                                                                                           TextWrapping="Wrap" LineHeight="15" Margin="22,0,0,4"/>
+                                                                                <DockPanel Margin="22,0,0,0">
+                                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ChannelText}" FontSize="10" FontWeight="Medium"
+                                                                                               Foreground="{Binding ChannelFg}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                                    <Border Background="{Binding TierBadgeBg}" BorderBrush="{Binding TierBadgeBorder}"
+                                                                                            BorderThickness="1" CornerRadius="9" Padding="7,1.5" HorizontalAlignment="Left"
+                                                                                            ToolTip="{Binding CautionHoverTooltip}">
+                                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                            <Path Width="10" Height="10" Stretch="Uniform" Margin="0,0,3.5,0" VerticalAlignment="Center"
+                                                                                                  Stroke="{Binding TierBadgeFg}" StrokeThickness="2">
+                                                                                                <Path.Style>
+                                                                                                    <Style TargetType="Path">
+                                                                                                        <Setter Property="Data" Value="{StaticResource IconCheckCircle}"/>
+                                                                                                        <Style.Triggers>
+                                                                                                            <DataTrigger Binding="{Binding TierIconKey}" Value="IconInfo">
+                                                                                                                <Setter Property="Data" Value="{StaticResource IconInfo}"/>
+                                                                                                            </DataTrigger>
+                                                                                                            <DataTrigger Binding="{Binding TierIconKey}" Value="IconTriangleAlert">
+                                                                                                                <Setter Property="Data" Value="{StaticResource IconTriangleAlert}"/>
+                                                                                                            </DataTrigger>
+                                                                                                        </Style.Triggers>
+                                                                                                    </Style>
+                                                                                                </Path.Style>
+                                                                                            </Path>
+                                                                                            <TextBlock Text="{Binding TierBadgeText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding TierBadgeFg}"/>
+                                                                                        </StackPanel>
+                                                                                    </Border>
+                                                                                </DockPanel>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+
+                                            <!-- 模板 2：平铺规则卡片（系统临时 / 系统更新 / 谨慎清理项） -->
+                                            <DataTemplate DataType="{x:Type vm:CleanupRuleItemViewModel}">
+                                                <Border Background="{Binding CardBg}"
+                                                        BorderBrush="{Binding CardBorder}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="10,7"
+                                                        Margin="0,0,0,6"
+                                                        Opacity="{Binding CardOpacity}"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonUp="RuleCard_OnMouseLeftButtonUp">
+                                                    <StackPanel>
+                                                        <!-- 顶行：勾选框 + 规则名 + 右侧大小 -->
+                                                        <DockPanel Margin="0,0,0,3">
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A"
+                                                                       Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                                          IsEnabled="{Binding CanCheck}"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="0,0,7,0"
+                                                                          Click="RuleCheckBox_OnClick"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="11.8" FontWeight="SemiBold" Foreground="{Binding TitleFg}"
+                                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                <Border Background="{Binding DriveBadgeBg}" BorderBrush="{Binding DriveBadgeBorder}" BorderThickness="1"
+                                                                        CornerRadius="7" Padding="5,0.5" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                        Visibility="{Binding HasDriveBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <TextBlock Text="{Binding DriveBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding DriveBadgeFg}"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </DockPanel>
+
+                                                        <!-- 中行：一句话说明/谨慎后果 -->
+                                                        <TextBlock Text="{Binding InlineDescription}" FontSize="10.8" Foreground="#334155"
+                                                                   TextWrapping="Wrap" LineHeight="16" Margin="22,0,0,5"/>
+
+                                                        <!-- 底行：三档建议度徽章（谨慎项含 ⓘ 悬浮快览）+ 右侧执行通道标签 -->
+                                                        <DockPanel Margin="22,0,0,0">
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding ChannelText}" FontSize="10.5" FontWeight="Medium"
+                                                                       Foreground="{Binding ChannelFg}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                                                            <Border Background="{Binding TierBadgeBg}"
+                                                                    BorderBrush="{Binding TierBadgeBorder}"
+                                                                    BorderThickness="1" CornerRadius="10" Padding="8,2"
+                                                                    HorizontalAlignment="Left"
+                                                                    ToolTip="{Binding CautionHoverTooltip}">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Path Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                          Stroke="{Binding TierBadgeFg}" StrokeThickness="2">
+                                                                        <Path.Style>
+                                                                            <Style TargetType="Path">
+                                                                                <Setter Property="Data" Value="{StaticResource IconCheckCircle}"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding TierIconKey}" Value="IconInfo">
+                                                                                        <Setter Property="Data" Value="{StaticResource IconInfo}"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding TierIconKey}" Value="IconTriangleAlert">
+                                                                                        <Setter Property="Data" Value="{StaticResource IconTriangleAlert}"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Path.Style>
+                                                                    </Path>
+                                                                    <TextBlock Text="{Binding TierBadgeText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding TierBadgeFg}"/>
+                                                                    <Path Data="{StaticResource IconInfo}" Width="11" Height="11" Stretch="Uniform" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                                          Stroke="#B45309" StrokeThickness="1.9"
+                                                                          Visibility="{Binding IsCaution, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DockPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.Resources>
+                                    </ItemsControl>
+
+                                    <!-- 底部未安装/无缓存规则折叠切换条 -->
+                                    <Button Command="{Binding ToggleShowEmptyRulesCommand}"
+                                            AutomationProperties.AutomationId="CleanupToggleEmptyRulesButton"
+                                            Style="{StaticResource FluentBareButtonStyle}"
+                                            Visibility="{Binding HasEmptyRulesInScope, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            Margin="0,2,0,4">
+                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="10,7">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource IconEye}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#64748B" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding EmptyRulesToggleText}" FontSize="11" Foreground="#475569" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+                                </StackPanel>
+                            </ScrollViewer>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- 右栏 CautionDetailDrawer：风险说明 + 自适应高度虚拟化明细列表 + 底部常驻「查看全部」 -->
+                    <Border Grid.Column="4" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="11">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- PVH：抽屉标题 + 选中项档位徽章 -->
+                            <DockPanel Grid.Row="0" Margin="0,0,0,7">
+                                <Border DockPanel.Dock="Right"
+                                        Background="{Binding SelectedRule.TierBadgeBg, FallbackValue=#F8FAFC}"
+                                        BorderBrush="{Binding SelectedRule.TierBadgeBorder, FallbackValue=#E2E8F0}"
+                                        BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center"
+                                        Visibility="{Binding HasSelectedRule, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding SelectedRule.TierBadgeText}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{Binding SelectedRule.TierBadgeFg, FallbackValue=#64748B}"/>
+                                </Border>
+                                <TextBlock Text="{Binding DetailHeaderTitle}" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <!-- 未选中规则时的安全概览与全盘空间态势（未扫描 / 扫描中 / 空分类时展示，彻底消除白板） -->
+                            <ScrollViewer Grid.Row="1" Grid.RowSpan="3"
+                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding HasSelectedRule, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                          AutomationProperties.AutomationId="CleanupRightOverviewPanel">
+                                <StackPanel>
+                                    <!-- 卡片 1：本机磁盘空间概览（默认最多展示 3 块，超过 3 块提供汇总与「查看全部」弹框） -->
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,9" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,7">
+                                                <Button DockPanel.Dock="Right"
+                                                        Command="{Binding OpenAllDisksWindowCommand}"
+                                                        AutomationProperties.AutomationId="CleanupOpenAllDisksTopButton"
+                                                        Style="{StaticResource FluentLinkButtonStyle}"
+                                                        FontSize="10.5" Padding="4,0" Margin="6,0,0,0"
+                                                        Visibility="{Binding HasOverflowDisks, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                        Content="{Binding ViewAllDisksButtonText}"/>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Path Data="{StaticResource IconHardDrive}" Width="12.5" Height="12.5" Stretch="Uniform"
+                                                          Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding DiskOverviewHeaderSummary}" FontSize="11.5" FontWeight="Bold"
+                                                               Foreground="#0F172A" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DockPanel>
+
+                                            <ItemsControl ItemsSource="{Binding TopDiskOverviews}"
+                                                          AutomationProperties.AutomationId="CleanupTopDiskOverviewsList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7"
+                                                                Padding="8,7" Margin="0,0,0,6">
+                                                            <StackPanel>
+                                                                <DockPanel Margin="0,0,0,4">
+                                                                    <Border DockPanel.Dock="Right" Background="{Binding StatusBadgeBg}" BorderBrush="{Binding StatusBadgeBorder}"
+                                                                            BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding StatusBadgeText}" FontSize="9.8" FontWeight="SemiBold" Foreground="{Binding StatusBadgeFg}"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="11.3" FontWeight="Bold" Foreground="#0F172A"
+                                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                </DockPanel>
+
+                                                                <ProgressBar Value="{Binding UsedPercent, Mode=OneWay}" Maximum="100" Height="5"
+                                                                             Foreground="{Binding BarBrush}" Style="{StaticResource FluentProgressBarStyle}"
+                                                                             Margin="0,0,0,4"/>
+
+                                                                <DockPanel>
+                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding UsedPercentText}" FontSize="10" FontWeight="SemiBold"
+                                                                               Foreground="#64748B" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding CapacitySummaryText}" FontSize="10.2" Foreground="#475569"
+                                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                </DockPanel>
+
+                                                                <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                                    <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6"
+                                                                            Padding="5,1" Margin="0,0,4,0"
+                                                                            Visibility="{Binding HasFreshMftCache, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                        <TextBlock Text="{Binding MftBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="#0F7B4B"/>
+                                                                    </Border>
+                                                                    <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6"
+                                                                            Padding="5,1" Margin="0,0,4,0"
+                                                                            Visibility="{Binding HasCrossDriveSources, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                        <TextBlock Text="{Binding CrossDriveBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                                                    </Border>
+                                                                    <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="6"
+                                                                            Padding="5,1"
+                                                                            Visibility="{Binding HasQuarantineData, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                        <TextBlock Text="{Binding QuarantineBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="#B45309"/>
+                                                                    </Border>
+                                                                </WrapPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <!-- 超过 3 块盘时的溢出汇总与弹框入口 -->
+                                            <Button Command="{Binding OpenAllDisksWindowCommand}"
+                                                    AutomationProperties.AutomationId="CleanupOpenAllDisksFooterButton"
+                                                    Style="{StaticResource FluentBareButtonStyle}"
+                                                    Visibility="{Binding HasOverflowDisks, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="8,6">
+                                                    <DockPanel>
+                                                        <TextBlock DockPanel.Dock="Right" Text="查看全部 ›" FontSize="10.5" FontWeight="SemiBold"
+                                                                   Foreground="#0078D4" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding OverflowDisksSummaryText}" FontSize="10.2" Foreground="#1E40AF"
+                                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    </DockPanel>
+                                                </Border>
+                                            </Button>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 卡片 2：四条清理安全底线 -->
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,9" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,7">
+                                                <Path Data="{StaticResource IconShieldCheck}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="#0F7B4B" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="安全清理底线承诺" FontSize="11.5" FontWeight="Bold" Foreground="#0F172A"/>
+                                            </StackPanel>
+
+                                            <DockPanel Margin="0,0,0,5">
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource IconCheckCircle}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#0F7B4B" StrokeThickness="2" Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                                <TextBlock FontSize="10.6" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5">
+                                                    <Run Text="只读扫描 · 默认全不勾：" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                    <Run Text="扫描阶段绝不修改文件，全部由您按档位人工决定。"/>
+                                                </TextBlock>
+                                            </DockPanel>
+
+                                            <DockPanel Margin="0,0,0,5">
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource IconCheckCircle}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#0F7B4B" StrokeThickness="2" Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                                <TextBlock FontSize="10.6" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5">
+                                                    <Run Text="同卷隔离 · 随时可恢复：" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                    <Run Text="文件缓存默认先原子移入同卷隔离区，确认无碍后再手动释放空间。"/>
+                                                </TextBlock>
+                                            </DockPanel>
+
+                                            <DockPanel Margin="0,0,0,5">
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource IconCheckCircle}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="2" Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                                <TextBlock FontSize="10.6" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5">
+                                                    <Run Text="运行阻断 + 24h 保护：" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                    <Run Text="自动跳过正在运行的软件与 24 小时内新建临时文件，不强杀进程。"/>
+                                                </TextBlock>
+                                            </DockPanel>
+
+                                            <DockPanel>
+                                                <Path DockPanel.Dock="Left" Data="{StaticResource IconCheckCircle}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="2" Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                                <TextBlock FontSize="10.6" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5">
+                                                    <Run Text="执行前严格复核：" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                    <Run Text="清理前实时核对快照与修改时间，宁漏勿错、绝不多删。"/>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 卡片 3：跨盘扫描支持与隔离区 / AI 协同 -->
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,9">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,5">
+                                                <Path Data="{StaticResource IconSparkles}" Width="12.5" Height="12.5" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="多盘清理与 AI 辅助" FontSize="11.5" FontWeight="Bold" Foreground="#0F172A"/>
+                                            </StackPanel>
+
+                                            <TextBlock Text="{Binding CrossDriveSummaryText}" FontSize="10.5" Foreground="#475569"
+                                                       TextWrapping="Wrap" LineHeight="15.5" Margin="0,0,0,7"/>
+
+                                            <WrapPanel Orientation="Horizontal">
+                                                <Button Command="{Binding OpenQuarantineViewCommand}"
+                                                        Style="{StaticResource FluentBareButtonStyle}" Margin="0,0,6,4">
+                                                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="8,3.5">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Path Data="{StaticResource IconShield}" Width="11" Height="11" Stretch="Uniform"
+                                                                  Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding QuarantineButtonText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#334155"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Button>
+                                                <Button Command="{Binding ToggleAiDrawerCommand}"
+                                                        Style="{StaticResource FluentBareButtonStyle}" Margin="0,0,0,4">
+                                                    <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="8,3.5">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Path Data="{StaticResource IconBot}" Width="11" Height="11" Stretch="Uniform"
+                                                                  Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="打开 AI 只读诊断" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Button>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <!-- 顶部安全/风险说明卡（高度受控，窗口较小时独立滚出，绝不挤压下方明细列表） -->
+                            <ScrollViewer Grid.Row="1" MaxHeight="210" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding HasSelectedRule, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel>
+                                    <!-- 琥珀色「为什么这一项需要谨慎清理？」结构化风险卡（对齐画板 07 WhyCautionCard） -->
+                                    <Border Background="#FFFBEB" BorderBrush="#B45309" BorderThickness="1" CornerRadius="8" Padding="9" Margin="0,0,0,8"
+                                            Visibility="{Binding SelectedRuleIsCaution, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,5">
+                                                <Path Data="{StaticResource IconTriangleAlert}" Width="14" Height="14" Stretch="Uniform"
+                                                      Stroke="#B45309" StrokeThickness="2" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="为什么这一项需要谨慎清理？" FontSize="12" FontWeight="Bold" Foreground="#B45309"/>
+                                            </StackPanel>
+                                            <TextBlock FontSize="10.8" Foreground="#334155" TextWrapping="Wrap" LineHeight="16" Margin="0,0,0,4">
+                                                <Run Text="风险原因：" FontWeight="SemiBold" Foreground="#92400E"/>
+                                                <Run Text="{Binding SelectedRule.Rule.CautionReason.RiskCause, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="10.8" Foreground="#334155" TextWrapping="Wrap" LineHeight="16" Margin="0,0,0,4">
+                                                <Run Text="可能影响：" FontWeight="SemiBold" Foreground="#92400E"/>
+                                                <Run Text="{Binding SelectedRule.Rule.CautionReason.PossibleImpact, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock FontSize="10.8" Foreground="#334155" TextWrapping="Wrap" LineHeight="16">
+                                                <Run Text="保护策略：" FontWeight="SemiBold" Foreground="#92400E"/>
+                                                <Run Text="{Binding SelectedRule.Rule.CautionReason.ProtectionStrategy, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 1/2 档普通清理项说明卡 -->
+                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="9" Margin="0,0,0,8"
+                                            Visibility="{Binding SelectedRuleIsCaution, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SelectedRule.DisplayName}" FontSize="12" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding SelectedRule.Rule.CostAndReclaimNote}" FontSize="10.8" Foreground="#334155" TextWrapping="Wrap" LineHeight="16" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding SelectedRule.StatusNote}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <!-- 冻结候选明细卡：占满全部剩余高度（最大化/还原/缩放自动适配可见行数，严格虚拟化零卡顿，查看全部固定悬浮于底边） -->
+                            <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8"
+                                    Visibility="{Binding HasSelectedRule, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 表头 -->
+                                    <Border Grid.Row="0" Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" CornerRadius="7,7,0,0" Padding="9,5">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="类型 · 大小" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B" Margin="8,0,0,0"/>
+                                            <TextBlock Text="{Binding SelectedRule.PreviewHeaderSummary}" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <!-- 虚拟化明细列表（自动填满窗口剩余高度，仅渲染当前可见行，切换/最大化/滚动均零卡顿） -->
+                                    <ListView Grid.Row="1"
+                                              ItemsSource="{Binding SelectedRule.PreviewRows}"
+                                              Visibility="{Binding HasSelectedPreviewItems, Converter={StaticResource BoolToVisibilityConverter}}"
+                                              BorderThickness="0"
+                                              Background="Transparent"
+                                              ScrollViewer.CanContentScroll="True"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              VirtualizingPanel.ScrollUnit="Pixel"
+                                              AutomationProperties.AutomationId="CleanupInlinePreviewList">
+                                        <ListView.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                                            </ItemsPanelTemplate>
+                                        </ListView.ItemsPanel>
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem">
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="Margin" Value="0"/>
+                                                <Setter Property="Height" Value="28"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Focusable" Value="False"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListViewItem">
+                                                            <Border x:Name="rowBd" Background="{TemplateBinding Background}" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="9,0">
+                                                                <ContentPresenter VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="rowBd" Property="Background" Value="#F1F5F9"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel VerticalAlignment="Center">
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding TypeAndSizeText}" FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="{Binding AccentFg}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="10.5" Foreground="#0F172A"
+                                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding FullPath}" VerticalAlignment="Center"/>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+
+                                    <TextBlock Grid.Row="1" Text="当前未扫描到可清理明细或已全部跳过保护。" FontSize="10.8" Foreground="#64748B" Padding="9,12" VerticalAlignment="Top"
+                                               Visibility="{Binding HasSelectedPreviewItems, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                                    <!-- 底部常驻「查看全部与搜索」悬浮底栏（始终紧贴明细框底边，绝不随滚动消失、绝不留大块空白） -->
+                                    <Button Grid.Row="2"
+                                            Command="{Binding OpenSelectedRuleDetailsCommand}"
+                                            AutomationProperties.AutomationId="CleanupOpenAllDetailsButton"
+                                            Style="{StaticResource FluentBareButtonStyle}"
+                                            Visibility="{Binding SelectedRule.HasAnyDetailItems, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" CornerRadius="0,0,7,7" Padding="10,7">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource IconSearch}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="#0078D4" StrokeThickness="2" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding SelectedRule.ViewAllDetailsFooterText}" FontSize="11" FontWeight="SemiBold" Foreground="#0078D4"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <!-- 深色悬浮快览提示条（对齐画板 07 HoverTooltipDemo #1E293B） -->
+                            <Border Grid.Row="3" Background="#1E293B" CornerRadius="7" Padding="10,7" Margin="0,7,0,0"
+                                    Visibility="{Binding HasSelectedRule, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <DockPanel>
+                                    <Path DockPanel.Dock="Left" Data="{StaticResource IconMousePointerClick}" Width="13" Height="13" Stretch="Uniform"
+                                          Stroke="#FDE68A" StrokeThickness="1.8" Margin="0,1,7,0" VerticalAlignment="Top"/>
+                                    <TextBlock Text="{Binding SelectedRule.CautionHoverTooltip}" FontSize="10.5" Foreground="#F8FAFC" TextWrapping="Wrap" LineHeight="15"/>
+                                </DockPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- S07Foot：底部固定勾选汇总与执行按钮 -->
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="9" Padding="14,8">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Command="{Binding ExecuteSelectedCleanupCommand}"
+                                AutomationProperties.AutomationId="CleanupExecuteSelectedButton"
+                                IsEnabled="{Binding CanExecuteSelected}"
+                                Style="{StaticResource FluentPrimaryButtonStyle}"
+                                Height="30" Padding="13,0" Margin="12,0,0,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconShield}" Width="13.5" Height="13.5" Stretch="Uniform"
+                                      Stroke="#FFFFFF" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ExecuteButtonText}" FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconShieldCheck}" Width="15" Height="15" Stretch="Uniform"
+                                  Stroke="#0F7B4B" StrokeThickness="1.9" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding FooterSelectionSummary}" FontSize="12" Foreground="#334155" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- 子视图 08：清理隔离区（已拆分至 Views/Cleanup/CleanupQuarantineView.xaml） -->
+            <cleanupViews:CleanupQuarantineView/>
+
+            <!-- 子视图 11：AI 疑似残留与免责二次确认（已拆分至 Views/Cleanup/CleanupAiResidualView.xaml） -->
+            <cleanupViews:CleanupAiResidualView/>
+        </Grid>
+
+        <!-- 可拖动分栏条（展开右侧 AI 抽屉时显示） -->
+        <GridSplitter Grid.Column="1"
+                      Style="{StaticResource FluentVerticalGridSplitterStyle}"
+                      DragCompleted="AiDrawerSplitter_OnDragCompleted"
+                      Visibility="{Binding IsAiDrawerOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+        <!-- 右侧可折叠共享 AI 分析助手抽屉（锁定垃圾清理独立会话） -->
+        <views:AiAssistantDrawerControl Grid.Column="2"
+                                        Margin="0,11,14,11"
+                                        DataContext="{Binding AiAssistant.CleanupSession}"
+                                        ShowCloseButton="True"
+                                        Visibility="{Binding DataContext.IsAiDrawerOpen, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+    </Grid>
+</UserControl>

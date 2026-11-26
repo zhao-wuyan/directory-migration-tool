@@ -3,499 +3,134 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models.Ai;
+using MigrationCore.Models.Cleanup;
 using MigrationCore.Models.Safety;
 using MigrationCore.Models.Scanning;
 using MigrationCore.Services;
 using MigrationCore.Services.Ai;
+using MigrationCore.Services.Scanning;
 using MoveWithSymlinkWPF.Helpers;
 
 namespace MoveWithSymlinkWPF.ViewModels;
 
 /// <summary>
-/// AI 预设服务商胶囊按钮模型（对齐 docs/untitled.pen 画板 10 ProviderPresets）。
-/// </summary>
-public partial class AiPresetChipItem : ObservableObject
-{
-    public AiProviderPresetDefinition Definition { get; }
-    public AiProviderPreset Preset => Definition.Preset;
-    public string DisplayName => Definition.DisplayName;
-    public string HintText => Definition.HintText;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChipTag))]
-    private bool _isSelected;
-
-    public string ChipTag => IsSelected ? "Active" : string.Empty;
-
-    public AiPresetChipItem(AiProviderPresetDefinition definition) => Definition = definition;
-}
-
-/// <summary>
-/// 当前共享给内置 AI 的扫描快照脱敏热点目录行（对齐画板 10 ScanSnapshotSummary）。
-/// </summary>
-public sealed class AiContextHotspotRow
-{
-    public int NodeId { get; init; }
-    public string DisplayName { get; init; } = string.Empty;
-    public string SanitizedPath { get; init; } = string.Empty;
-    public string SizeText { get; init; } = string.Empty;
-    public MigrationAdmissionLevel Level { get; init; }
-    public string BadgeText { get; init; } = string.Empty;
-    public string BadgeBg { get; init; } = "#ECFDF5";
-    public string BadgeBorder { get; init; } = "#A7F3D0";
-    public string BadgeFg { get; init; } = "#0F7B4B";
-}
-
-/// <summary>
-/// 抽屉中渲染的结构化建议卡片（绿色迁移建议 / 琥珀色疑似残留或原生引导 / 红色 L0 自动拦截）。
-/// </summary>
-public partial class AiProposalCardItem : ObservableObject
-{
-    public Guid ProposalId { get; init; }
-    public Guid ScanId { get; init; }
-    public int NodeId { get; init; }
-    public string DisplayName { get; init; } = string.Empty;
-    public string SanitizedPath { get; init; } = string.Empty;
-    public string ActualLocalPath { get; init; } = string.Empty;
-    public string SizeText { get; init; } = string.Empty;
-    public string Reason { get; init; } = string.Empty;
-    public string VerdictMessage { get; init; } = string.Empty;
-    public string? SuggestedTargetPath { get; init; }
-    public MigrationAdmissionLevel AdmissionLevel { get; init; }
-    public AiProposalItemVerdict Verdict { get; init; }
-    public bool IsAdoptableToMigrationPlan { get; init; }
-    public bool IsBlockedByPolicy => Verdict == AiProposalItemVerdict.RejectedByPolicy;
-    public bool IsSuspectedCacheAdvisory { get; init; }
-    public bool IsNativeGuideAdvisory { get; init; }
-    public bool IsL2NativeGuide => !IsBlockedByPolicy && (AdmissionLevel == MigrationAdmissionLevel.VendorNativeRecommended || IsNativeGuideAdvisory);
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AdoptButtonText))]
-    [NotifyPropertyChangedFor(nameof(CanAdopt))]
-    private bool _isAdopted;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanAdopt))]
-    private bool _isInvalidated;
-
-    public bool CanAdopt => IsAdoptableToMigrationPlan && !IsAdopted && !IsInvalidated;
-
-    public string CardTitle => IsBlockedByPolicy
-        ? $"已自动拦截高危建议 · {DisplayName}"
-        : IsSuspectedCacheAdvisory
-            ? $"AI 疑似残留 · {DisplayName}"
-            : IsL2NativeGuide
-                ? $"L2 原生引导 · {DisplayName}"
-                : $"建议迁移 · {DisplayName}";
-
-    public string CardBg => IsBlockedByPolicy ? "#FEF2F2"
-        : (IsSuspectedCacheAdvisory || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#FFFBEB"
-        : "#ECFDF5";
-
-    public string CardBorder => IsBlockedByPolicy ? "#FECACA"
-        : (IsSuspectedCacheAdvisory || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#FDE68A"
-        : "#A7F3D0";
-
-    public string CardAccentFg => IsBlockedByPolicy ? "#C42B1C"
-        : (IsSuspectedCacheAdvisory || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#B45309"
-        : "#0F7B4B";
-
-    public string AdoptButtonText => IsInvalidated
-        ? "快照已变更（建议失效）"
-        : IsAdopted
-            ? "✓ 已加入待迁移清单"
-            : AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm
-                ? "+ 加入待迁移清单（L3 需人工确认）"
-                : "+ 加入待迁移清单（不立即执行）";
-
-    public bool ShowLocateButton => !IsBlockedByPolicy && !IsAdoptableToMigrationPlan && NodeId > 0;
-}
-
-/// <summary>
-/// 单条工具调用轨迹视图模型（兼容保留）。
-/// </summary>
-public sealed class AiTraceRowItem
-{
-    public string Prefix { get; init; } = "✓";
-    public string Text { get; init; } = string.Empty;
-    public string Foreground { get; init; } = "#64748B";
-}
-
-/// <summary>
-/// AI 执行时间线单步基类（按真实发生顺序交错呈现思考过程、工具调用与系统提示）。
-/// </summary>
-public abstract partial class AiTimelineStepItem : ObservableObject
-{
-}
-
-/// <summary>
-/// 时间线中的单段模型思考过程（与前后工具调用严格按发生顺序分段，支持折叠预览与点击展开）。
-/// </summary>
-public partial class AiThinkingStepItem : AiTimelineStepItem
-{
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PreviewText))]
-    private string _text = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HeaderText))]
-    [NotifyPropertyChangedFor(nameof(AccentForeground))]
-    private bool _isStreaming = true;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChevronGlyph))]
-    private bool _isExpanded;
-
-    public string HeaderText => IsStreaming ? "思考中…" : "思考过程";
-    public string AccentForeground => IsStreaming ? "#0078D4" : "#64748B";
-    public string ChevronGlyph => IsExpanded ? "⌄" : "›";
-
-    public string PreviewText
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(Text)) return string.Empty;
-            string compact = string.Join(" ", Text
-                .Replace("\r\n", "\n", StringComparison.Ordinal)
-                .Replace('\r', '\n')
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-            return compact.Length > 140 ? compact[..140] + "…" : compact;
-        }
-    }
-}
-
-/// <summary>
-/// 时间线中的单次只读工具调用（默认精简单行显示“调用 xxx 工具”，点击后展开参数与结果详情）。
-/// </summary>
-public partial class AiToolCallStepItem : AiTimelineStepItem
-{
-    public int StepNumber { get; init; }
-    public string ToolName { get; init; } = string.Empty;
-    public string FriendlyLabel { get; init; } = string.Empty;
-    public string ArgumentsSummary { get; init; } = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusGlyph))]
-    [NotifyPropertyChangedFor(nameof(StatusColor))]
-    [NotifyPropertyChangedFor(nameof(TitleForeground))]
-    [NotifyPropertyChangedFor(nameof(RightMetaText))]
-    [NotifyPropertyChangedFor(nameof(DetailHeaderText))]
-    private bool _isRunning = true;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusGlyph))]
-    [NotifyPropertyChangedFor(nameof(StatusColor))]
-    [NotifyPropertyChangedFor(nameof(TitleForeground))]
-    [NotifyPropertyChangedFor(nameof(RightMetaText))]
-    [NotifyPropertyChangedFor(nameof(ResultForeground))]
-    private bool _succeeded = true;
-
-    [ObservableProperty]
-    private string _resultSummary = "执行中…";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResultPayload))]
-    private string _resultPayload = string.Empty;
-
-    public bool HasResultPayload => !string.IsNullOrWhiteSpace(ResultPayload);
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RightMetaText))]
-    [NotifyPropertyChangedFor(nameof(DetailHeaderText))]
-    private long _elapsedMilliseconds;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChevronGlyph))]
-    private bool _isExpanded;
-
-    /// <summary>默认单行展示文案：简洁呈现调用了哪个工具。</summary>
-    public string CompactTitle => $"调用 {ToolName} 工具";
-
-    /// <summary>参考极简列表风格的短动词标签（如「获取概览」「钻入目录」「查询候选」）。</summary>
-    public string ActionVerb => ResolveActionVerb(ToolName);
-
-    /// <summary>单行右侧主目标文案：展示工具名与精简关键参数（省略冗长 scanId）。</summary>
-    public string CompactTarget => BuildCompactTarget(ToolName, ArgumentsSummary);
-
-    public string StatusGlyph => IsRunning ? "⋯" : (Succeeded ? "✓" : "✕");
-    public string StatusColor => IsRunning ? "#0078D4" : (Succeeded ? "#0F7B4B" : "#C42B1C");
-    public string TitleForeground => !IsRunning && !Succeeded ? "#C42B1C" : "#1E293B";
-    public string ResultForeground => !IsRunning && !Succeeded ? "#C42B1C" : "#334155";
-    public string ChevronGlyph => IsExpanded ? "⌄" : "›";
-
-    public string RightMetaText => IsRunning
-        ? "执行中…"
-        : !Succeeded
-            ? "失败"
-            : ElapsedMilliseconds >= 1000
-                ? $"{ElapsedMilliseconds / 1000.0:F1}s"
-                : ElapsedMilliseconds > 0
-                    ? $"{ElapsedMilliseconds}ms"
-                    : string.Empty;
-
-    public string DetailHeaderText => string.IsNullOrWhiteSpace(FriendlyLabel)
-        ? $"第 {StepNumber} 步 · {ToolName}"
-        : $"第 {StepNumber} 步 · {FriendlyLabel}（{ToolName}）";
-
-    public string DisplayArguments => string.IsNullOrWhiteSpace(ArgumentsSummary)
-        ? "（无参数）"
-        : ArgumentsSummary;
-
-    public static string ResolveActionVerb(string toolName) => toolName switch
-    {
-        "get_capabilities" => "查询能力",
-        "get_system_environment" => "查询环境",
-        "list_scans" => "列出快照",
-        "get_scan_summary" => "获取概览",
-        "list_directory_children" => "钻入目录",
-        "list_migration_candidates" => "查询候选",
-        "get_candidate_details" => "查看详情",
-        "inspect_unknown_directory_metadata" => "分析画像",
-        "get_migration_policy" => "读取策略",
-        "submit_migration_proposal" => "提交建议",
-        "get_proposal_status" => "查询状态",
-        _ => "调用工具"
-    };
-
-    private static string BuildCompactTarget(string toolName, string? argumentsSummary)
-    {
-        if (string.IsNullOrWhiteSpace(argumentsSummary))
-        {
-            return toolName;
-        }
-
-        // 过滤掉冗长的 scanId=xxxx-xxxx-...，仅保留直观关键参数，保持单行清爽易读
-        string[] meaningful = argumentsSummary
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(part => !part.StartsWith("scanId=", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-        return meaningful.Length == 0
-            ? toolName
-            : $"{toolName} ({string.Join(", ", meaningful)})";
-    }
-
-    public static string ResolveFriendlyLabel(string toolName) => toolName switch
-    {
-        "get_capabilities" => "查询只读分析能力",
-        "get_system_environment" => "获取脱敏系统与磁盘环境信息",
-        "list_scans" => "列出扫描快照",
-        "get_scan_summary" => "获取磁盘扫描概览",
-        "list_directory_children" => "钻入查看子目录",
-        "list_migration_candidates" => "查询可迁移候选",
-        "get_candidate_details" => "查看目录安全详情",
-        "inspect_unknown_directory_metadata" => "分析未知目录元数据",
-        "get_migration_policy" => "读取 4 级安全策略",
-        "submit_migration_proposal" => "提交建议卡片",
-        "get_proposal_status" => "查询建议状态",
-        _ => "只读工具调用"
-    };
-}
-
-/// <summary>
-/// 连续工具调用聚合分组（在时间线中将相邻的工具调用收拢为一行汇总 + 可折叠细竖线子列表）。
-/// </summary>
-public partial class AiToolBatchStepItem : AiTimelineStepItem
-{
-    public ObservableCollection<AiToolCallStepItem> Items { get; } = [];
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ChevronGlyph))]
-    private bool _isExpanded = true;
-
-    public string ChevronGlyph => IsExpanded ? "⌄" : "›";
-
-    public bool HasRunningItem => Items.Any(i => i.IsRunning);
-
-    public string HeaderForeground => HasRunningItem ? "#0078D4" : "#475569";
-
-    public string SummaryText
-    {
-        get
-        {
-            if (Items.Count == 0) return "只读工具调用";
-
-            AiToolCallStepItem? running = Items.LastOrDefault(i => i.IsRunning);
-            if (running is not null)
-            {
-                return Items.Count == 1
-                    ? $"正在{running.ActionVerb}（{running.ToolName}）…"
-                    : $"正在{running.ActionVerb}…（本组共 {Items.Count} 项）";
-            }
-
-            var parts = new List<string>();
-            int envCount = Items.Count(i => i.ToolName == "get_system_environment");
-            int summaryCount = Items.Count(i => i.ToolName is "get_scan_summary" or "list_scans" or "get_capabilities");
-            int drillCount = Items.Count(i => i.ToolName == "list_directory_children");
-            int candidateCount = Items.Count(i => i.ToolName == "list_migration_candidates");
-            int detailCount = Items.Count(i => i.ToolName == "get_candidate_details");
-            int inspectCount = Items.Count(i => i.ToolName == "inspect_unknown_directory_metadata");
-            int policyCount = Items.Count(i => i.ToolName == "get_migration_policy");
-            int proposalCount = Items.Count(i => i.ToolName is "submit_migration_proposal" or "get_proposal_status");
-            int otherCount = Items.Count - (envCount + summaryCount + drillCount + candidateCount + detailCount + inspectCount + policyCount + proposalCount);
-
-            if (envCount > 0) parts.Add(envCount == 1 ? "获取系统环境" : $"查询环境 {envCount} 次");
-            if (summaryCount > 0) parts.Add(summaryCount == 1 ? "获取扫描概览" : $"获取概览 {summaryCount} 次");
-            if (policyCount > 0) parts.Add(policyCount == 1 ? "读取安全策略" : $"读取策略 {policyCount} 次");
-            if (candidateCount > 0) parts.Add(candidateCount == 1 ? "查询迁移候选" : $"查询候选 {candidateCount} 次");
-            if (drillCount > 0) parts.Add($"钻入 {drillCount} 个目录");
-            if (detailCount > 0) parts.Add($"查看 {detailCount} 项详情");
-            if (inspectCount > 0) parts.Add($"画像 {inspectCount} 个未知目录");
-            if (proposalCount > 0) parts.Add($"提交 {proposalCount} 项建议");
-            if (otherCount > 0) parts.Add($"调用 {otherCount} 次工具");
-
-            string body = "已" + string.Join("、", parts);
-            int failedCount = Items.Count(i => !i.Succeeded);
-            return failedCount > 0 ? $"{body}（{failedCount} 项未通过）" : body;
-        }
-    }
-
-    public void AddItem(AiToolCallStepItem item)
-    {
-        Items.Add(item);
-        RefreshSummary();
-    }
-
-    public void RefreshSummary()
-    {
-        OnPropertyChanged(nameof(HasRunningItem));
-        OnPropertyChanged(nameof(HeaderForeground));
-        OnPropertyChanged(nameof(SummaryText));
-    }
-}
-
-/// <summary>
-/// 时间线中的 AI 文字输出段（包含工具调用前的过程说明以及最终 Markdown 结论，按真实发生顺序穿插显示）。
-/// </summary>
-public partial class AiAssistantMessageStepItem : AiTimelineStepItem
-{
-    [ObservableProperty]
-    private string _text = string.Empty;
-
-    [ObservableProperty]
-    private bool _isStreaming = true;
-}
-
-/// <summary>
-/// 时间线中的系统纠偏或安全提示条目（如复读死循环自动恢复提示）。
-/// </summary>
-public sealed class AiNoticeStepItem : AiTimelineStepItem
-{
-    public string Prefix { get; init; } = "⚠";
-    public string Message { get; init; } = string.Empty;
-    public string Foreground { get; init; } = "#B45309";
-}
-
-/// <summary>
-/// 聊天与受控工具调用轮次卡片（纯文本渲染，严禁超链接执行）。
-/// </summary>
-public partial class AiConversationTurnItem : ObservableObject
-{
-    public string UserPrompt { get; init; } = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TraceHeaderText))]
-    private int _stepsUsed;
-
-    /// <summary>配置的步数上限（0 表示不限制）。</summary>
-    public int MaxSteps { get; init; } = AiProviderSettings.DefaultMaxToolSteps;
-
-    [ObservableProperty]
-    private string _statusBadgeText = "分析中…";
-
-    [ObservableProperty]
-    private string _statusBadgeFg = "#0078D4";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasThinkingText))]
-    private string _thinkingText = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasAssistantText))]
-    private string _assistantText = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasErrorText))]
-    private string _errorText = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasToolActivity;
-
-    public ObservableCollection<AiTimelineStepItem> TimelineItems { get; } = [];
-    public ObservableCollection<AiTraceRowItem> Traces { get; } = [];
-    public ObservableCollection<AiProposalCardItem> ProposalCards { get; } = [];
-
-    public bool HasTimelineItems => TimelineItems.Count > 0;
-
-    public string TraceHeaderText
-    {
-        get
-        {
-            if (StepsUsed <= 0)
-            {
-                return "AI 只读分析（已脱敏）";
-            }
-            return MaxSteps > 0
-                ? $"AI 只读分析 · 已调用 {StepsUsed} / {MaxSteps} 次工具"
-                : $"AI 只读分析 · 已调用 {StepsUsed} 次工具";
-        }
-    }
-
-    public bool HasThinkingText => !string.IsNullOrWhiteSpace(ThinkingText);
-    public bool HasAssistantText => !string.IsNullOrWhiteSpace(AssistantText);
-    public bool HasErrorText => !string.IsNullOrWhiteSpace(ErrorText);
-
-    public AiConversationTurnItem()
-    {
-        TimelineItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTimelineItems));
-    }
-}
-
-/// <summary>
-/// 二期「工具内置 AI 助手（BYOK / 本地模型）」视图模型。
-/// 驱动画板 10 完整工作台以及磁盘扫描页共用的右侧可折叠「AI 分析助手」抽屉。
+/// 内置 AI 助手主视图模型：
+/// 1. 管理 3 个完全独立、可后台并发运行且切页保活的场景会话（综合诊断 / 磁盘扫描 / 垃圾清理）；
+/// 2. 驱动独立 AI 工作台左栏「分析上下文（各盘余量 + 双快照 + 备份/隔离区 + 建议汇总）| 模型配置」智能切换；
+/// 3. 复用 SharedWorkspaceStateCache，消除跨页反复枚举磁盘与隔离区的开销。
 /// </summary>
 public partial class AiAssistantViewModel : ObservableObject
 {
     private readonly ReadOnlyAiAnalysisToolset _toolset;
     private readonly AiProviderConfigStore _configStore;
     private readonly BuiltInAiAgentService _agentService;
+    private readonly SharedWorkspaceStateCache _stateCache;
     private readonly Func<Guid, int, string?, (bool Added, string Message)>? _adoptToPlanCallback;
     private readonly Func<Guid, int, bool>? _locateNodeInTreeCallback;
     private readonly Action? _openDiskScanCallback;
     private readonly Action? _openAiSettingsCallback;
     private readonly Action? _closeDrawerCallback;
+    private readonly Action? _openCleanupResidualCallback;
+    private readonly Action? _openCleanupCallback;
+    private readonly Action? _openBackupCenterCallback;
+    private readonly Action? _openQuarantineCallback;
+    private readonly Func<string, IProgress<(double Percent, string Message)>, CancellationToken, Task<ScanSnapshot?>>? _scanDriveCallback;
+    private readonly Func<IProgress<string>, CancellationToken, Task<CleanupScanSnapshot?>>? _scanCleanupCallback;
 
     private AiProviderSettings _savedSettings;
-    private CancellationTokenSource? _analysisCts;
     private CancellationTokenSource? _connectionTestCts;
     private Guid? _lastSyncedPlanScanId;
     private HashSet<int> _currentPlanNodeIds = [];
     private HashSet<string> _currentPlanSourcePaths = new(StringComparer.OrdinalIgnoreCase);
 
     public ReadOnlyAiAnalysisToolset Toolset => _toolset;
+    internal BuiltInAiAgentService AgentService => _agentService;
+
+    // ---- 3 个完全隔离、可并发运行的独立场景会话 ----
+    public AiChatSessionViewModel GeneralSession { get; }
+    public AiChatSessionViewModel DiskScanSession { get; }
+    public AiChatSessionViewModel CleanupSession { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGeneralSessionActive))]
+    [NotifyPropertyChangedFor(nameof(IsDiskScanSessionActive))]
+    [NotifyPropertyChangedFor(nameof(IsCleanupSessionActive))]
+    [NotifyPropertyChangedFor(nameof(GeneralSessionChipTag))]
+    [NotifyPropertyChangedFor(nameof(DiskScanSessionChipTag))]
+    [NotifyPropertyChangedFor(nameof(CleanupSessionChipTag))]
+    [NotifyPropertyChangedFor(nameof(ConversationTurns))]
+    [NotifyPropertyChangedFor(nameof(UserPromptInput))]
+    [NotifyPropertyChangedFor(nameof(IsAnalyzing))]
+    [NotifyPropertyChangedFor(nameof(CanSendPrompt))]
+    [NotifyPropertyChangedFor(nameof(HasConversationTurns))]
+    private AiChatSessionViewModel _activeStandaloneSession;
+
+    public bool IsGeneralSessionActive => ReferenceEquals(ActiveStandaloneSession, GeneralSession);
+    public bool IsDiskScanSessionActive => ReferenceEquals(ActiveStandaloneSession, DiskScanSession);
+    public bool IsCleanupSessionActive => ReferenceEquals(ActiveStandaloneSession, CleanupSession);
+    public string GeneralSessionChipTag => IsGeneralSessionActive ? "Active" : string.Empty;
+    public string DiskScanSessionChipTag => IsDiskScanSessionActive ? "Active" : string.Empty;
+    public string CleanupSessionChipTag => IsCleanupSessionActive ? "Active" : string.Empty;
+
+    // ---- 独立 AI 页左栏标签切换（未配模型默认进配置页，配好默认进全局分析上下文） ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsContextTabActive))]
+    [NotifyPropertyChangedFor(nameof(ContextTabChipTag))]
+    [NotifyPropertyChangedFor(nameof(ConfigTabChipTag))]
+    private bool _isConfigTabActive;
+
+    public bool IsContextTabActive => !IsConfigTabActive;
+    public string ContextTabChipTag => IsContextTabActive ? "Active" : string.Empty;
+    public string ConfigTabChipTag => IsConfigTabActive ? "Active" : string.Empty;
 
     public ObservableCollection<AiPresetChipItem> PresetChips { get; } = [];
     public ObservableCollection<AiContextHotspotRow> ContextHotspots { get; } = [];
-    public ObservableCollection<AiConversationTurnItem> ConversationTurns { get; } = [];
+    public ObservableCollection<AiSharedDriveRowItem> SharedDriveRows { get; } = [];
+    public ObservableCollection<AiAuthorizedScanRowItem> AuthorizedDiskScans { get; } = [];
 
-    // ---- 当前共享扫描快照上下文 ----
+    // ---- 当前共享扫描快照上下文（磁盘多盘快照 + 垃圾清理快照 + 备份/隔离区摘要） ----
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasAuthorizedSnapshot))]
     private Guid? _activeScanId;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAuthorizedCleanupSnapshot))]
+    private Guid? _activeCleanupScanId;
+
     public bool HasAuthorizedSnapshot => ActiveScanId.HasValue;
+    public bool HasAuthorizedCleanupSnapshot => ActiveCleanupScanId.HasValue;
 
     [ObservableProperty]
     private string _snapshotContextTitle = "当前尚未授权磁盘扫描快照";
 
     [ObservableProperty]
-    private string _snapshotContextMeta = "请先在「磁盘扫描」页完成任意磁盘扫描，系统将自动脱敏并共享目录结构元数据。";
+    private string _snapshotContextMeta = "完成任意磁盘扫描后，支持多盘快照共存并自动脱敏共享。";
+
+    [ObservableProperty]
+    private string _cleanupSnapshotTitle = "尚未执行垃圾清理扫描";
+
+    [ObservableProperty]
+    private string _cleanupSnapshotMeta = "执行垃圾清理扫描后，AI 可解读三档风险与清理顺序。";
+
+    [ObservableProperty]
+    private string _backupSummaryTitle = "迁移备份：暂无待确认项";
+
+    [ObservableProperty]
+    private string _quarantineSummaryTitle = "清理隔离区：当前为空";
+
+    [ObservableProperty]
+    private bool _hasReclaimableBackupOrQuarantine;
+
+    [ObservableProperty]
+    private string _proposalInboxSummaryText = "本轮尚未生成结构化建议卡片";
+
+    [ObservableProperty]
+    private bool _hasAnyProposalSummary;
 
     [ObservableProperty]
     private bool _isSnapshotSharingEnabled = true;
 
-    private ScanSnapshot? _latestKnownSnapshot;
+    private readonly Dictionary<string, ScanSnapshot> _latestKnownSnapshotsByDrive = new(StringComparer.OrdinalIgnoreCase);
 
     // ---- BYOK 模型配置表单 ----
     [ObservableProperty]
@@ -542,6 +177,7 @@ public partial class AiAssistantViewModel : ObservableObject
 
     public bool HasSavedApiKey => !string.IsNullOrWhiteSpace(MaskedApiKeyPreview);
     public bool IsLocalEndpoint => AiProviderSettings.IsLoopbackEndpoint(Endpoint);
+    public int EffectiveConfiguredMaxSteps => BuildDraftSettings().EffectiveMaxToolSteps;
 
     public string OriginBadgeText => BuildDraftSettings().GetOriginBadgeText();
     public string OriginBadgeBg => IsLocalEndpoint ? "#ECFDF5" : "#FFFBEB";
@@ -581,21 +217,28 @@ public partial class AiAssistantViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTestingConnection;
 
-    // ---- 右侧抽屉提问与状态 ----
-    [ObservableProperty]
-    private string _userPromptInput = string.Empty;
+    // ---- 向后兼容转发属性与命令（指向当前活动独立会话，保证现有单测与外部调用完全兼容） ----
+    public ObservableCollection<AiConversationTurnItem> ConversationTurns => ActiveStandaloneSession.ConversationTurns;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanSendPrompt))]
-    private bool _isAnalyzing;
+    public string UserPromptInput
+    {
+        get => ActiveStandaloneSession.UserPromptInput;
+        set
+        {
+            if (ActiveStandaloneSession.UserPromptInput != value)
+            {
+                ActiveStandaloneSession.UserPromptInput = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
-    public bool CanSendPrompt => !IsAnalyzing;
-    public bool HasConversationTurns => ConversationTurns.Count > 0;
+    public bool IsAnalyzing => ActiveStandaloneSession.IsAnalyzing;
+    public bool IsAnySessionAnalyzing => GeneralSession.IsAnalyzing || DiskScanSession.IsAnalyzing || CleanupSession.IsAnalyzing;
+    public bool CanSendPrompt => ActiveStandaloneSession.CanSendPrompt;
+    public bool HasConversationTurns => ActiveStandaloneSession.HasConversationTurns;
     public string DisclaimerText => "AI 建议仅供参考，请用户自行判断，本工具不对 AI 误判负责。";
 
-    /// <summary>
-    /// 用于 UI PasswordBox 在测试/保存时读取用户刚输入的未保存 API Key（不回写明文到可序列化状态）。
-    /// </summary>
     public Func<string?>? PendingApiKeyAccessor { get; set; }
     public Action? ClearPendingApiKeyBoxAction { get; set; }
 
@@ -607,52 +250,166 @@ public partial class AiAssistantViewModel : ObservableObject
         Func<Guid, int, bool>? locateNodeInTreeCallback = null,
         Action? openDiskScanCallback = null,
         Action? openAiSettingsCallback = null,
-        Action? closeDrawerCallback = null)
+        Action? closeDrawerCallback = null,
+        Action? openCleanupResidualCallback = null,
+        Action? openCleanupCallback = null,
+        Action? openBackupCenterCallback = null,
+        Action? openQuarantineCallback = null,
+        Func<string, IProgress<(double Percent, string Message)>, CancellationToken, Task<ScanSnapshot?>>? scanDriveCallback = null,
+        Func<IProgress<string>, CancellationToken, Task<CleanupScanSnapshot?>>? scanCleanupCallback = null,
+        SharedWorkspaceStateCache? stateCache = null)
     {
         _toolset = toolset ?? new ReadOnlyAiAnalysisToolset();
         _configStore = configStore ?? new AiProviderConfigStore();
         _agentService = agentService ?? new BuiltInAiAgentService(_toolset);
+        _stateCache = stateCache ?? SharedWorkspaceStateCache.Shared;
         _adoptToPlanCallback = adoptToPlanCallback;
         _locateNodeInTreeCallback = locateNodeInTreeCallback;
         _openDiskScanCallback = openDiskScanCallback;
         _openAiSettingsCallback = openAiSettingsCallback;
         _closeDrawerCallback = closeDrawerCallback;
+        _openCleanupResidualCallback = openCleanupResidualCallback;
+        _openCleanupCallback = openCleanupCallback;
+        _openBackupCenterCallback = openBackupCenterCallback;
+        _openQuarantineCallback = openQuarantineCallback;
+        _scanDriveCallback = scanDriveCallback;
+        _scanCleanupCallback = scanCleanupCallback;
+
+        GeneralSession = new AiChatSessionViewModel(this, AiChatScene.General);
+        DiskScanSession = new AiChatSessionViewModel(this, AiChatScene.DiskScan);
+        CleanupSession = new AiChatSessionViewModel(this, AiChatScene.Cleanup);
+        _activeStandaloneSession = GeneralSession;
 
         foreach (AiProviderPresetDefinition def in AiProviderSettings.Presets)
         {
             PresetChips.Add(new AiPresetChipItem(def));
         }
 
-        ConversationTurns.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasConversationTurns));
-
         _savedSettings = _configStore.Load();
         ApplySettingsToForm(_savedSettings);
 
+        // 未配置模型时默认落到配置页；已配置好模型时默认落到「分析上下文」驾驶舱
+        IsConfigTabActive = !IsSettingsReadyForUse(_savedSettings);
+
         _toolset.AuthorizedScansChanged += (_, _) => DispatchToUi(RefreshContextSummary);
-        _toolset.Inbox.InboxChanged += (_, _) => DispatchToUi(SyncProposalInvalidations);
+        _toolset.AuthorizedCleanupScansChanged += (_, _) => DispatchToUi(RefreshCleanupContextSummary);
+        _toolset.Inbox.InboxChanged += (_, _) => DispatchToUi(OnInboxStateChanged);
+        _toolset.Inbox.CleanupProposalsChanged += (_, _) => DispatchToUi(RefreshProposalInboxSummary);
+        _stateCache.StateUpdated += (_, snap) => DispatchToUi(() => ApplySharedStateSnapshot(snap));
+
+        // 零阻塞首帧：若已有共享缓存直接填充，否则后台异步刷新一次
+        WorkspaceStateSnapshot? cachedState = _stateCache.GetCachedOrNull();
+        if (cachedState is not null)
+        {
+            ApplySharedStateSnapshot(cachedState);
+        }
+        else
+        {
+            _ = OnEnteredAiPageAsync();
+        }
+        RefreshContextSummary();
+        RefreshCleanupContextSummary();
+        RefreshProposalInboxSummary();
+    }
+
+    private static bool IsSettingsReadyForUse(AiProviderSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.Endpoint) || string.IsNullOrWhiteSpace(settings.ModelName))
+        {
+            return false;
+        }
+        return settings.IsLocalEndpoint || settings.HasSavedApiKey;
     }
 
     /// <summary>
-    /// 接收来自磁盘扫描模块的新快照并同步脱敏上下文。
+    /// 进入独立 AI 助手页时触发的轻量刷新（新鲜期内 0ms 复用共享缓存，绝不卡顿 UI）。
+    /// </summary>
+    public async Task OnEnteredAiPageAsync(bool force = false)
+    {
+        try
+        {
+            WorkspaceStateSnapshot snap = await _stateCache.GetOrRefreshAsync(force: force).ConfigureAwait(false);
+            DispatchToUi(() => ApplySharedStateSnapshot(snap));
+        }
+        catch
+        {
+        }
+    }
+
+    [RelayCommand]
+    private Task RefreshSharedContextAsync() => OnEnteredAiPageAsync(force: true);
+
+    [RelayCommand]
+    private void SelectLeftTab(string? tabKey)
+    {
+        IsConfigTabActive = string.Equals(tabKey, "Config", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RelayCommand]
+    private void SelectStandaloneSession(string? sceneKey)
+    {
+        ActiveStandaloneSession = sceneKey?.Trim() switch
+        {
+            "DiskScan" => DiskScanSession,
+            "Cleanup" => CleanupSession,
+            _ => GeneralSession
+        };
+    }
+
+    internal void NotifySessionActivityChanged(AiChatSessionViewModel session)
+    {
+        if (ReferenceEquals(session, ActiveStandaloneSession))
+        {
+            OnPropertyChanged(nameof(IsAnalyzing));
+            OnPropertyChanged(nameof(CanSendPrompt));
+            OnPropertyChanged(nameof(HasConversationTurns));
+            OnPropertyChanged(nameof(UserPromptInput));
+        }
+        OnPropertyChanged(nameof(IsAnySessionAnalyzing));
+    }
+
+    /// <summary>
+    /// 接收来自磁盘扫描模块的新快照并同步脱敏上下文（同盘符替换、不同盘符多盘共存）。
     /// </summary>
     public void SyncScanSnapshot(ScanSnapshot? snapshot)
     {
-        _latestKnownSnapshot = snapshot;
         if (snapshot is null)
         {
+            _latestKnownSnapshotsByDrive.Clear();
             _toolset.RevokeSnapshot();
             RefreshContextSummary();
             return;
         }
 
+        string driveRoot = VolumeSnapshotCache.NormalizeDriveRoot(snapshot.Volume.DriveRoot);
+        _latestKnownSnapshotsByDrive[driveRoot] = snapshot;
+
         if (IsSnapshotSharingEnabled)
         {
-            _toolset.AuthorizeSnapshot(snapshot, replacePreviousSnapshots: true);
+            _toolset.AuthorizeSnapshot(snapshot, replacePreviousSnapshots: false);
         }
         else
         {
             RefreshContextSummary();
         }
+    }
+
+    /// <summary>
+    /// 同步垃圾清理扫描快照到共享只读 AI 工具底座（三期联合分析）。
+    /// </summary>
+    public void SyncCleanupScanSnapshot(CleanupScanSnapshot? snapshot)
+    {
+        if (snapshot is null)
+        {
+            _toolset.RevokeCleanupSnapshot();
+            ActiveCleanupScanId = null;
+            RefreshCleanupContextSummary();
+            return;
+        }
+
+        _toolset.AuthorizeCleanupSnapshot(snapshot, replacePrevious: true);
+        ActiveCleanupScanId = snapshot.CleanupScanId;
+        RefreshCleanupContextSummary();
     }
 
     [RelayCommand]
@@ -662,283 +419,49 @@ public partial class AiAssistantViewModel : ObservableObject
         {
             IsSnapshotSharingEnabled = false;
             _toolset.RevokeSnapshot();
-            ConfigFeedbackMessage = "已撤销当前会话的快照共享，旧 AI 建议已全部失效。";
+            ConfigFeedbackMessage = "已撤销当前会话的磁盘扫描快照共享，旧 AI 建议已全部失效。";
         }
         else
         {
             IsSnapshotSharingEnabled = true;
-            if (_latestKnownSnapshot is not null)
+            foreach (ScanSnapshot snap in _latestKnownSnapshotsByDrive.Values)
             {
-                _toolset.AuthorizeSnapshot(_latestKnownSnapshot, replacePreviousSnapshots: true);
-                ConfigFeedbackMessage = "已重新授权当前脱敏扫描快照供 AI 只读分析。";
+                _toolset.AuthorizeSnapshot(snap, replacePreviousSnapshots: false);
             }
+            ConfigFeedbackMessage = _latestKnownSnapshotsByDrive.Count > 0
+                ? $"已重新授权 {_latestKnownSnapshotsByDrive.Count} 块磁盘的脱敏扫描快照供 AI 只读分析。"
+                : "已恢复扫描快照共享授权。";
         }
         RefreshContextSummary();
     }
 
     [RelayCommand]
-    private void SelectPreset(AiPresetChipItem? chip)
+    private void RevokeSingleDiskScan(AiAuthorizedScanRowItem? row)
     {
-        if (chip is null) return;
-        SelectedPreset = chip.Preset;
-        foreach (AiPresetChipItem item in PresetChips)
-        {
-            item.IsSelected = item.Preset == chip.Preset;
-        }
-
-        if (chip.Preset != AiProviderPreset.Custom)
-        {
-            Endpoint = chip.Definition.DefaultEndpoint;
-            ModelName = chip.Definition.DefaultModel;
-        }
-        ConfigFeedbackMessage = chip.HintText;
+        if (row is null) return;
+        _toolset.RevokeSnapshot(row.ScanId);
     }
+
+    // ---- 转发到当前活动独立会话的兼容命令 ----
+    [RelayCommand]
+    private Task RunQuickPromptAsync(string? quickType) =>
+        ActiveStandaloneSession.RunQuickPromptCommand.ExecuteAsync(quickType);
 
     [RelayCommand]
-    private void SelectResponseLanguage(string? languageKey)
-    {
-        ResponseLanguage = string.Equals(languageKey, "English", StringComparison.OrdinalIgnoreCase)
-            ? AiResponseLanguage.English
-            : AiResponseLanguage.Chinese;
-    }
-
-    [RelayCommand]
-    private void ClearSavedApiKey()
-    {
-        _savedSettings = _configStore.Save(_savedSettings, plainApiKey: string.Empty);
-        MaskedApiKeyPreview = string.Empty;
-        ClearPendingApiKeyBoxAction?.Invoke();
-        ConfigFeedbackMessage = "已清除本地 DPAPI 加密保存的 API Key。";
-    }
-
-    [RelayCommand]
-    private async Task TestConnectionAsync()
-    {
-        if (IsTestingConnection) return;
-
-        string? validationError = ValidateDraftConfig(out AiProviderSettings draft, out string? plainKey);
-        if (validationError is not null)
-        {
-            SetConnectionBadge("配置不完整", "#FEF2F2", "#FECACA", "#C42B1C");
-            ConfigFeedbackMessage = validationError;
-            return;
-        }
-
-        if (!EnsureCloudPrivacyAcknowledged(draft, out bool acknowledgedNow))
-        {
-            return;
-        }
-        if (acknowledgedNow)
-        {
-            draft = draft with { CloudPrivacyAcknowledged = true };
-        }
-
-        IsTestingConnection = true;
-        SetConnectionBadge("正在测试连接…", "#EBF5FF", "#BFDBFE", "#0078D4");
-        ConfigFeedbackMessage = $"正在探活 {draft.Endpoint} ({draft.ModelName})…";
-
-        _connectionTestCts?.Cancel();
-        _connectionTestCts?.Dispose();
-        _connectionTestCts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-
-        try
-        {
-            using var client = new OpenAiCompatibleChatClient(draft.Endpoint, draft.ModelName, plainKey, TimeSpan.FromSeconds(25));
-            AiConnectionTestResult result = await client.TestConnectionAsync(_connectionTestCts.Token);
-
-            if (result.Success)
-            {
-                if (result.SupportsToolCalling)
-                {
-                    SetConnectionBadge(result.StatusBadgeText, "#ECFDF5", "#A7F3D0", "#0F7B4B");
-                }
-                else
-                {
-                    SetConnectionBadge(result.StatusBadgeText, "#FFFBEB", "#FDE68A", "#B45309");
-                }
-            }
-            else
-            {
-                SetConnectionBadge(result.StatusBadgeText, "#FEF2F2", "#FECACA", "#C42B1C");
-            }
-
-            ConfigFeedbackMessage = result.DetailMessage;
-            _savedSettings = _savedSettings with
-            {
-                CloudPrivacyAcknowledged = draft.CloudPrivacyAcknowledged,
-                LastConnectionTestedUtc = DateTimeOffset.UtcNow,
-                LastConnectionSucceeded = result.Success,
-                LastConnectionSupportsToolCalling = result.SupportsToolCalling,
-                LastConnectionSummary = result.StatusBadgeText
-            };
-        }
-        catch (Exception ex)
-        {
-            SetConnectionBadge("连接失败", "#FEF2F2", "#FECACA", "#C42B1C");
-            ConfigFeedbackMessage = AiPathSanitizer.RedactSecret(ex.Message, plainKey);
-        }
-        finally
-        {
-            IsTestingConnection = false;
-        }
-    }
-
-    [RelayCommand]
-    private void SaveConfig()
-    {
-        string? validationError = ValidateDraftConfig(out AiProviderSettings draft, out _);
-        if (validationError is not null)
-        {
-            ConfigFeedbackMessage = validationError;
-            return;
-        }
-
-        if (!EnsureCloudPrivacyAcknowledged(draft, out bool acknowledgedNow))
-        {
-            return;
-        }
-        if (acknowledgedNow)
-        {
-            draft = draft with { CloudPrivacyAcknowledged = true };
-        }
-
-        string? enteredKey = PendingApiKeyAccessor?.Invoke();
-        string? keyToSave = string.IsNullOrWhiteSpace(enteredKey) ? null : enteredKey.Trim();
-
-        _savedSettings = _configStore.Save(draft, keyToSave);
-        ApplySettingsToForm(_savedSettings);
-        ClearPendingApiKeyBoxAction?.Invoke();
-
-        ConfigFeedbackMessage = _savedSettings.IsLocalEndpoint
-            ? "已保存本地模型配置（零外发端点）。"
-            : "已保存配置，API Key 已通过 Windows DPAPI（CurrentUser）加密存储。";
-    }
-
-    [RelayCommand]
-    private Task RunQuickPromptAsync(string? quickType)
-    {
-        string prompt = quickType switch
-        {
-            "LargeDirs" => "请优先查看当前扫描磁盘的顶层大目录与头部候选（按需逐层钻入大目录，不要拉全量），按空间收益给出优先迁移建议（严禁建议 L0 系统目录），并提交可审阅的建议卡片。",
-            "UnknownDirs" => "请聚焦当前磁盘头部未知大占用目录（可按需层级钻入定位真正的大子目录），使用只读元数据画像分析它们的后缀与修改时间分布，判断哪些适合迁出、哪些疑似旧缓存残留。",
-            "MigrateVsClean" => "请聚焦头部大目录，帮我按「适合安全迁移（L1/L3）」与「疑似缓存残留/需人工核实」分类梳理当前磁盘空间大户，说明迁移与保留备份策略，并给出结构化建议卡片。",
-            _ => "请分析当前扫描磁盘的主要空间占用并给出安全迁移建议。"
-        };
-        UserPromptInput = prompt;
-        return SendPromptAsync();
-    }
-
-    [RelayCommand]
-    private async Task SendPromptAsync()
-    {
-        if (IsAnalyzing) return;
-
-        string prompt = UserPromptInput.Trim();
-        if (string.IsNullOrWhiteSpace(prompt)) return;
-
-        string? validationError = ValidateDraftConfig(out AiProviderSettings draft, out string? plainKey);
-        if (validationError is not null)
-        {
-            CustomMessageBox.ShowWarning($"请先完成 AI 模型配置：\n{validationError}", "模型未配置");
-            _openAiSettingsCallback?.Invoke();
-            return;
-        }
-
-        if (!EnsureCloudPrivacyAcknowledged(draft, out bool acknowledgedNow))
-        {
-            return;
-        }
-        if (acknowledgedNow)
-        {
-            draft = draft with { CloudPrivacyAcknowledged = true };
-            _savedSettings = _configStore.Save(draft, plainApiKey: null);
-        }
-
-        UserPromptInput = string.Empty;
-        IsAnalyzing = true;
-
-        var history = ConversationTurns
-            .SelectMany(t => new[]
-            {
-                new AiConversationTurn(true, t.UserPrompt),
-                new AiConversationTurn(false, t.AssistantText)
-            })
-            .Where(h => !string.IsNullOrWhiteSpace(h.Content))
-            .ToList();
-
-        var turnItem = new AiConversationTurnItem
-        {
-            UserPrompt = prompt,
-            MaxSteps = draft.EffectiveMaxToolSteps,
-            StatusBadgeText = "正在分析…",
-            StatusBadgeFg = "#0078D4"
-        };
-        ConversationTurns.Add(turnItem);
-
-        _analysisCts?.Cancel();
-        _analysisCts?.Dispose();
-        _analysisCts = new CancellationTokenSource();
-
-        var progress = new InlineProgress<AiAgentRunEvent>(ev => HandleAgentRunEvent(turnItem, ev));
-
-        try
-        {
-            AiAgentAnalysisResult result = await _agentService.RunAnalysisAsync(
-                draft,
-                plainKey,
-                new AiAgentAnalysisRequest(ActiveScanId, prompt, history),
-                progress,
-                _analysisCts.Token);
-
-            DispatchToUi(() =>
-            {
-                FinalizeActiveTimelineSteps(turnItem, result.WasCancelled ? "已停止" : "已中断");
-                turnItem.StepsUsed = result.StepsUsed;
-                if (!string.IsNullOrWhiteSpace(result.AssistantMessage))
-                {
-                    turnItem.AssistantText = result.AssistantMessage;
-                    SyncFinalAssistantMessageToTimeline(turnItem, result.AssistantMessage);
-                }
-
-                if (result.WasCancelled)
-                {
-                    turnItem.StatusBadgeText = "已手动停止";
-                    turnItem.StatusBadgeFg = "#B45309";
-                    turnItem.ErrorText = result.ErrorMessage ?? "分析已停止。";
-                }
-                else if (!result.Succeeded)
-                {
-                    turnItem.StatusBadgeText = "分析失败";
-                    turnItem.StatusBadgeFg = "#C42B1C";
-                    turnItem.ErrorText = result.ErrorMessage ?? "模型调用失败。";
-                }
-                else
-                {
-                    turnItem.StatusBadgeText = result.HitStepLimit
-                        ? $"已达上限 · {result.ElapsedMilliseconds / 1000.0:F1}s"
-                        : $"已完成 · {result.ElapsedMilliseconds / 1000.0:F1}s";
-                    turnItem.StatusBadgeFg = result.HitStepLimit ? "#B45309" : "#0F7B4B";
-                }
-            });
-        }
-        finally
-        {
-            IsAnalyzing = false;
-        }
-    }
+    private Task SendPromptAsync() =>
+        ActiveStandaloneSession.SendPromptCommand.ExecuteAsync(null);
 
     [RelayCommand]
     private void StopAnalysis()
     {
-        _analysisCts?.Cancel();
+        GeneralSession.StopAnalysisCommand.Execute(null);
+        DiskScanSession.StopAnalysisCommand.Execute(null);
+        CleanupSession.StopAnalysisCommand.Execute(null);
     }
 
     [RelayCommand]
-    private void ClearConversation()
-    {
-        if (IsAnalyzing) return;
-        ConversationTurns.Clear();
-    }
+    private void ClearConversation() =>
+        ActiveStandaloneSession.ClearConversationCommand.Execute(null);
 
     [RelayCommand]
     private void AdoptProposalCard(AiProposalCardItem? card)
@@ -976,10 +499,35 @@ public partial class AiAssistantViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenCleanupResidualReview(AiProposalCardItem? card)
+    {
+        if (card is null) return;
+        if (_openCleanupResidualCallback is not null)
+        {
+            _openCleanupResidualCallback();
+            return;
+        }
+        LocateProposalInTree(card);
+    }
+
+    [RelayCommand]
     private void OpenDiskScan() => _openDiskScanCallback?.Invoke();
 
     [RelayCommand]
-    private void OpenAiSettings() => _openAiSettingsCallback?.Invoke();
+    private void OpenCleanup() => _openCleanupCallback?.Invoke();
+
+    [RelayCommand]
+    private void OpenBackupCenter() => _openBackupCenterCallback?.Invoke();
+
+    [RelayCommand]
+    private void OpenQuarantine() => _openQuarantineCallback?.Invoke();
+
+    [RelayCommand]
+    private void OpenAiSettings()
+    {
+        IsConfigTabActive = true;
+        _openAiSettingsCallback?.Invoke();
+    }
 
     [RelayCommand]
     private void CloseDrawer() => _closeDrawerCallback?.Invoke();
@@ -998,262 +546,237 @@ public partial class AiAssistantViewModel : ObservableObject
         dialog.ShowDialog();
     }
 
-    private void HandleAgentRunEvent(AiConversationTurnItem turn, AiAgentRunEvent ev)
+    // ---- 供 3 个独立会话复用的配置验证、扫描卡片构造与卡片执行 ----
+
+    internal bool ValidateDraftConfigForSession(out AiProviderSettings draft, out string? plainKey)
     {
-        DispatchToUi(() =>
+        string? validationError = ValidateDraftConfig(out draft, out plainKey);
+        if (validationError is not null)
         {
-            if (ev.CurrentStep > 0)
+            CustomMessageBox.ShowWarning($"请先完成 AI 模型配置：\n{validationError}", "模型未配置");
+            IsConfigTabActive = true;
+            _openAiSettingsCallback?.Invoke();
+            return false;
+        }
+        return true;
+    }
+
+    internal bool PrepareExecutionSettings(out AiProviderSettings draft, out string? plainKey)
+    {
+        if (!ValidateDraftConfigForSession(out draft, out plainKey))
+        {
+            return false;
+        }
+
+        if (!EnsureCloudPrivacyAcknowledged(draft, out bool acknowledgedNow))
+        {
+            return false;
+        }
+        if (acknowledgedNow)
+        {
+            draft = draft with { CloudPrivacyAcknowledged = true };
+            _savedSettings = _configStore.Save(draft, plainApiKey: null);
+        }
+
+        return true;
+    }
+
+    internal string[] GetDefaultRecommendedDrivesForScanCard()
+    {
+        WorkspaceStateSnapshot state = _stateCache.GetCachedOrNull() ?? _stateCache.GetOrRefreshSync();
+        SharedDriveTelemetry[] fixedDrives = state.Drives.Where(d => d.IsFixedDrive).ToArray();
+        if (fixedDrives.Length == 0) return ["C:"];
+
+        // 优先推荐系统盘与空间最紧张（≥85%）的 1~2 块盘，避免多硬盘全部默认勾选导致耗时
+        var recommended = new List<string>();
+        SharedDriveTelemetry? sys = fixedDrives.FirstOrDefault(d => d.IsSystemDrive);
+        if (sys is not null)
+        {
+            recommended.Add(sys.DriveLetter);
+        }
+
+        foreach (SharedDriveTelemetry tight in fixedDrives
+            .Where(d => !d.IsSystemDrive && d.UsedPercent >= 85)
+            .OrderByDescending(d => d.UsedPercent)
+            .Take(1))
+        {
+            recommended.Add(tight.DriveLetter);
+        }
+
+        if (recommended.Count == 0)
+        {
+            recommended.Add(fixedDrives[0].DriveLetter);
+        }
+
+        return recommended.ToArray();
+    }
+
+    internal AiScanActionCardItem CreateScanActionCard(AiScanActionProposal proposal, string originalUserPrompt)
+    {
+        bool showDrivePicker = proposal.Kind is AiScanActionKind.DiskScan or AiScanActionKind.Both;
+        bool showCleanupOption = proposal.Kind is AiScanActionKind.CleanupScan or AiScanActionKind.Both;
+
+        var card = new AiScanActionCardItem
+        {
+            RequestId = proposal.RequestId,
+            Kind = proposal.Kind,
+            Reason = proposal.Reason,
+            OriginalUserPrompt = originalUserPrompt,
+            ShowDrivePicker = showDrivePicker,
+            ShowCleanupOption = showCleanupOption,
+            IncludeCleanupScan = showCleanupOption && (proposal.IncludeCleanupScan || !HasAuthorizedCleanupSnapshot),
+            AutoContinueAfterScan = true
+        };
+
+        if (showDrivePicker)
+        {
+            WorkspaceStateSnapshot state = _stateCache.GetCachedOrNull() ?? _stateCache.GetOrRefreshSync();
+            SharedDriveTelemetry[] fixedDrives = state.Drives.Where(d => d.IsFixedDrive).ToArray();
+
+            var recSet = new HashSet<string>(
+                proposal.RecommendedDrives.Length > 0 ? proposal.RecommendedDrives : GetDefaultRecommendedDrivesForScanCard(),
+                StringComparer.OrdinalIgnoreCase);
+
+            var authorizedByDrive = _toolset.GetAuthorizedSnapshots()
+                .GroupBy(s => VolumeSnapshotCache.NormalizeDriveRoot(s.Volume.DriveRoot), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var options = new List<AiScanDriveOptionItem>(fixedDrives.Length);
+            foreach (SharedDriveTelemetry drive in fixedDrives)
             {
-                turn.StepsUsed = ev.CurrentStep;
-            }
+                bool isRec = recSet.Contains(drive.DriveLetter) || recSet.Contains(drive.DriveRoot);
+                bool hasFresh = false;
+                string ageText = string.Empty;
 
-            switch (ev.Kind)
-            {
-                case AiAgentEventKind.ThinkingDelta when !string.IsNullOrEmpty(ev.TextDelta):
-                    if (turn.TimelineItems.Count > 0
-                        && turn.TimelineItems[^1] is AiThinkingStepItem activeThinking
-                        && activeThinking.IsStreaming)
-                    {
-                        activeThinking.Text += ev.TextDelta;
-                    }
-                    else
-                    {
-                        CloseActiveStreamingSteps(turn);
-                        // 紧接在工具调用或文字发言之后的新一轮思考，自动创建新时间线节点，保持严格顺序化展示
-                        turn.TimelineItems.Add(new AiThinkingStepItem
-                        {
-                            Text = ev.TextDelta,
-                            IsStreaming = true
-                        });
-                        if (!string.IsNullOrEmpty(turn.ThinkingText))
-                        {
-                            turn.ThinkingText += "\n\n";
-                        }
-                    }
-
-                    turn.ThinkingText += ev.TextDelta;
-                    break;
-
-                case AiAgentEventKind.AssistantTextDelta when !string.IsNullOrEmpty(ev.TextDelta):
-                    if (turn.TimelineItems.Count > 0
-                        && turn.TimelineItems[^1] is AiAssistantMessageStepItem activeMessage
-                        && activeMessage.IsStreaming)
-                    {
-                        activeMessage.Text += ev.TextDelta;
-                    }
-                    else if (!string.IsNullOrWhiteSpace(ev.TextDelta))
-                    {
-                        CloseActiveStreamingSteps(turn);
-                        // 将工具调用前的过程说明或最终回复按真实发生顺序放入统一时间线，彻底避免与工具调用错位
-                        turn.TimelineItems.Add(new AiAssistantMessageStepItem
-                        {
-                            Text = ev.TextDelta.TrimStart('\r', '\n'),
-                            IsStreaming = true
-                        });
-                    }
-
-                    turn.AssistantText += ev.TextDelta;
-                    break;
-
-                case AiAgentEventKind.ToolCallStarted when ev.TraceEntry is not null:
-                    CloseActiveStreamingSteps(turn);
-                    turn.HasToolActivity = true;
-                    turn.StatusBadgeText = ev.MaxSteps > 0
-                        ? $"调用中 · {ev.CurrentStep}/{ev.MaxSteps}"
-                        : $"调用中 · 第 {ev.CurrentStep} 步";
-                    turn.StatusBadgeFg = "#0078D4";
-                    AiToolBatchStepItem startBatch = GetOrCreateTrailingToolBatch(turn);
-                    startBatch.AddItem(new AiToolCallStepItem
-                    {
-                        StepNumber = ev.TraceEntry.StepNumber,
-                        ToolName = ev.TraceEntry.ToolName,
-                        FriendlyLabel = AiToolCallStepItem.ResolveFriendlyLabel(ev.TraceEntry.ToolName),
-                        ArgumentsSummary = ev.TraceEntry.ArgumentsSummary ?? string.Empty,
-                        ResultSummary = "执行中…",
-                        IsRunning = true,
-                        Succeeded = true,
-                        IsExpanded = false
-                    });
-                    break;
-
-                case AiAgentEventKind.ToolCallCompleted when ev.TraceEntry is not null:
-                    CloseActiveStreamingSteps(turn);
-                    turn.HasToolActivity = true;
-                    string argDisplay = string.IsNullOrWhiteSpace(ev.TraceEntry.ArgumentsSummary)
-                        ? string.Empty
-                        : ev.TraceEntry.ArgumentsSummary;
-                    turn.Traces.Add(new AiTraceRowItem
-                    {
-                        Prefix = ev.TraceEntry.Succeeded ? "✓" : "✕",
-                        Text = $"{ev.TraceEntry.ToolName}({argDisplay}) → {ev.TraceEntry.ResultSummary}",
-                        Foreground = ev.TraceEntry.Succeeded ? "#64748B" : "#C42B1C"
-                    });
-
-                    (AiToolBatchStepItem? ownerBatch, AiToolCallStepItem? runningStep) =
-                        FindMatchingRunningToolStep(turn, ev.TraceEntry.StepNumber, ev.TraceEntry.ToolName);
-                    if (runningStep is not null)
-                    {
-                        runningStep.IsRunning = false;
-                        runningStep.Succeeded = ev.TraceEntry.Succeeded;
-                        runningStep.ResultSummary = ev.TraceEntry.ResultSummary;
-                        runningStep.ResultPayload = ev.TraceEntry.ResultPayload ?? string.Empty;
-                        runningStep.ElapsedMilliseconds = ev.TraceEntry.ElapsedMilliseconds;
-                        ownerBatch?.RefreshSummary();
-                    }
-                    else
-                    {
-                        AiToolBatchStepItem batch = GetOrCreateTrailingToolBatch(turn);
-                        batch.AddItem(new AiToolCallStepItem
-                        {
-                            StepNumber = ev.TraceEntry.StepNumber,
-                            ToolName = ev.TraceEntry.ToolName,
-                            FriendlyLabel = AiToolCallStepItem.ResolveFriendlyLabel(ev.TraceEntry.ToolName),
-                            ArgumentsSummary = argDisplay,
-                            ResultSummary = ev.TraceEntry.ResultSummary,
-                            ResultPayload = ev.TraceEntry.ResultPayload ?? string.Empty,
-                            ElapsedMilliseconds = ev.TraceEntry.ElapsedMilliseconds,
-                            IsRunning = false,
-                            Succeeded = ev.TraceEntry.Succeeded,
-                            IsExpanded = false
-                        });
-                    }
-                    break;
-
-                case AiAgentEventKind.ProposalRecorded when ev.ProposalReceipt is not null:
-                    AppendProposalCards(turn, ev.ProposalReceipt);
-                    break;
-
-                case AiAgentEventKind.Warning when !string.IsNullOrWhiteSpace(ev.Message):
-                    // 复读死循环触发自动纠偏恢复时，清理当前轮次已污染的重复半截内容并展示清晰轨迹提示
-                    if (turn.TimelineItems.Count > 0 && turn.TimelineItems[^1] is AiThinkingStepItem pollutedThinking)
-                    {
-                        pollutedThinking.Text = AiRepetitionLoopDetector.TrimTrailingRepetition(pollutedThinking.Text);
-                        pollutedThinking.IsStreaming = false;
-                    }
-                    else if (turn.TimelineItems.Count > 0 && turn.TimelineItems[^1] is AiAssistantMessageStepItem pollutedMsg && pollutedMsg.IsStreaming)
-                    {
-                        turn.TimelineItems.RemoveAt(turn.TimelineItems.Count - 1);
-                    }
-                    turn.HasToolActivity = true;
-                    turn.StatusBadgeText = "检测到复读 · 重试中…";
-                    turn.StatusBadgeFg = "#B45309";
-                    turn.AssistantText = string.Empty;
-                    turn.ThinkingText = AiRepetitionLoopDetector.TrimTrailingRepetition(turn.ThinkingText);
-                    turn.Traces.Add(new AiTraceRowItem
-                    {
-                        Prefix = "⚠",
-                        Text = ev.Message,
-                        Foreground = "#B45309"
-                    });
-                    turn.TimelineItems.Add(new AiNoticeStepItem
-                    {
-                        Prefix = "⚠",
-                        Message = ev.Message,
-                        Foreground = "#B45309"
-                    });
-                    break;
-            }
-        });
-    }
-
-    private static void CloseActiveStreamingSteps(AiConversationTurnItem turn)
-    {
-        if (turn.TimelineItems.Count == 0) return;
-
-        if (turn.TimelineItems[^1] is AiThinkingStepItem thinking && thinking.IsStreaming)
-        {
-            thinking.IsStreaming = false;
-        }
-        else if (turn.TimelineItems[^1] is AiAssistantMessageStepItem msg && msg.IsStreaming)
-        {
-            msg.IsStreaming = false;
-        }
-    }
-
-    private static void SyncFinalAssistantMessageToTimeline(AiConversationTurnItem turn, string cleanedFinalMessage)
-    {
-        if (turn.TimelineItems.Count > 0 && turn.TimelineItems[^1] is AiAssistantMessageStepItem lastMsg)
-        {
-            lastMsg.Text = cleanedFinalMessage;
-            lastMsg.IsStreaming = false;
-            return;
-        }
-
-        turn.TimelineItems.Add(new AiAssistantMessageStepItem
-        {
-            Text = cleanedFinalMessage,
-            IsStreaming = false
-        });
-    }
-
-    private static AiToolBatchStepItem GetOrCreateTrailingToolBatch(AiConversationTurnItem turn)
-    {
-        if (turn.TimelineItems.Count > 0 && turn.TimelineItems[^1] is AiToolBatchStepItem existing)
-        {
-            return existing;
-        }
-
-        var batch = new AiToolBatchStepItem();
-        turn.TimelineItems.Add(batch);
-        return batch;
-    }
-
-    private static (AiToolBatchStepItem? Batch, AiToolCallStepItem? Step) FindMatchingRunningToolStep(
-        AiConversationTurnItem turn, int stepNumber, string toolName)
-    {
-        for (int i = turn.TimelineItems.Count - 1; i >= 0; i--)
-        {
-            if (turn.TimelineItems[i] is AiToolBatchStepItem batch)
-            {
-                for (int j = batch.Items.Count - 1; j >= 0; j--)
+                if (authorizedByDrive.TryGetValue(drive.DriveRoot, out ScanSnapshot? authSnap))
                 {
-                    AiToolCallStepItem step = batch.Items[j];
-                    if (step.IsRunning
-                        && (step.StepNumber == stepNumber || string.Equals(step.ToolName, toolName, StringComparison.OrdinalIgnoreCase)))
+                    hasFresh = true;
+                    int mins = Math.Max(0, (int)Math.Round((DateTimeOffset.UtcNow - authSnap.CompletedAtUtc).TotalMinutes));
+                    ageText = mins <= 0 ? "刚刚" : $"{mins}分前";
+                }
+                else
+                {
+                    VolumeSnapshotLookup? cached = VolumeSnapshotCache.Shared.TryGet(drive.DriveRoot, runLiveProbe: false, touchAccessTime: false);
+                    if (cached is { IsFresh: true })
                     {
-                        return (batch, step);
+                        hasFresh = true;
+                        int mins = Math.Max(0, (int)Math.Round(cached.Age.TotalMinutes));
+                        ageText = mins <= 0 ? "刚刚" : $"{mins}分前";
                     }
                 }
+
+                // 智能克制默认勾选：仅默认勾选 AI 推荐且尚无新鲜快照的盘（绝不默认全选所有硬盘）
+                bool defaultChecked = isRec && !hasFresh;
+
+                options.Add(new AiScanDriveOptionItem(card.NotifySelectionChanged)
+                {
+                    DriveRoot = drive.DriveRoot,
+                    DriveLetter = drive.DriveLetter,
+                    VolumeLabel = drive.VolumeLabel,
+                    TotalBytes = drive.TotalBytes,
+                    FreeBytes = drive.FreeBytes,
+                    UsedPercent = drive.UsedPercent,
+                    IsSystemDrive = drive.IsSystemDrive,
+                    SupportsRawMft = drive.SupportsRawMft,
+                    IsAiRecommended = isRec,
+                    HasFreshSnapshot = hasFresh,
+                    FreshSnapshotAgeText = ageText,
+                    IsChecked = defaultChecked
+                });
             }
+
+            // 排序：AI 推荐盘 → 系统盘 → 空间紧张盘(≥85%) → 已用占比降序 → 盘符升序
+            List<AiScanDriveOptionItem> ordered = options
+                .OrderByDescending(o => o.IsAiRecommended)
+                .ThenByDescending(o => o.IsSystemDrive)
+                .ThenByDescending(o => o.UsedPercent >= 85)
+                .ThenByDescending(o => o.UsedPercent)
+                .ThenBy(o => o.DriveLetter, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // 若全部推荐盘都无新鲜快照且未勾任何一项，保底勾选排序第一项（系统盘/最紧张盘）
+            if (ordered.Count > 0 && ordered.All(o => !o.IsChecked) && ordered.All(o => !o.HasFreshSnapshot))
+            {
+                ordered[0].IsChecked = true;
+            }
+
+            card.PopulateDrives(ordered);
         }
-        return (null, null);
+
+        return card;
     }
 
-    private static void FinalizeActiveTimelineSteps(AiConversationTurnItem turn, string interruptedReason)
+    internal bool AuthorizeFreshCachedSnapshots()
     {
-        foreach (AiTimelineStepItem item in turn.TimelineItems)
+        bool anyAuthorized = false;
+        foreach (VolumeSnapshotLookup item in VolumeSnapshotCache.Shared.ListActive(runLiveProbe: false))
         {
-            if (item is AiThinkingStepItem thinking && thinking.IsStreaming)
+            if (item.IsFresh)
             {
-                thinking.IsStreaming = false;
-            }
-            else if (item is AiAssistantMessageStepItem msg && msg.IsStreaming)
-            {
-                msg.IsStreaming = false;
-            }
-            else if (item is AiToolBatchStepItem batch)
-            {
-                bool changed = false;
-                foreach (AiToolCallStepItem tool in batch.Items)
-                {
-                    if (tool.IsRunning)
-                    {
-                        tool.IsRunning = false;
-                        tool.Succeeded = false;
-                        tool.ResultSummary = interruptedReason;
-                        changed = true;
-                    }
-                }
-                if (changed)
-                {
-                    batch.RefreshSummary();
-                }
+                SyncScanSnapshot(item.Entry.Snapshot);
+                anyAuthorized = true;
             }
         }
+        return anyAuthorized || HasAuthorizedSnapshot;
+    }
+
+    internal async Task<ScanSnapshot?> ExecuteDiskScanForCardAsync(
+        string driveRoot,
+        IProgress<(double Percent, string Message)> progress,
+        CancellationToken ct)
+    {
+        ScanSnapshot? snapshot;
+        if (_scanDriveCallback is not null)
+        {
+            snapshot = await _scanDriveCallback(driveRoot, progress, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            var svc = new DiskScanService();
+            var scanProgress = new Progress<ScanProgress>(p =>
+            {
+                double pct = p.Percent ?? 50;
+                progress.Report((pct, p.Message ?? "扫描目录结构中…"));
+            });
+            snapshot = await svc.ScanVolumeAsync(driveRoot, allowFallbackToDirectoryWalk: true, scanProgress, ct).ConfigureAwait(false);
+            if (snapshot is not null)
+            {
+                VolumeSnapshotCache.Shared.Put(snapshot, driveRoot.TrimEnd('\\'), Math.Max(0.1, (snapshot.CompletedAtUtc - snapshot.StartedAtUtc).TotalSeconds), 0, 0, 0);
+            }
+        }
+
+        if (snapshot is not null)
+        {
+            DispatchToUi(() => SyncScanSnapshot(snapshot));
+            _stateCache.Invalidate();
+            _ = OnEnteredAiPageAsync(force: true);
+        }
+
+        return snapshot;
+    }
+
+    internal async Task<CleanupScanSnapshot?> ExecuteCleanupScanForCardAsync(
+        IProgress<string> progress,
+        CancellationToken ct)
+    {
+        CleanupScanSnapshot? snapshot = null;
+        if (_scanCleanupCallback is not null)
+        {
+            snapshot = await _scanCleanupCallback(progress, ct).ConfigureAwait(false);
+        }
+
+        if (snapshot is not null)
+        {
+            DispatchToUi(() => SyncCleanupScanSnapshot(snapshot));
+            _stateCache.Invalidate();
+            _ = OnEnteredAiPageAsync(force: true);
+        }
+
+        return snapshot;
     }
 
     /// <summary>
-    /// 双向同步当前待迁移清单状态到所有 AI 建议卡片（当用户在目录树勾选/取消勾选或在清单页删减时立即联动）。
+    /// 双向同步当前待迁移清单状态到所有 3 个独立会话的 AI 建议卡片。
     /// </summary>
     public void SyncAdoptedPlanItems(Guid? planScanId, IReadOnlyCollection<int> planNodeIds, IReadOnlyCollection<string> planSourcePaths)
     {
@@ -1263,22 +786,13 @@ public partial class AiAssistantViewModel : ObservableObject
             _currentPlanNodeIds = planNodeIds.ToHashSet();
             _currentPlanSourcePaths = new HashSet<string>(planSourcePaths, StringComparer.OrdinalIgnoreCase);
 
-            foreach (AiConversationTurnItem turn in ConversationTurns)
-            {
-                foreach (AiProposalCardItem card in turn.ProposalCards)
-                {
-                    if (!card.IsAdoptableToMigrationPlan || card.IsInvalidated)
-                    {
-                        continue;
-                    }
-
-                    card.IsAdopted = IsCardCurrentlyInPlan(card.ScanId, card.NodeId, card.ActualLocalPath);
-                }
-            }
+            GeneralSession.SyncAdoptedPlanItems(planScanId, planNodeIds, planSourcePaths);
+            DiskScanSession.SyncAdoptedPlanItems(planScanId, planNodeIds, planSourcePaths);
+            CleanupSession.SyncAdoptedPlanItems(planScanId, planNodeIds, planSourcePaths);
         });
     }
 
-    private bool IsCardCurrentlyInPlan(Guid cardScanId, int cardNodeId, string actualLocalPath)
+    internal bool IsCardCurrentlyInPlan(Guid cardScanId, int cardNodeId, string actualLocalPath)
     {
         if (!string.IsNullOrWhiteSpace(actualLocalPath) && _currentPlanSourcePaths.Contains(actualLocalPath))
         {
@@ -1287,7 +801,7 @@ public partial class AiAssistantViewModel : ObservableObject
         return _lastSyncedPlanScanId == cardScanId && _currentPlanNodeIds.Contains(cardNodeId);
     }
 
-    private void AppendProposalCards(AiConversationTurnItem turn, AiMigrationProposalReceipt receipt)
+    internal void AppendProposalCards(AiConversationTurnItem turn, AiMigrationProposalReceipt receipt)
     {
         foreach (AiMigrationProposalItemRecord item in receipt.Items)
         {
@@ -1323,36 +837,147 @@ public partial class AiAssistantViewModel : ObservableObject
         }
     }
 
+    internal void AppendCleanupProposalCards(AiConversationTurnItem turn, AiCleanupProposalReceipt receipt)
+    {
+        foreach (AiCleanupProposalItemRecord item in receipt.Items)
+        {
+            if (item.Verdict is not (AiCleanupProposalItemVerdict.AcceptedRuleAdvice
+                or AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly
+                or AiCleanupProposalItemVerdict.HardBlockedByExclusion))
+            {
+                continue;
+            }
+
+            bool isBlocked = item.Verdict == AiCleanupProposalItemVerdict.HardBlockedByExclusion;
+            bool isResidual = item.Verdict == AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly;
+            bool isRuleAdvice = item.Verdict == AiCleanupProposalItemVerdict.AcceptedRuleAdvice;
+
+            turn.ProposalCards.Add(new AiProposalCardItem
+            {
+                ProposalId = receipt.ProposalId,
+                ScanId = receipt.ScanId ?? Guid.Empty,
+                NodeId = item.NodeId ?? 0,
+                DisplayName = item.DisplayName,
+                SanitizedPath = item.SanitizedPath,
+                ActualLocalPath = item.ActualLocalPath,
+                SizeText = item.SizeBytes > 0 ? FileStatsService.FormatBytes(item.SizeBytes) : "官方接口",
+                Reason = isBlocked ? item.VerdictMessage : item.Reason,
+                VerdictMessage = item.VerdictMessage,
+                AdmissionLevel = isBlocked ? MigrationAdmissionLevel.HardDenied : MigrationAdmissionLevel.ManualRiskConfirm,
+                Verdict = isBlocked ? AiProposalItemVerdict.RejectedByPolicy : AiProposalItemVerdict.Accepted,
+                IsAdoptableToMigrationPlan = false,
+                IsCleanupResidualProposal = isResidual,
+                IsCleanupRuleAdvice = isRuleAdvice
+            });
+        }
+    }
+
+    private void ApplySharedStateSnapshot(WorkspaceStateSnapshot state)
+    {
+        var authorizedDrives = _toolset.GetAuthorizedSnapshots()
+            .Select(s => VolumeSnapshotCache.NormalizeDriveRoot(s.Volume.DriveRoot))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        SharedDriveRows.Clear();
+        foreach (SharedDriveTelemetry d in state.Drives
+            .Where(x => x.IsFixedDrive)
+            .OrderByDescending(x => x.IsSystemDrive)
+            .ThenByDescending(x => x.UsedPercent >= 85)
+            .ThenBy(x => x.DriveLetter, StringComparer.OrdinalIgnoreCase))
+        {
+            bool isAuth = authorizedDrives.Contains(d.DriveRoot);
+            bool isTight = d.UsedPercent >= 85;
+            SharedDriveRows.Add(new AiSharedDriveRowItem
+            {
+                DriveRoot = d.DriveRoot,
+                DriveLetter = d.DriveLetter,
+                TitleText = string.IsNullOrWhiteSpace(d.VolumeLabel)
+                    ? (d.IsSystemDrive ? $"{d.DriveLetter} 系统盘" : $"{d.DriveLetter} 本地盘")
+                    : $"{d.DriveLetter} {d.VolumeLabel}",
+                SpaceMetaText = $"剩 {FileStatsService.FormatBytes(d.FreeBytes)} / {FileStatsService.FormatBytes(d.TotalBytes)}（已用 {d.UsedPercent:F0}%）",
+                UsedPercent = d.UsedPercent,
+                BarColor = isTight ? "#C42B1C" : (d.UsedPercent >= 70 ? "#D97706" : "#0078D4"),
+                StatusBadgeText = isAuth ? "已扫 ✓" : (isTight ? "空间紧张" : (d.SupportsSymlinkMigrationTarget ? "可作目标" : d.FileSystem)),
+                StatusBadgeBg = isAuth ? "#ECFDF5" : (isTight ? "#FEF2F2" : "#F1F5F9"),
+                StatusBadgeBorder = isAuth ? "#A7F3D0" : (isTight ? "#FECACA" : "#E2E8F0"),
+                StatusBadgeFg = isAuth ? "#0F7B4B" : (isTight ? "#C42B1C" : "#475569"),
+                IsSystemDrive = d.IsSystemDrive,
+                HasAuthorizedSnapshot = isAuth
+            });
+        }
+
+        if (state.Backups.UnverifiedBackupCount > 0 || state.Backups.RecoveryRequiredCount > 0)
+        {
+            string sizePart = state.Backups.HasEstimatedBytes
+                ? $" · 约 {FileStatsService.FormatBytes(state.Backups.EstimatedBackupBytes)}"
+                : string.Empty;
+            string recoveryPart = state.Backups.RecoveryRequiredCount > 0
+                ? $"（含 {state.Backups.RecoveryRequiredCount} 项中断待核验）"
+                : string.Empty;
+            BackupSummaryTitle = $"迁移备份：{state.Backups.UnverifiedBackupCount} 项待确认释放{sizePart}{recoveryPart}";
+        }
+        else
+        {
+            BackupSummaryTitle = "迁移备份：暂无待确认释放项";
+        }
+
+        QuarantineSummaryTitle = state.Quarantine.TotalBatchCount > 0
+            ? $"清理隔离区：{state.Quarantine.TotalBatchCount} 批（共 {FileStatsService.FormatBytes(state.Quarantine.TotalBytes)} 可释放）"
+            : "清理隔离区：当前为空";
+
+        HasReclaimableBackupOrQuarantine = state.Backups.UnverifiedBackupCount > 0
+            || state.Backups.RecoveryRequiredCount > 0
+            || state.Quarantine.TotalBatchCount > 0;
+    }
+
     private void RefreshContextSummary()
     {
         ContextHotspots.Clear();
-        ScanSnapshot? snapshot = _toolset.GetLatestAuthorizedSnapshot();
-        if (snapshot is null)
+        AuthorizedDiskScans.Clear();
+
+        IReadOnlyList<ScanSnapshot> snapshots = _toolset.GetAuthorizedSnapshots();
+        if (snapshots.Count == 0)
         {
             ActiveScanId = null;
             SnapshotContextTitle = IsSnapshotSharingEnabled
-                ? "当前尚未授权磁盘扫描快照"
-                : "已暂停向内置 AI 共享扫描快照";
+                ? "磁盘扫描快照：尚未扫描"
+                : "磁盘扫描快照：已暂停共享";
             SnapshotContextMeta = IsSnapshotSharingEnabled
-                ? "请先在「磁盘扫描」页完成任意磁盘扫描，再回到此处或直接展开右侧 AI 抽屉进行分析。"
-                : "你可以随时点击右侧按钮重新授权当前快照。";
+                ? "扫描任意磁盘后支持多盘共存授权，AI 绝不会自动扫描。"
+                : "可随时重新开启共享授权。";
+            WorkspaceStateSnapshot? st = _stateCache.GetCachedOrNull();
+            if (st is not null) ApplySharedStateSnapshot(st);
             return;
         }
 
-        ActiveScanId = snapshot.ScanId;
-        string drive = snapshot.Volume.DriveRoot.TrimEnd('\\');
-        string shortId = snapshot.ScanId.ToString("N")[..6];
-        SnapshotContextTitle = $"当前分析上下文 · {drive} 盘扫描快照 #scan-{shortId}（已脱敏）";
-        SnapshotContextMeta = $"共 {FileStatsService.FormatBytes(snapshot.Volume.UsedBytes)} · 仅共享目录结构元数据";
+        ScanSnapshot latest = snapshots[0];
+        ActiveScanId = latest.ScanId;
 
-        AiMigrationCandidatesResponse candidates = _toolset.ListMigrationCandidates(snapshot.ScanId, pageSize: 5);
+        foreach (ScanSnapshot s in snapshots)
+        {
+            string d = s.Volume.DriveRoot.TrimEnd('\\');
+            AuthorizedDiskScans.Add(new AiAuthorizedScanRowItem
+            {
+                ScanId = s.ScanId,
+                DriveLetter = d,
+                SummaryText = $"{d} · 已用 {FileStatsService.FormatBytes(s.Volume.UsedBytes)}"
+            });
+        }
+
+        string drivesText = string.Join(" / ", snapshots.Select(s => s.Volume.DriveRoot.TrimEnd('\\')));
+        SnapshotContextTitle = snapshots.Count == 1
+            ? $"磁盘扫描快照 · {drivesText} 盘（已脱敏共享）"
+            : $"磁盘扫描快照 · {drivesText} 共 {snapshots.Count} 块盘（已脱敏共享）";
+        SnapshotContextMeta = $"最新扫描 {FileStatsService.FormatBytes(latest.Volume.UsedBytes)} · 仅共享目录结构元数据";
+
+        AiMigrationCandidatesResponse candidates = _toolset.ListMigrationCandidates(latest.ScanId, pageSize: 5);
         foreach (AiMigrationCandidateDto c in candidates.Candidates.Take(4))
         {
             (string badge, string bg, string border, string fg) = c.AdmissionLevel switch
             {
                 MigrationAdmissionLevel.VerifiedEligible => ("L1 推荐迁移", "#ECFDF5", "#A7F3D0", "#0F7B4B"),
                 MigrationAdmissionLevel.VendorNativeRecommended => ("L2 原生引导", "#EBF5FF", "#BFDBFE", "#0078D4"),
-                _ => ("未知大占用 · 可让 AI 诊断", "#FFFBEB", "#FDE68A", "#B45309")
+                _ => ("未知大占用 · 可诊断", "#FFFBEB", "#FDE68A", "#B45309")
             };
 
             ContextHotspots.Add(new AiContextHotspotRow
@@ -1368,144 +993,59 @@ public partial class AiAssistantViewModel : ObservableObject
                 BadgeFg = fg
             });
         }
+
+        WorkspaceStateSnapshot? cachedState = _stateCache.GetCachedOrNull();
+        if (cachedState is not null) ApplySharedStateSnapshot(cachedState);
     }
 
-    private void SyncProposalInvalidations()
+    private void RefreshCleanupContextSummary()
     {
-        foreach (AiConversationTurnItem turn in ConversationTurns)
+        CleanupScanSnapshot? snap = _toolset.GetLatestAuthorizedCleanupSnapshot();
+        if (snap is null)
         {
-            foreach (AiProposalCardItem card in turn.ProposalCards)
-            {
-                AiProposalStatusResponse? status = _toolset.Inbox.GetStatus(card.ProposalId);
-                if (status is not null && status.Status == AiProposalStatus.Invalidated)
-                {
-                    card.IsInvalidated = true;
-                }
-            }
+            ActiveCleanupScanId = null;
+            CleanupSnapshotTitle = "垃圾清理快照：尚未扫描";
+            CleanupSnapshotMeta = "完成三档规则扫描后，AI 可直接解读谨慎项风险与清理顺序。";
+            return;
         }
+
+        ActiveCleanupScanId = snap.CleanupScanId;
+        int availCount = snap.Rules.Count(r => r.IsAvailable);
+        CleanupSnapshotTitle = $"垃圾清理快照 · 可清理 {FileStatsService.FormatBytes(snap.TotalReclaimableBytes)}（{availCount} 项可用）";
+        CleanupSnapshotMeta = $"建议 {FileStatsService.FormatBytes(snap.RecommendedBytes)} · 按需 {FileStatsService.FormatBytes(snap.OnDemandBytes)} · 谨慎 {FileStatsService.FormatBytes(snap.CautionBytes)}";
     }
 
-    private void ApplySettingsToForm(AiProviderSettings settings)
+    private void OnInboxStateChanged()
     {
-        SelectedPreset = settings.Preset;
-        foreach (AiPresetChipItem item in PresetChips)
-        {
-            item.IsSelected = item.Preset == settings.Preset;
-        }
-
-        Endpoint = settings.Endpoint;
-        ModelName = settings.ModelName;
-        MaxToolSteps = settings.EffectiveMaxToolSteps;
-        TimeoutSeconds = settings.EffectiveTimeoutSeconds;
-        ResponseLanguage = settings.ResponseLanguage;
-        MaskedApiKeyPreview = settings.MaskedApiKeyPreview ?? string.Empty;
-
-        if (settings.LastConnectionTestedUtc.HasValue)
-        {
-            if (settings.LastConnectionSucceeded && settings.LastConnectionSupportsToolCalling)
-            {
-                SetConnectionBadge(settings.LastConnectionSummary ?? "已测通 · 支持 Tool Calling", "#ECFDF5", "#A7F3D0", "#0F7B4B");
-            }
-            else if (settings.LastConnectionSucceeded)
-            {
-                SetConnectionBadge(settings.LastConnectionSummary ?? "已测通 · 不支持 Tool Calling", "#FFFBEB", "#FDE68A", "#B45309");
-            }
-            else
-            {
-                SetConnectionBadge("上次测试失败", "#FEF2F2", "#FECACA", "#C42B1C");
-            }
-        }
-        else if (settings.IsLocalEndpoint)
-        {
-            SetConnectionBadge("本地零外发端点", "#ECFDF5", "#A7F3D0", "#0F7B4B");
-        }
-        else if (settings.HasSavedApiKey)
-        {
-            SetConnectionBadge("已配置密钥 · 待测试", "#EBF5FF", "#BFDBFE", "#0078D4");
-        }
-        else
-        {
-            SetConnectionBadge("未配置 API Key", "#F8FAFC", "#E2E8F0", "#64748B");
-        }
+        GeneralSession.SyncProposalInvalidations();
+        DiskScanSession.SyncProposalInvalidations();
+        CleanupSession.SyncProposalInvalidations();
+        RefreshProposalInboxSummary();
     }
 
-    private AiProviderSettings BuildDraftSettings() =>
-        _savedSettings with
-        {
-            Preset = SelectedPreset,
-            Endpoint = Endpoint.Trim(),
-            ModelName = ModelName.Trim(),
-            MaxToolSteps = MaxToolSteps <= 0 ? 0 : Math.Clamp(MaxToolSteps, 1, AiProviderSettings.HardMaxToolSteps),
-            TimeoutSeconds = Math.Clamp(TimeoutSeconds, 15, AiProviderSettings.HardMaxTimeoutSeconds),
-            ResponseLanguage = ResponseLanguage
-        };
-
-    private string? ValidateDraftConfig(out AiProviderSettings draft, out string? resolvedApiKey)
+    private void RefreshProposalInboxSummary()
     {
-        draft = BuildDraftSettings();
-        resolvedApiKey = null;
+        int migrationAccepted = _toolset.Inbox.GetAllReceipts()
+            .Where(r => r.Status != AiProposalStatus.Invalidated)
+            .Sum(r => r.AcceptedCount);
+        int residualPending = _toolset.Inbox.GetCleanupResidualCandidates()
+            .Count(c => c.Status == AiCleanupCandidateStatus.PendingManualReview);
 
-        try
+        if (migrationAccepted == 0 && residualPending == 0)
         {
-            _ = OpenAiCompatibleChatClient.ResolveChatCompletionsUri(draft.Endpoint);
-        }
-        catch (Exception ex)
-        {
-            return ex.Message;
-        }
-
-        if (string.IsNullOrWhiteSpace(draft.ModelName))
-        {
-            return "请填写模型名称（例如 deepseek-chat、qwen-plus 或 qwen2.5:14b）。";
+            HasAnyProposalSummary = false;
+            ProposalInboxSummaryText = "本轮尚未生成结构化建议卡片";
+            return;
         }
 
-        string? pendingKey = PendingApiKeyAccessor?.Invoke();
-        resolvedApiKey = !string.IsNullOrWhiteSpace(pendingKey)
-            ? pendingKey.Trim()
-            : _configStore.TryUnprotectApiKey(_savedSettings);
-
-        if (!draft.IsLocalEndpoint && string.IsNullOrWhiteSpace(resolvedApiKey))
-        {
-            return "当前为云端模型端点，请先输入 API Key（或切换为本地 Ollama / LM Studio 零外发端点）。";
-        }
-
-        return null;
+        HasAnyProposalSummary = true;
+        var parts = new List<string>();
+        if (migrationAccepted > 0) parts.Add($"待审阅迁移建议 {migrationAccepted} 条");
+        if (residualPending > 0) parts.Add($"规则外 AI 疑似残留 {residualPending} 条");
+        ProposalInboxSummaryText = string.Join(" · ", parts);
     }
 
-    private bool EnsureCloudPrivacyAcknowledged(AiProviderSettings draft, out bool acknowledgedNow)
-    {
-        acknowledgedNow = false;
-        if (draft.IsLocalEndpoint || draft.CloudPrivacyAcknowledged || _savedSettings.CloudPrivacyAcknowledged)
-        {
-            return true;
-        }
-
-        bool confirmed = CustomMessageBox.ShowQuestion(
-            "你即将启用非本机（云端）AI 模型端点。\n\n" +
-            "工具仅会向你配置的模型服务商发送经脱敏的目录结构与占用元数据（本机用户名替换为 <USER>），绝不上传任何文件内容、注册表密钥或凭据。\n" +
-            "AI 建议仅供参考，不代表工具官方安全背书，绝不会自动执行迁移或删除。\n\n" +
-            "若希望 100% 数据不出本机，请点「否」并改用本地 Ollama / LM Studio。\n\n是否确认继续使用该云端端点？",
-            "云端元数据外发与隐私告知");
-
-        if (!confirmed)
-        {
-            ConfigFeedbackMessage = "已取消云端端点启用；如需 100% 离线分析，可选择「本地 Ollama」或「LM Studio」。";
-            return false;
-        }
-
-        acknowledgedNow = true;
-        return true;
-    }
-
-    private void SetConnectionBadge(string text, string bg, string border, string fg)
-    {
-        ConnectionBadgeText = text;
-        ConnectionBadgeBg = bg;
-        ConnectionBadgeBorder = border;
-        ConnectionBadgeFg = fg;
-    }
-
-    private static void DispatchToUi(Action action)
+    internal void DispatchToUi(Action action)
     {
         if (Application.Current?.Dispatcher is { } dispatcher)
         {
@@ -1523,20 +1063,11 @@ public partial class AiAssistantViewModel : ObservableObject
                 }
                 catch (TaskCanceledException)
                 {
-                    // 窗口关闭瞬间取消调度时安全忽略
                 }
                 return;
             }
         }
 
         action();
-    }
-
-    /// <summary>
-    /// 严格保序的同步进度转发器，避免 Progress&lt;T&gt; 在后台线程池或异步 Post 队列中造成时间线事件乱序或收尾竞态。
-    /// </summary>
-    private sealed class InlineProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
     }
 }

@@ -90,153 +90,32 @@ public static partial class MigrationSafetyPolicy
         FileAttributes.Encrypted |
         FileAttributes.Offline;
 
-    /// <summary>
-    /// 卷根下 Windows 专属且默认隐藏的系统/更新/恢复/元数据目录（同时强制 L0 硬拒绝并在扫描树、搜索与目录选择器中隐藏展示）。
-    /// 注意：不包含 ProgramData（虽为隐藏但承载第三方应用业务数据）及 Windows.old / WindowsApps / WpSystem（非隐藏或承载用户已装商店应用的大体积目录）。
-    /// </summary>
-    private static readonly string[] HiddenSystemVolumeRootNames =
-    [
-        // 卷元数据与回收站
-        "System Volume Information",
-        "$Recycle.Bin",
-        "RECYCLER",
-        "Recycled",
-        "$Extend",
-        // Windows 引导与恢复
-        "Boot",
-        "Recovery",
-        "EFI",
-        // Windows 更新 / 升级 / 恢复环境 / 重置暂存与回滚目录
-        "$WinREAgent",
-        "$WINDOWS.~BT",
-        "$Windows.~WS",
-        "$Windows.~LS",
-        "$WINDOWS.~Q",
-        "$SysReset",
-        "$GetCurrent",
-        "$INPLACE.~TR",
-        // Windows 安装事务 / 系统兼容联接 / 系统服务隐藏缓存
-        "Config.Msi",
-        "Documents and Settings",
-        "MSOCache",
-        "OneDriveTemp",
-        "WUDownloadCache",
-        "DeliveryOptimization",
-        // 本工具同卷隔离区隐藏目录
-        ".MoveFolderQuarantine"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> HiddenSystemVolumeRootNames =
+        ProtectedPathVocabulary.HiddenSystemVolumeRootNames;
 
-    /// <summary>
-    /// 卷根下可见（非隐藏）但同样强制 L0 硬拒绝的 Windows 系统目录。
-    /// </summary>
-    private static readonly string[] VisibleSystemVolumeRootHardDeniedNames =
-    [
-        "Windows.old",
-        "WindowsApps",
-        "ModifiableWindowsApps",
-        "WpSystem",
-        "PerfLogs"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> VisibleSystemVolumeRootHardDeniedNames =
+        ProtectedPathVocabulary.VisibleSystemVolumeRootHardDeniedNames;
 
-    private static readonly string[] VolumeMetadataRootNames =
-    [
-        "System Volume Information",
-        "$Recycle.Bin",
-        "RECYCLER",
-        "Recycled",
-        "$Extend"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> VolumeMetadataRootNames =
+        ProtectedPathVocabulary.VolumeMetadataRootNames;
 
-    private static readonly string[] WindowsComponentRootNames =
-    [
-        "Config.Msi",
-        "MSOCache",
-        "OneDriveTemp",
-        "WUDownloadCache",
-        "DeliveryOptimization",
-        "WindowsApps",
-        "ModifiableWindowsApps",
-        "WpSystem",
-        "PerfLogs"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> WindowsComponentRootNames =
+        ProtectedPathVocabulary.WindowsComponentRootNames;
 
-    private static readonly string[] ProgramFilesBlockedSubtrees =
-    [
-        "WindowsApps",
-        "Common Files",
-        "Windows Defender",
-        "Windows Defender Advanced Threat Protection",
-        "WindowsPowerShell",
-        "Windows NT",
-        "Windows Mail",
-        "Windows Media Player",
-        "Windows Photo Viewer",
-        "Windows Portable Devices",
-        "Windows Security",
-        "Windows Sidebar",
-        "Microsoft",
-        "Reference Assemblies",
-        "MSBuild",
-        "ModifiableWindowsApps",
-        "Internet Explorer",
-        "Uninstall Information"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> ProgramFilesBlockedSubtrees =
+        ProtectedPathVocabulary.ProgramFilesBlockedSubtrees;
 
-    private static readonly string[] ProgramDataBlockedSubtrees =
-    [
-        "Microsoft",
-        "Package Cache",
-        "WindowsHolographicDevices",
-        "USOPrivate",
-        "USOShared",
-        "ssh"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> ProgramDataBlockedSubtrees =
+        ProtectedPathVocabulary.ProgramDataBlockedSubtrees;
 
-    private static readonly string[] AppDataLocalBlockedSubtrees =
-    [
-        "Microsoft",
-        "Packages",
-        "Temp",
-        "VirtualStore",
-        "Comms",
-        "ConnectedDevicesPlatform",
-        "Publishers",
-        "Diagnostics",
-        "ElevatedDiagnostics",
-        "PeerDistRepub",
-        "CrashDumps",
-        "D3DSCache"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> AppDataLocalBlockedSubtrees =
+        ProtectedPathVocabulary.AppDataLocalBlockedSubtrees;
 
-    private static readonly string[] HighRiskPathSegments =
-    [
-        "Windows Defender",
-        "CrowdStrike",
-        "CarbonBlack",
-        "SentinelOne",
-        "Kaspersky",
-        "Kaspersky Lab",
-        "Bitdefender",
-        "Huorong",
-        "360Safe",
-        "ESET",
-        "Symantec",
-        "McAfee",
-        "Malwarebytes",
-        "Sophos",
-        "DriverStore",
-        "SystemCertificates",
-        ".ssh",
-        ".gnupg"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> HighRiskPathSegments =
+        ProtectedPathVocabulary.HighRiskSecurityAndDriverSegments;
 
-    private static readonly string[] CloudSyncSegmentNames =
-    [
-        "OneDrive",
-        "Dropbox",
-        "Google Drive",
-        "iCloudDrive"
-    ];
+    private static readonly System.Collections.Frozen.FrozenSet<string> CloudSyncSegmentNames =
+        ProtectedPathVocabulary.CloudSyncSegmentNames;
 
     private static ISafetyApplicationMatcher? _defaultMatcher;
 
@@ -385,11 +264,11 @@ public static partial class MigrationSafetyPolicy
             }
         }
 
-        // 6. 高危安全软件 / EDR / 驱动 / 凭据密钥目录（按路径组件边界匹配）
+        // 6. 高危安全软件 / EDR / 驱动 / 凭据密钥目录（按路径组件边界 O(1) 匹配）
         string[] segments = full[3..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
         foreach (string segment in segments)
         {
-            if (HighRiskPathSegments.Any(hr => segment.Equals(hr, StringComparison.OrdinalIgnoreCase)))
+            if (HighRiskPathSegments.Contains(segment))
             {
                 return HardDeny(SafetyReasonCodes.L0HighRiskSecurityOrDriver, $"不允许操作高危安全软件、驱动或凭据目录：{segment}");
             }
@@ -598,15 +477,8 @@ public static partial class MigrationSafetyPolicy
             return false;
         }
 
-        foreach (string hiddenName in HiddenSystemVolumeRootNames)
-        {
-            if (directoryName.Equals(hiddenName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return ChkdskFoundDirectoryRegex().IsMatch(directoryName);
+        return HiddenSystemVolumeRootNames.Contains(directoryName)
+            || ChkdskFoundDirectoryRegex().IsMatch(directoryName);
     }
 
     /// <summary>
@@ -619,20 +491,8 @@ public static partial class MigrationSafetyPolicy
             return false;
         }
 
-        if (IsHiddenSystemVolumeRootName(directoryName))
-        {
-            return true;
-        }
-
-        foreach (string visibleName in VisibleSystemVolumeRootHardDeniedNames)
-        {
-            if (directoryName.Equals(visibleName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return IsHiddenSystemVolumeRootName(directoryName)
+            || VisibleSystemVolumeRootHardDeniedNames.Contains(directoryName);
     }
 
     /// <summary>
@@ -724,7 +584,7 @@ public static partial class MigrationSafetyPolicy
             return true;
         }
 
-        if (VolumeMetadataRootNames.Any(n => firstSegment.Equals(n, StringComparison.OrdinalIgnoreCase))
+        if (VolumeMetadataRootNames.Contains(firstSegment)
             || ChkdskFoundDirectoryRegex().IsMatch(firstSegment))
         {
             reasonCode = SafetyReasonCodes.L0VolumeMetadata;
@@ -732,7 +592,7 @@ public static partial class MigrationSafetyPolicy
             return true;
         }
 
-        if (WindowsComponentRootNames.Any(n => firstSegment.Equals(n, StringComparison.OrdinalIgnoreCase)))
+        if (WindowsComponentRootNames.Contains(firstSegment))
         {
             reasonCode = SafetyReasonCodes.L0WindowsComponent;
             message = $"不允许操作系统关键目录：{reservedFull}";
@@ -880,7 +740,7 @@ public static partial class MigrationSafetyPolicy
 
                     if (parts[3].Equals("Microsoft", StringComparison.OrdinalIgnoreCase)
                         || (parts[2].Equals("Local", StringComparison.OrdinalIgnoreCase)
-                            && AppDataLocalBlockedSubtrees.Any(s => parts[3].Equals(s, StringComparison.OrdinalIgnoreCase))))
+                            && AppDataLocalBlockedSubtrees.Contains(parts[3])))
                     {
                         return HardDeny(SafetyReasonCodes.L0WindowsComponent, $"不允许操作系统关键目录：{fullPath}");
                     }

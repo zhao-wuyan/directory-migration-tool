@@ -2,8 +2,10 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using MigrationCore.Models.Ai;
+using MigrationCore.Models.Cleanup;
 using MigrationCore.Models.Safety;
 using MigrationCore.Models.Scanning;
+using MigrationCore.Services.Cleanup;
 using MigrationCore.Services.Safety;
 
 namespace MigrationCore.Services.Ai;
@@ -16,7 +18,7 @@ namespace MigrationCore.Services.Ai;
 /// 3. 绝不读取任何磁盘文件内容；所有路径均经 AiPathSanitizer 脱敏；
 /// 4. submit_migration_proposal 强制策略复核、幂等校验、父子重叠拦截与免责声明。
 /// </summary>
-public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
+public sealed partial class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
 {
     public const string ProtocolVersion = "2026.11-phase2-readonly";
     public const string MandatoryDisclaimer =
@@ -38,12 +40,18 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         "inspect_unknown_directory_metadata",
         "get_migration_policy",
         "submit_migration_proposal",
-        "get_proposal_status"
+        "get_proposal_status",
+        "get_cleanup_scan_summary",
+        "list_cleanup_items",
+        "get_cleanup_item_details",
+        "submit_cleanup_proposal"
     ];
 
     private readonly Lock _sync = new();
     private readonly Dictionary<Guid, ScanSnapshot> _authorizedScans = new();
     private readonly List<Guid> _scanOrder = new();
+    private readonly Dictionary<Guid, CleanupScanSnapshot> _authorizedCleanupScans = new();
+    private readonly List<Guid> _cleanupScanOrder = new();
     private readonly ApplicationCatalog _catalog;
     private readonly SafetyPolicyEnvironment? _policyEnvironment;
     private readonly Func<IReadOnlyList<AiTargetCandidateDto>> _targetCandidatesProvider;
@@ -52,6 +60,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
     public AiProposalInbox Inbox { get; }
 
     public event EventHandler? AuthorizedScansChanged;
+    public event EventHandler? AuthorizedCleanupScansChanged;
 
     public ReadOnlyAiAnalysisToolset(
         ApplicationCatalog? catalog = null,
@@ -77,6 +86,22 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         }
     }
 
+    public IReadOnlyList<ScanSnapshot> GetAuthorizedSnapshots()
+    {
+        lock (_sync)
+        {
+            var result = new List<ScanSnapshot>(_scanOrder.Count);
+            for (int i = _scanOrder.Count - 1; i >= 0; i--)
+            {
+                if (_authorizedScans.TryGetValue(_scanOrder[i], out ScanSnapshot? snap))
+                {
+                    result.Add(snap);
+                }
+            }
+            return result;
+        }
+    }
+
     public bool TryGetAuthorizedSnapshot(Guid scanId, out ScanSnapshot? snapshot)
     {
         lock (_sync)
@@ -86,23 +111,28 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
     }
 
     /// <summary>
-    /// 将当前会话的扫描快照授权给只读 AI 底座分析（同时作废已被替代的旧同卷快照建议）。
+    /// 将当前会话的扫描快照授权给只读 AI 底座分析。
+    /// 当 replacePreviousSnapshots=false 时支持多盘快照共存（仅替换同一盘符的旧快照并作废其旧建议，保留其他盘符快照）。
     /// </summary>
     public void AuthorizeSnapshot(ScanSnapshot snapshot, bool replacePreviousSnapshots = true)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
+        var replacedIds = new List<Guid>();
+        string newDriveRoot = snapshot.Volume.DriveRoot;
+
         lock (_sync)
         {
-            if (replacePreviousSnapshots)
+            foreach (KeyValuePair<Guid, ScanSnapshot> kv in _authorizedScans.ToArray())
             {
-                foreach (Guid oldId in _authorizedScans.Keys.ToArray())
+                if (kv.Key == snapshot.ScanId) continue;
+
+                bool sameDrive = kv.Value.Volume.DriveRoot.Equals(newDriveRoot, StringComparison.OrdinalIgnoreCase);
+                if (replacePreviousSnapshots || sameDrive)
                 {
-                    if (oldId != snapshot.ScanId)
-                    {
-                        _authorizedScans.Remove(oldId);
-                        _scanOrder.Remove(oldId);
-                    }
+                    _authorizedScans.Remove(kv.Key);
+                    _scanOrder.Remove(kv.Key);
+                    replacedIds.Add(kv.Key);
                 }
             }
 
@@ -114,6 +144,13 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         if (replacePreviousSnapshots)
         {
             Inbox.InvalidateAllExceptScan(snapshot.ScanId, "扫描快照已更新，旧快照对应的 AI 建议已自动失效。");
+        }
+        else
+        {
+            foreach (Guid oldId in replacedIds)
+            {
+                Inbox.InvalidateForScan(oldId, $"磁盘 {newDriveRoot.TrimEnd('\\')} 扫描快照已更新，旧快照对应的 AI 建议已自动失效。");
+            }
         }
 
         AuthorizedScansChanged?.Invoke(this, EventArgs.Empty);
@@ -143,6 +180,7 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         foreach (Guid id in revokedIds)
         {
             Inbox.InvalidateForScan(id, "用户已撤销该扫描快照的 AI 授权，相关建议已失效。");
+            Inbox.InvalidateCleanupCandidatesForScan(id);
         }
 
         if (revokedIds.Length > 0)
@@ -151,19 +189,77 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         }
     }
 
+    public CleanupScanSnapshot? GetLatestAuthorizedCleanupSnapshot()
+    {
+        lock (_sync)
+        {
+            if (_cleanupScanOrder.Count == 0) return null;
+            Guid id = _cleanupScanOrder[^1];
+            return _authorizedCleanupScans.TryGetValue(id, out CleanupScanSnapshot? snap) ? snap : null;
+        }
+    }
+
+    public void AuthorizeCleanupSnapshot(CleanupScanSnapshot snapshot, bool replacePrevious = true)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        lock (_sync)
+        {
+            if (replacePrevious)
+            {
+                _authorizedCleanupScans.Clear();
+                _cleanupScanOrder.Clear();
+            }
+
+            _authorizedCleanupScans[snapshot.CleanupScanId] = snapshot;
+            _cleanupScanOrder.Remove(snapshot.CleanupScanId);
+            _cleanupScanOrder.Add(snapshot.CleanupScanId);
+        }
+
+        AuthorizedCleanupScansChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void RevokeCleanupSnapshot(Guid? cleanupScanId = null)
+    {
+        bool changed;
+        lock (_sync)
+        {
+            if (cleanupScanId is Guid id)
+            {
+                changed = _authorizedCleanupScans.Remove(id);
+                _cleanupScanOrder.Remove(id);
+            }
+            else
+            {
+                changed = _authorizedCleanupScans.Count > 0;
+                _authorizedCleanupScans.Clear();
+                _cleanupScanOrder.Clear();
+            }
+        }
+
+        if (changed) AuthorizedCleanupScansChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public AiCapabilitiesResponse GetCapabilities()
     {
         bool hasScans;
-        lock (_sync) { hasScans = _authorizedScans.Count > 0; }
+        bool hasCleanup;
+        lock (_sync)
+        {
+            hasScans = _authorizedScans.Count > 0;
+            hasCleanup = _authorizedCleanupScans.Count > 0;
+        }
+
+        var scopes = new List<string> { "system_environment_readonly", "migration_policy_readonly" };
+        if (hasScans) scopes.Add("scan_metadata_readonly");
+        if (hasCleanup) scopes.Add("cleanup_scan_readonly");
+        if (hasScans || hasCleanup) scopes.Add("proposal_inbox_submit");
 
         return new AiCapabilitiesResponse(
             ProtocolVersion: ProtocolVersion,
             PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
             ReadOnlyAnalysisOnly: true,
             CanExecuteOperations: false,
-            AuthorizedScopes: hasScans
-                ? ["system_environment_readonly", "scan_metadata_readonly", "migration_policy_readonly", "proposal_inbox_submit"]
-                : ["system_environment_readonly", "migration_policy_readonly"],
+            AuthorizedScopes: scopes.ToArray(),
             AvailableTools: Phase2ToolNames,
             Disclaimer: MandatoryDisclaimer);
     }
@@ -1076,434 +1172,4 @@ public sealed class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
         return Inbox.GetStatus(proposalId)
             ?? throw new KeyNotFoundException($"未找到建议记录：{proposalId}。");
     }
-
-    private ScanSnapshot RequireAuthorizedSnapshot(Guid scanId)
-    {
-        if (!TryGetAuthorizedSnapshot(scanId, out ScanSnapshot? snapshot) || snapshot is null)
-        {
-            throw new UnauthorizedAccessException($"扫描快照 {scanId} 未在当前会话授权范围内或已撤销。");
-        }
-        return snapshot;
-    }
-
-    private SafetyPolicyDecision EvaluateSnapshotPath(string fullPath) =>
-        MigrationSafetyPolicy.EvaluateSource(
-            fullPath,
-            _catalog,
-            SafetyEvaluationContext.ScanPreview,
-            checkFilesystem: false,
-            environment: _policyEnvironment);
-
-    private AiTargetCandidateDto[] GetTargetCandidatesForSourceDrive(string sourceDriveRoot)
-    {
-        IReadOnlyList<AiTargetCandidateDto> all = _targetCandidatesProvider();
-        string normSource = sourceDriveRoot.TrimEnd('\\');
-        return all
-            .Where(t => !t.DriveLetter.TrimEnd('\\').Equals(normSource, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-    }
-
-    private static IReadOnlyList<AiTargetCandidateDto> DefaultDiscoverTargetCandidates()
-    {
-        var list = new List<AiTargetCandidateDto>();
-        try
-        {
-            foreach (DriveInfo drive in DriveInfo.GetDrives())
-            {
-                if (!drive.IsReady || drive.DriveType != DriveType.Fixed) continue;
-                if (!drive.DriveFormat.Equals("NTFS", StringComparison.OrdinalIgnoreCase)) continue;
-
-                string letter = drive.RootDirectory.FullName.TrimEnd('\\');
-                string driveKey = letter.TrimEnd(':').ToLowerInvariant();
-                bool isC = letter.Equals("C:", StringComparison.OrdinalIgnoreCase);
-                bool recommended = !isC && drive.AvailableFreeSpace >= 20L * 1024 * 1024 * 1024;
-
-                list.Add(new AiTargetCandidateDto(
-                    TargetCandidateId: $"target-vol-{driveKey}",
-                    DriveLetter: letter,
-                    SuggestedRoot: Path.Combine(drive.RootDirectory.FullName, "MigratedData"),
-                    AvailableBytes: drive.AvailableFreeSpace,
-                    IsRecommended: recommended));
-            }
-        }
-        catch
-        {
-            // 忽略单个驱动器查询异常
-        }
-
-        return list.OrderByDescending(x => x.IsRecommended).ThenByDescending(x => x.AvailableBytes).ToArray();
-    }
-
-    private AiSystemEnvironmentResponse CollectSystemEnvironment(int authorizedScanCount)
-    {
-        string systemDir = Environment.SystemDirectory;
-        string systemDrive = !string.IsNullOrWhiteSpace(systemDir)
-            ? (Path.GetPathRoot(systemDir) ?? @"C:\").TrimEnd('\\')
-            : "C:";
-
-        bool isAdmin = PathValidator.IsAdministrator();
-        bool isDevMode = IsWindowsDeveloperModeEnabled();
-        bool canCreateSymlinks = isAdmin || isDevMode;
-
-        IReadOnlyList<AiTargetCandidateDto> targetCandidates = _targetCandidatesProvider();
-        var targetMap = targetCandidates
-            .GroupBy(t => t.DriveLetter.TrimEnd('\\'), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        var drives = new List<AiDiskVolumeInfoDto>();
-        try
-        {
-            foreach (DriveInfo drive in DriveInfo.GetDrives())
-            {
-                if (!drive.IsReady) continue;
-
-                string letter = drive.RootDirectory.FullName.TrimEnd('\\');
-                bool isSys = letter.Equals(systemDrive, StringComparison.OrdinalIgnoreCase);
-                string format = string.IsNullOrWhiteSpace(drive.DriveFormat) ? "Unknown" : drive.DriveFormat;
-                bool isFixed = drive.DriveType == DriveType.Fixed;
-                bool isNtfs = format.Equals("NTFS", StringComparison.OrdinalIgnoreCase);
-                long total = Math.Max(0, drive.TotalSize);
-                long free = Math.Max(0, drive.AvailableFreeSpace);
-                long used = Math.Max(0, total - free);
-                double usedPct = total > 0 ? Math.Round(used * 100.0 / total, 1) : 0;
-
-                targetMap.TryGetValue(letter, out AiTargetCandidateDto? candidate);
-                bool supportsTarget = isFixed && isNtfs && !isSys;
-                string? targetNote = isSys
-                    ? "系统盘（通常作为迁出源盘，不建议作为迁移目标）"
-                    : !isFixed
-                        ? $"驱动器类型为 {drive.DriveType}（非本地固定磁盘，不适合作为符号链接目标）"
-                        : !isNtfs
-                            ? $"文件系统为 {format}（仅固定 NTFS 卷支持安全符号链接迁移）"
-                            : free < 20L * 1024 * 1024 * 1024
-                                ? "剩余空间低于 20 GB，迁入大目录前请确认余量"
-                                : "本地固定 NTFS 卷，适合作为安全迁移目标";
-
-                string safeLabel = string.IsNullOrWhiteSpace(drive.VolumeLabel)
-                    ? string.Empty
-                    : AiPathSanitizer.SanitizeUntrustedText(drive.VolumeLabel, 48, preserveNewLines: false);
-
-                drives.Add(new AiDiskVolumeInfoDto(
-                    DriveLetter: letter,
-                    VolumeLabel: safeLabel,
-                    DriveType: drive.DriveType.ToString(),
-                    FileSystem: format,
-                    TotalBytes: total,
-                    UsedBytes: used,
-                    FreeBytes: free,
-                    UsedPercent: usedPct,
-                    IsSystemDrive: isSys,
-                    SupportsSymlinkMigrationTarget: supportsTarget,
-                    TargetCandidateId: candidate?.TargetCandidateId,
-                    TargetNote: targetNote));
-            }
-        }
-        catch
-        {
-            // 忽略单个驱动器查询异常
-        }
-
-        var specialFolders = new List<AiSpecialFolderLocationDto>();
-        AddSanitizedSpecialFolder(specialFolders, "Desktop", "桌面", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), systemDrive);
-        string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(userProfile))
-        {
-            string downloads = Path.Combine(userProfile, "Downloads");
-            if (Directory.Exists(downloads))
-            {
-                AddSanitizedSpecialFolder(specialFolders, "Downloads", "下载", downloads, systemDrive);
-            }
-        }
-        AddSanitizedSpecialFolder(specialFolders, "Documents", "文档", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), systemDrive);
-        AddSanitizedSpecialFolder(specialFolders, "LocalAppData", "本地应用数据 (AppData\\Local)", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), systemDrive);
-        AddSanitizedSpecialFolder(specialFolders, "RoamingAppData", "漫游应用数据 (AppData\\Roaming)", Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), systemDrive);
-        AddSanitizedSpecialFolder(specialFolders, "Temp", "系统临时目录 (Temp)", Path.GetTempPath(), systemDrive);
-
-        return new AiSystemEnvironmentResponse(
-            OsDescription: RuntimeInformation.OSDescription,
-            OsVersion: Environment.OSVersion.Version.ToString(),
-            OsArchitecture: RuntimeInformation.OSArchitecture.ToString(),
-            SystemDrive: systemDrive,
-            IsAdministrator: isAdmin,
-            IsDeveloperModeEnabled: isDevMode,
-            CanCreateSymlinks: canCreateSymlinks,
-            CanUseRawNtfsMftScan: isAdmin,
-            AuthorizedScanCount: authorizedScanCount,
-            Drives: drives.OrderBy(d => d.DriveLetter, StringComparer.OrdinalIgnoreCase).ToArray(),
-            SpecialFolders: specialFolders.ToArray(),
-            PrivacyNotice: "已严格脱敏：仅包含磁盘卷容量/文件系统、OS 版本、权限前提与 <USER> 脱敏目录位置，绝不含真实用户名、计算机名、网络地址、环境变量或任何文件内容。");
-    }
-
-    private static void AddSanitizedSpecialFolder(
-        List<AiSpecialFolderLocationDto> list,
-        string key,
-        string displayName,
-        string? rawPath,
-        string systemDrive)
-    {
-        if (string.IsNullOrWhiteSpace(rawPath)) return;
-        string trimmed = rawPath.TrimEnd('\\');
-        string driveLetter = (Path.GetPathRoot(trimmed) ?? string.Empty).TrimEnd('\\');
-        if (string.IsNullOrWhiteSpace(driveLetter)) return;
-
-        string sanitized = AiPathSanitizer.SanitizePath(trimmed);
-        bool onSys = driveLetter.Equals(systemDrive, StringComparison.OrdinalIgnoreCase);
-        list.Add(new AiSpecialFolderLocationDto(key, displayName, driveLetter, sanitized, onSys));
-    }
-
-    private static bool IsWindowsDeveloperModeEnabled()
-    {
-        try
-        {
-            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock",
-                writable: false);
-            object? val = key?.GetValue("AllowDevelopmentWithoutDevLicense");
-            return val is int intVal && intVal == 1;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static AiScanSummaryItem BuildScanSummaryItem(ScanSnapshot snapshot)
-    {
-        string letter = snapshot.Volume.DriveRoot.TrimEnd('\\');
-        string label = string.IsNullOrWhiteSpace(snapshot.Volume.VolumeLabel)
-            ? $"本地磁盘 ({letter})"
-            : $"{snapshot.Volume.VolumeLabel} ({letter})";
-
-        long ageSec = Math.Max(0, (long)(DateTimeOffset.UtcNow - snapshot.CompletedAtUtc).TotalSeconds);
-
-        return new AiScanSummaryItem(
-            ScanId: snapshot.ScanId,
-            VolumeDisplay: label,
-            DriveLetter: letter,
-            Backend: snapshot.Backend,
-            Coverage: snapshot.Coverage,
-            CanUseForMigrationPlanning: snapshot.CanUseForMigrationPlanning,
-            TotalBytes: snapshot.Volume.TotalBytes,
-            UsedBytes: snapshot.Volume.UsedBytes,
-            FreeBytes: snapshot.Volume.FreeBytes,
-            PolicyVersion: snapshot.PolicyVersion,
-            CompletedAtUtc: snapshot.CompletedAtUtc,
-            ScanAgeSeconds: ageSec,
-            NodeCount: snapshot.Nodes.Length,
-            IncompleteNodeCount: snapshot.IncompleteNodeCount,
-            RequiresLiveReverification: snapshot.RequiresLiveReverification);
-    }
-
-    private static bool HasChildDirectories(ScanSnapshot snapshot, int nodeId)
-    {
-        ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
-        for (int i = 0; i < children.Length; i++)
-        {
-            int cid = children[i];
-            ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
-            if (c.IsDirectory && !c.IsOrphaned && !MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, cid))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private int[] CollectDisjointHotspots(ScanSnapshot snapshot, long minAllocatedBytes, int maxCount, int? startNodeId = null)
-    {
-        var results = new List<(int NodeId, long Size)>();
-
-        void Visit(int nodeId, int depth)
-        {
-            ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
-            for (int i = 0; i < children.Length; i++)
-            {
-                int cid = children[i];
-                ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
-                if (!c.IsDirectory || c.IsOrphaned) continue;
-                if (MigrationSafetyPolicy.IsHiddenSystemVolumeNode(snapshot, cid)) continue;
-
-                long size = Math.Max(c.UniqueAllocatedBytes, c.LogicalBytes);
-                if (size < minAllocatedBytes) continue;
-
-                string path = snapshot.GetFullPath(cid);
-                SafetyPolicyDecision decision = EvaluateSnapshotPath(path);
-
-                if (decision.IsHardDenied)
-                {
-                    if (depth < 5 && !c.IsReparsePoint && IsContainerToDescend(path, decision))
-                    {
-                        Visit(cid, depth + 1);
-                    }
-                    continue;
-                }
-
-                if (decision.Level is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.VendorNativeRecommended)
-                {
-                    results.Add((cid, size));
-                    continue;
-                }
-
-                if (depth < 4 && !c.IsReparsePoint && ShouldDescendToHighlightChildren(snapshot, cid, size, minAllocatedBytes))
-                {
-                    Visit(cid, depth + 1);
-                }
-                else
-                {
-                    results.Add((cid, size));
-                }
-            }
-        }
-
-        Visit(startNodeId ?? snapshot.RootNodeId, 0);
-        return results
-            .OrderByDescending(x => x.Size)
-            .Take(maxCount)
-            .Select(x => x.NodeId)
-            .ToArray();
-    }
-
-    private static bool IsContainerToDescend(string fullPath, SafetyPolicyDecision decision)
-    {
-        if (decision.ReasonCodes.Contains(SafetyReasonCodes.L0SystemContainerRoot, StringComparer.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-        string leaf = Path.GetFileName(fullPath.TrimEnd('\\'));
-        return leaf.Equals("Users", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("AppData", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("Local", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("Roaming", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("LocalLow", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("Program Files", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("Program Files (x86)", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("ProgramData", StringComparison.OrdinalIgnoreCase)
-            || leaf.Equals("Programs", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool ShouldDescendToHighlightChildren(ScanSnapshot snapshot, int nodeId, long parentSize, long minAllocatedBytes)
-    {
-        ReadOnlySpan<int> children = snapshot.GetChildrenSpan(nodeId);
-        if (children.Length == 0) return false;
-
-        string name = snapshot.GetNodeName(nodeId);
-        bool isWrapper = name.Equals("Programs", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Apps", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("Games", StringComparison.OrdinalIgnoreCase)
-            || name.Equals("AI_Workspace", StringComparison.OrdinalIgnoreCase);
-
-        long largestChild = 0;
-        int qualifying = 0;
-        for (int i = 0; i < children.Length; i++)
-        {
-            int cid = children[i];
-            ref readonly ScanNodeRecord c = ref snapshot.Nodes[cid];
-            if (!c.IsDirectory || c.IsOrphaned) continue;
-            long cSize = Math.Max(c.UniqueAllocatedBytes, c.LogicalBytes);
-            if (cSize < minAllocatedBytes) continue;
-
-            qualifying++;
-            if (cSize > largestChild) largestChild = cSize;
-
-            SafetyPolicyDecision cd = EvaluateSnapshotPath(snapshot.GetFullPath(cid));
-            if (cd.Level is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.VendorNativeRecommended)
-            {
-                return true;
-            }
-        }
-
-        if (qualifying == 0) return false;
-        if (isWrapper) return true;
-        return qualifying == 1 && parentSize > 0 && largestChild * 100.0 / parentSize >= 85.0;
-    }
-
-    private static string BuildDisplayName(ScanSnapshot snapshot, int nodeId, string? matchedAppName)
-    {
-        string leaf = AiPathSanitizer.SanitizeUntrustedText(snapshot.GetNodeName(nodeId), 80, false);
-        if (!string.IsNullOrWhiteSpace(matchedAppName)
-            && !leaf.Equals(matchedAppName, StringComparison.OrdinalIgnoreCase))
-        {
-            return $"{matchedAppName} / {leaf}";
-        }
-
-        int parentId = snapshot.Nodes[nodeId].ParentNodeId;
-        if (parentId >= 0 && parentId != snapshot.RootNodeId && parentId != nodeId)
-        {
-            string parentName = AiPathSanitizer.SanitizeUntrustedText(snapshot.GetNodeName(parentId), 60, false);
-            if (!string.IsNullOrWhiteSpace(parentName)
-                && !parentName.Equals("Users", StringComparison.OrdinalIgnoreCase)
-                && !parentName.Equals(Environment.UserName, StringComparison.OrdinalIgnoreCase))
-            {
-                return $"{parentName} / {leaf}";
-            }
-        }
-
-        return leaf;
-    }
-
-    private static string NormalizeCategory(string? category)
-    {
-        if (string.IsNullOrWhiteSpace(category)) return "Migration";
-        string c = category.Trim();
-        if (c.Equals("SuspectedCacheAdvisory", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("SuspectedResidual", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("CleanupAdvisory", StringComparison.OrdinalIgnoreCase))
-        {
-            return "SuspectedCacheAdvisory";
-        }
-        if (c.Equals("NativeGuideAdvisory", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("NativeGuide", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("VendorNative", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("VendorNativeRecommended", StringComparison.OrdinalIgnoreCase)
-            || c.Equals("L2NativeGuide", StringComparison.OrdinalIgnoreCase))
-        {
-            return "NativeGuideAdvisory";
-        }
-        return "Migration";
-    }
-
-    private static string? TryBuildTargetPath(string sourcePath, string targetRoot, string? appId)
-    {
-        try
-        {
-            return MigrationPlanService.BuildDefaultTargetPath(sourcePath, targetRoot, appId);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static bool IsSameOrAncestorOrDescendant(string pathA, string pathB)
-    {
-        string a = pathA.TrimEnd('\\');
-        string b = pathB.TrimEnd('\\');
-        if (a.Equals(b, StringComparison.OrdinalIgnoreCase)) return true;
-        return a.StartsWith(b + "\\", StringComparison.OrdinalIgnoreCase)
-            || b.StartsWith(a + "\\", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static int ParseCursor(string? cursor)
-    {
-        if (string.IsNullOrWhiteSpace(cursor)) return 0;
-        return int.TryParse(cursor.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed >= 0
-            ? parsed
-            : 0;
-    }
-
-    private static AiMigrationProposalReceipt BuildRejectedEnvelope(string clientRequestId, Guid scanId, string message) =>
-        new(
-            ProposalId: Guid.NewGuid(),
-            ClientRequestId: clientRequestId,
-            ScanId: scanId,
-            PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
-            ReceivedAtUtc: DateTimeOffset.UtcNow,
-            Status: AiProposalStatus.Invalidated,
-            IsIdempotentReplay: false,
-            AcceptedCount: 0,
-            BlockedByPolicyCount: 0,
-            RejectedCount: 0,
-            Items: [],
-            Disclaimer: MandatoryDisclaimer,
-            RejectionMessage: message);
 }

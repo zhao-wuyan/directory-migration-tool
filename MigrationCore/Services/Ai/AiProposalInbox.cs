@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using MigrationCore.Models.Ai;
+using MigrationCore.Models.Cleanup;
 
 namespace MigrationCore.Services.Ai;
 
@@ -25,7 +26,14 @@ public sealed class AiProposalInbox
     private readonly Dictionary<string, (Guid ProposalId, string RequestDigest)> _byClientRequestId = new(StringComparer.Ordinal);
     private readonly List<Guid> _orderedIds = new();
 
+    // ---- 三期：清理建议收件箱（规则排序建议 + 规则外 AI 疑似残留隔离候选 + 硬拦截审计记录） ----
+    private readonly Dictionary<Guid, AiCleanupProposalReceipt> _cleanupReceipts = new();
+    private readonly Dictionary<string, (Guid ProposalId, string RequestDigest)> _cleanupByClientRequestId = new(StringComparer.Ordinal);
+    private readonly List<AiCleanupCandidateRecord> _cleanupResidualCandidates = new();
+    private readonly List<AiCleanupRuleAdviceRecord> _cleanupRuleAdvices = new();
+
     public event EventHandler? InboxChanged;
+    public event EventHandler? CleanupProposalsChanged;
 
     public IReadOnlyList<AiMigrationProposalReceipt> GetAllReceipts()
     {
@@ -239,6 +247,194 @@ public sealed class AiProposalInbox
                 Reason = i.Reason?.Trim() ?? string.Empty,
                 CompatibilityNotes = i.CompatibilityNotes?.Trim() ?? string.Empty,
                 SuggestedCategory = i.SuggestedCategory?.Trim() ?? string.Empty
+            }).ToArray()
+        };
+
+        string json = JsonSerializer.Serialize(canonical);
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return Convert.ToHexString(hash);
+    }
+
+    // ==================== 三期：清理建议与「AI 疑似残留」收件箱 ====================
+
+    public bool TryGetCleanupIdempotentOrConflict(
+        string clientRequestId,
+        string requestDigest,
+        out AiCleanupProposalReceipt? existingReplay,
+        out bool isConflict)
+    {
+        lock (_sync)
+        {
+            if (_cleanupByClientRequestId.TryGetValue(clientRequestId, out var hit)
+                && _cleanupReceipts.TryGetValue(hit.ProposalId, out AiCleanupProposalReceipt? stored))
+            {
+                if (string.Equals(hit.RequestDigest, requestDigest, StringComparison.Ordinal))
+                {
+                    existingReplay = stored with { IsIdempotentReplay = true };
+                    isConflict = false;
+                    return true;
+                }
+
+                existingReplay = null;
+                isConflict = true;
+                return true;
+            }
+
+            existingReplay = null;
+            isConflict = false;
+            return false;
+        }
+    }
+
+    public void RecordCleanupProposal(AiCleanupProposalReceipt receipt, string requestDigest)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+
+        lock (_sync)
+        {
+            _cleanupReceipts[receipt.ProposalId] = receipt;
+            if (!string.IsNullOrWhiteSpace(receipt.ClientRequestId))
+            {
+                _cleanupByClientRequestId[receipt.ClientRequestId] = (receipt.ProposalId, requestDigest);
+            }
+
+            foreach (AiCleanupProposalItemRecord item in receipt.Items)
+            {
+                if (item.Verdict is AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly or AiCleanupProposalItemVerdict.HardBlockedByExclusion
+                    && receipt.ScanId is Guid scanId
+                    && item.NodeId is int nodeId)
+                {
+                    bool alreadyPresent = _cleanupResidualCandidates.Any(c =>
+                        c.ScanId == scanId
+                        && c.NodeId == nodeId
+                        && c.Status is AiCleanupCandidateStatus.PendingManualReview or AiCleanupCandidateStatus.HardBlockedByExclusion);
+                    if (!alreadyPresent)
+                    {
+                        _cleanupResidualCandidates.Add(new AiCleanupCandidateRecord(
+                            CandidateId: item.ProposalItemId,
+                            ProposalId: receipt.ProposalId,
+                            ScanId: scanId,
+                            NodeId: nodeId,
+                            DisplayName: item.DisplayName,
+                            SanitizedPath: item.SanitizedPath,
+                            ActualLocalPath: item.ActualLocalPath,
+                            SizeBytes: item.SizeBytes,
+                            FileCount: item.FileCount,
+                            Reason: item.Reason,
+                            RiskWarning: item.RiskWarning,
+                            Status: item.Verdict == AiCleanupProposalItemVerdict.HardBlockedByExclusion
+                                ? AiCleanupCandidateStatus.HardBlockedByExclusion
+                                : AiCleanupCandidateStatus.PendingManualReview,
+                            ExclusionReasonCode: item.ExclusionReasonCode,
+                            ExclusionCategoryTitle: item.ExclusionCategoryTitle,
+                            ExclusionMessage: item.Verdict == AiCleanupProposalItemVerdict.HardBlockedByExclusion ? item.VerdictMessage : null,
+                            CreatedAtUtc: receipt.ReceivedAtUtc));
+                    }
+                }
+                else if (item.Verdict == AiCleanupProposalItemVerdict.AcceptedRuleAdvice
+                    && receipt.CleanupScanId is Guid cScanId
+                    && !string.IsNullOrWhiteSpace(item.RuleId)
+                    && item.OriginalRuleTier is CleanupRecommendationTier tier)
+                {
+                    _cleanupRuleAdvices.RemoveAll(a => a.CleanupScanId == cScanId && a.RuleId.Equals(item.RuleId, StringComparison.OrdinalIgnoreCase));
+                    _cleanupRuleAdvices.Add(new AiCleanupRuleAdviceRecord(
+                        ProposalId: receipt.ProposalId,
+                        CleanupScanId: cScanId,
+                        RuleId: item.RuleId,
+                        RuleDisplayName: item.DisplayName,
+                        OriginalTier: tier,
+                        Priority: item.Priority,
+                        Reason: item.Reason,
+                        RiskWarning: item.RiskWarning,
+                        CreatedAtUtc: receipt.ReceivedAtUtc));
+                }
+            }
+        }
+
+        CleanupProposalsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public IReadOnlyList<AiCleanupCandidateRecord> GetCleanupResidualCandidates()
+    {
+        lock (_sync)
+        {
+            return _cleanupResidualCandidates
+                .OrderBy(c => c.Status == AiCleanupCandidateStatus.HardBlockedByExclusion ? 1 : 0)
+                .ThenByDescending(c => c.SizeBytes)
+                .ToArray();
+        }
+    }
+
+    public IReadOnlyList<AiCleanupRuleAdviceRecord> GetCleanupRuleAdvices(Guid? cleanupScanId = null)
+    {
+        lock (_sync)
+        {
+            return _cleanupRuleAdvices
+                .Where(a => cleanupScanId is null || a.CleanupScanId == cleanupScanId.Value)
+                .OrderBy(a => a.Priority)
+                .ToArray();
+        }
+    }
+
+    public void MarkCleanupResidualQuarantined(Guid candidateId, string batchId)
+    {
+        bool changed = false;
+        lock (_sync)
+        {
+            for (int i = 0; i < _cleanupResidualCandidates.Count; i++)
+            {
+                if (_cleanupResidualCandidates[i].CandidateId == candidateId)
+                {
+                    _cleanupResidualCandidates[i] = _cleanupResidualCandidates[i] with
+                    {
+                        Status = AiCleanupCandidateStatus.Quarantined,
+                        QuarantineBatchId = batchId
+                    };
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (changed) CleanupProposalsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public int InvalidateCleanupCandidatesForScan(Guid scanId)
+    {
+        int count = 0;
+        lock (_sync)
+        {
+            for (int i = 0; i < _cleanupResidualCandidates.Count; i++)
+            {
+                AiCleanupCandidateRecord c = _cleanupResidualCandidates[i];
+                if (c.ScanId == scanId && c.Status == AiCleanupCandidateStatus.PendingManualReview)
+                {
+                    _cleanupResidualCandidates[i] = c with { Status = AiCleanupCandidateStatus.Invalidated };
+                    count++;
+                }
+            }
+        }
+        if (count > 0) CleanupProposalsChanged?.Invoke(this, EventArgs.Empty);
+        return count;
+    }
+
+    public static string ComputeCleanupRequestDigest(AiCleanupProposalRequest request)
+    {
+        var canonical = new
+        {
+            request.SchemaVersion,
+            ClientRequestId = request.ClientRequestId.Trim(),
+            request.ScanId,
+            request.CleanupScanId,
+            PolicyVersion = request.PolicyVersion.Trim(),
+            Items = (request.Items ?? []).Select(i => new
+            {
+                Kind = i.Kind?.Trim() ?? string.Empty,
+                RuleId = i.RuleId?.Trim() ?? string.Empty,
+                i.NodeId,
+                SuggestedAction = i.SuggestedAction?.Trim() ?? string.Empty,
+                i.Priority,
+                Reason = i.Reason?.Trim() ?? string.Empty,
+                RiskWarning = i.RiskWarning?.Trim() ?? string.Empty
             }).ToArray()
         };
 

@@ -1147,6 +1147,315 @@ internal static class Phase2AiCases
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
             }
         });
+
+        await test("SharedWorkspaceStateCache-ttl-dedup-and-invalidation", async () =>
+        {
+            int collectCalls = 0;
+            var gate = new ManualResetEventSlim(false);
+            var cache = new SharedWorkspaceStateCache(
+                ttl: TimeSpan.FromSeconds(30),
+                collector: _ =>
+                {
+                    int n = Interlocked.Increment(ref collectCalls);
+                    if (n == 1) gate.Wait(TimeSpan.FromSeconds(2));
+                    return new WorkspaceStateSnapshot(
+                        DateTimeOffset.UtcNow,
+                        "C:",
+                        true,
+                        true,
+                        [new SharedDriveTelemetry(@"C:\", "C:", "System", "Fixed", "NTFS", 256L << 30, 18L << 30, 238L << 30, 93.0, true, true, true, false)],
+                        new SharedBackupSummary(2, 0, 10L << 30, true, new Dictionary<string, int> { [@"C:\"] = 2 }),
+                        new SharedQuarantineSummary(1, 2L << 30, new Dictionary<string, (int, long)> { [@"C:\"] = (1, 2L << 30) }));
+                });
+
+            Task<WorkspaceStateSnapshot> t1 = cache.GetOrRefreshAsync();
+            Task<WorkspaceStateSnapshot> t2 = cache.GetOrRefreshAsync();
+            gate.Set();
+            WorkspaceStateSnapshot s1 = await t1;
+            WorkspaceStateSnapshot s2 = await t2;
+            Require(collectCalls == 1, $"Concurrent refreshes must deduplicate to 1 collector call, got {collectCalls}");
+            Require(ReferenceEquals(s1, s2), "Concurrent callers should receive identical snapshot instance");
+
+            // TTL 内再次获取应 0ms 复用缓存
+            WorkspaceStateSnapshot s3 = cache.GetOrRefreshSync();
+            Require(collectCalls == 1 && ReferenceEquals(s1, s3), "Fresh TTL call must reuse cached snapshot without re-collecting");
+
+            // 写操作主动失效后必须重新采集
+            cache.Invalidate();
+            WorkspaceStateSnapshot s4 = await cache.GetOrRefreshAsync();
+            Require(collectCalls == 2 && !ReferenceEquals(s1, s4), $"Invalidate must trigger fresh collection, got {collectCalls}");
+        });
+
+        await test("MultiDriveSnapshots-coexist-and-replace-only-same-drive", () =>
+        {
+            var (snapC1, env, idsC) = BuildAiTestSnapshot();
+            var snapD = new ScanSnapshot
+            {
+                ScanId = Guid.NewGuid(),
+                Volume = new ScanVolumeInfo(@"D:\", "Data", "vol-d", 2222, "NTFS", 1000L << 30, 400L << 30, true, "OK"),
+                Backend = ScanBackendKind.RawNtfsMft,
+                Coverage = ScanCoverageStatus.Complete,
+                PolicyVersion = snapC1.PolicyVersion,
+                StartedAtUtc = DateTimeOffset.UtcNow.AddSeconds(-2),
+                CompletedAtUtc = DateTimeOffset.UtcNow,
+                RootNodeId = 0,
+                Nodes = snapC1.Nodes,
+                CsrOffsets = snapC1.CsrOffsets,
+                CsrChildren = snapC1.CsrChildren,
+                NamePool = snapC1.NamePool
+            };
+            var snapC2 = new ScanSnapshot
+            {
+                ScanId = Guid.NewGuid(),
+                Volume = snapC1.Volume,
+                Backend = snapC1.Backend,
+                Coverage = snapC1.Coverage,
+                PolicyVersion = snapC1.PolicyVersion,
+                StartedAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1),
+                CompletedAtUtc = DateTimeOffset.UtcNow,
+                RootNodeId = snapC1.RootNodeId,
+                Nodes = snapC1.Nodes,
+                CsrOffsets = snapC1.CsrOffsets,
+                CsrChildren = snapC1.CsrChildren,
+                NamePool = snapC1.NamePool
+            };
+
+            var toolset = new ReadOnlyAiAnalysisToolset(
+                catalog: new ApplicationCatalog(BuiltInApplicationRules.All, []),
+                policyEnvironment: env,
+                targetCandidatesProvider: () =>
+                [
+                    new AiTargetCandidateDto("target-vol-d", "D:", @"D:\MigratedData", 400L << 30, true)
+                ]);
+
+            toolset.AuthorizeSnapshot(snapC1, replacePreviousSnapshots: false);
+            toolset.AuthorizeSnapshot(snapD, replacePreviousSnapshots: false);
+            Require(toolset.GetAuthorizedSnapshots().Count == 2, "C: and D: snapshots should coexist simultaneously");
+
+            AiMigrationProposalReceipt recC = toolset.SubmitMigrationProposal(new AiMigrationProposalRequest(
+                1, "multi-c1", snapC1.ScanId, MigrationSafetyPolicy.CurrentPolicyVersion,
+                [new AiMigrationProposalItemInput(idsC.ComfyModels, "target-vol-d", 1, "C盘模型")]));
+            Require(recC.AcceptedCount == 1, "C1 proposal should be accepted");
+
+            // 重新扫描 C: 时只替换 C1 并作废 C1 旧建议，D: 必须保留！
+            toolset.AuthorizeSnapshot(snapC2, replacePreviousSnapshots: false);
+            IReadOnlyList<ScanSnapshot> afterReplace = toolset.GetAuthorizedSnapshots();
+            Require(afterReplace.Count == 2, $"Replacing C: should still keep 2 snapshots (C2 + D), got {afterReplace.Count}");
+            Require(afterReplace.Any(s => s.ScanId == snapC2.ScanId) && afterReplace.Any(s => s.ScanId == snapD.ScanId),
+                "Should retain D: snapshot while replacing old C1 with C2");
+            Require(toolset.GetProposalStatus(recC.ProposalId)?.Status == AiProposalStatus.Invalidated,
+                "Old C1 proposal must be invalidated when C: is rescanned");
+            return Task.CompletedTask;
+        });
+
+        await test("ThreeSceneSessions-isolated-concurrent-and-scan-action-card-flow", async () =>
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "MoveFolder_Phase2_MultiSession_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var (snapC, env, _) = BuildAiTestSnapshot();
+                var cfgStore = new AiProviderConfigStore(tempDir);
+
+                // 1. 未配置云端 API Key 时，独立 AI 页左栏默认落在「模型配置」
+                var unconfiguredVm = new AiAssistantViewModel(configStore: cfgStore);
+                Require(unconfiguredVm.IsConfigTabActive && !unconfiguredVm.IsContextTabActive,
+                    "Unconfigured cloud model should open Model Config tab by default");
+
+                // 保存本地零外发端点后，默认应落到「分析上下文」驾驶舱
+                cfgStore.Save(new AiProviderSettings
+                {
+                    Preset = AiProviderPreset.Ollama,
+                    Endpoint = "http://localhost:11434/v1",
+                    ModelName = "mock-model"
+                });
+
+                // 构造 6 块硬盘的共享态势缓存，验证多盘排序、克制默认勾选与 >4 盘折叠
+                var sixDriveCache = new SharedWorkspaceStateCache(
+                    ttl: TimeSpan.FromMinutes(5),
+                    collector: _ => new WorkspaceStateSnapshot(
+                        DateTimeOffset.UtcNow, "C:", true, true,
+                        [
+                            new SharedDriveTelemetry(@"C:\", "C:", "System", "Fixed", "NTFS", 256L << 30, 20L << 30, 236L << 30, 92.2, true, true, true, false),
+                            new SharedDriveTelemetry(@"D:\", "D:", "Work", "Fixed", "NTFS", 1024L << 30, 500L << 30, 524L << 30, 51.2, false, true, true, true),
+                            new SharedDriveTelemetry(@"E:\", "E:", "Games", "Fixed", "NTFS", 1024L << 30, 100L << 30, 924L << 30, 90.2, false, true, true, true),
+                            new SharedDriveTelemetry(@"F:\", "F:", "Media", "Fixed", "NTFS", 2048L << 30, 1200L << 30, 848L << 30, 41.4, false, true, true, true),
+                            new SharedDriveTelemetry(@"G:\", "G:", "Archive", "Fixed", "NTFS", 4096L << 30, 3000L << 30, 1096L << 30, 26.8, false, true, true, true),
+                            new SharedDriveTelemetry(@"H:\", "H:", "Cold", "Fixed", "NTFS", 4096L << 30, 3500L << 30, 596L << 30, 14.6, false, true, true, true)
+                        ],
+                        new SharedBackupSummary(1, 0, 12L << 30, true, new Dictionary<string, int> { [@"C:\"] = 1 }),
+                        new SharedQuarantineSummary(2, 4L << 30, new Dictionary<string, (int, long)> { [@"C:\"] = (2, 4L << 30) })));
+
+                var toolset = new ReadOnlyAiAnalysisToolset(
+                    catalog: new ApplicationCatalog(BuiltInApplicationRules.All, []),
+                    policyEnvironment: env);
+
+                // 2. 验证 request_user_scan_action 零执行权工具 + 并发会话互不干扰
+                var concurrentClientAStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var concurrentClientBStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var releaseBoth = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int callSeq = 0;
+
+                var agent = new BuiltInAiAgentService(toolset, (_, _) =>
+                {
+                    int seq = Interlocked.Increment(ref callSeq);
+                    if (seq <= 2)
+                    {
+                        return new ConcurrentBarrierChatClient(
+                            seq == 1 ? concurrentClientAStarted : concurrentClientBStarted,
+                            releaseBoth.Task,
+                            seq == 1 ? "磁盘扫描并发回复" : "垃圾清理并发回复");
+                    }
+                    return new ScriptedStreamingChatClient([[new TextContent("扫完后自动续跑分析结论。")]]);
+                });
+
+                int scannedDriveCallbackCount = 0;
+                int scannedCleanupCallbackCount = 0;
+                var aiVm = new AiAssistantViewModel(
+                    toolset: toolset,
+                    configStore: cfgStore,
+                    agentService: agent,
+                    scanDriveCallback: (driveRoot, progress, ct) =>
+                    {
+                        Interlocked.Increment(ref scannedDriveCallbackCount);
+                        progress.Report((100, "完成"));
+                        return Task.FromResult<ScanSnapshot?>(snapC);
+                    },
+                    scanCleanupCallback: (progress, ct) =>
+                    {
+                        Interlocked.Increment(ref scannedCleanupCallbackCount);
+                        progress.Report("清理扫描完成");
+                        return Task.FromResult<MigrationCore.Models.Cleanup.CleanupScanSnapshot?>(new MigrationCore.Models.Cleanup.CleanupScanSnapshot(
+                            CleanupScanId: Guid.NewGuid(),
+                            ScannedAtUtc: DateTimeOffset.UtcNow,
+                            PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
+                            RuleVersion: "test",
+                            Rules: [],
+                            TotalReclaimableBytes: 0,
+                            RecommendedBytes: 0,
+                            OnDemandBytes: 0,
+                            CautionBytes: 0));
+                    },
+                    stateCache: sixDriveCache);
+
+                await aiVm.OnEnteredAiPageAsync();
+
+                Require(aiVm.IsContextTabActive && !aiVm.IsConfigTabActive,
+                    "Configured local model should land on Global Context tab by default");
+                Require(aiVm.HasReclaimableBackupOrQuarantine && aiVm.BackupSummaryTitle.Contains("1 项") && aiVm.QuarantineSummaryTitle.Contains("2 批"),
+                    "Global context should surface backup and quarantine summaries from shared cache");
+
+                // 3. 验证三个入口的快捷推荐按钮文案互不相同
+                Require(aiVm.DiskScanSession.QuickPrompt1Title == "分析大目录"
+                    && aiVm.CleanupSession.QuickPrompt1Title == "解读谨慎风险"
+                    && aiVm.GeneralSession.QuickPrompt1Title == "全盘腾空间",
+                    "Each AI scene must provide tailored quick-action prompts");
+
+                // 4. 验证两个独立会话真正并发运行且对话流完全隔离、切会话不重置
+                aiVm.DiskScanSession.UserPromptInput = "盘符并发测试A";
+                aiVm.CleanupSession.UserPromptInput = "清理并发测试B";
+                Task runDisk = aiVm.DiskScanSession.SendPromptCommand.ExecuteAsync(null);
+                Task runCleanup = aiVm.CleanupSession.SendPromptCommand.ExecuteAsync(null);
+
+                await Task.WhenAll(concurrentClientAStarted.Task.WaitAsync(TimeSpan.FromSeconds(3)),
+                                   concurrentClientBStarted.Task.WaitAsync(TimeSpan.FromSeconds(3)));
+                Require(aiVm.DiskScanSession.IsAnalyzing && aiVm.CleanupSession.IsAnalyzing && !aiVm.GeneralSession.IsAnalyzing,
+                    "DiskScanSession and CleanupSession must run concurrently and independently");
+
+                releaseBoth.SetResult(true);
+                await Task.WhenAll(runDisk, runCleanup);
+
+                Require(aiVm.DiskScanSession.ConversationTurns.Count == 1 && aiVm.DiskScanSession.ConversationTurns[0].AssistantText.Contains("磁盘扫描并发回复"),
+                    "DiskScanSession should retain its own response");
+                Require(aiVm.CleanupSession.ConversationTurns.Count == 1 && aiVm.CleanupSession.ConversationTurns[0].AssistantText.Contains("垃圾清理并发回复"),
+                    "CleanupSession should retain its own response");
+                Require(aiVm.GeneralSession.ConversationTurns.Count == 0,
+                    "GeneralSession must remain completely isolated");
+
+                aiVm.SelectStandaloneSessionCommand.Execute("Cleanup");
+                Require(ReferenceEquals(aiVm.ActiveStandaloneSession, aiVm.CleanupSession) && aiVm.ConversationTurns.Count == 1,
+                    "Switching standalone session to Cleanup must show Cleanup history without resetting");
+                aiVm.SelectStandaloneSessionCommand.Execute("DiskScan");
+                Require(ReferenceEquals(aiVm.ActiveStandaloneSession, aiVm.DiskScanSession) && aiVm.ConversationTurns.Count == 1,
+                    "Switching standalone session to DiskScan must preserve DiskScan history");
+
+                // 5. 验证垃圾清理页点击「排查规则外残留」且未扫盘时：绝不自动扫盘，直接弹出多盘交互确认卡（>4 盘折叠 + 克制默认勾选），点击开始后自动续跑 AI 分析
+                await aiVm.CleanupSession.RunQuickPromptCommand.ExecuteAsync("Cleanup_OutOfRuleResidual");
+                Require(scannedDriveCallbackCount == 0 && scannedCleanupCallbackCount == 0,
+                    "AI MUST NEVER auto-scan drives or cleanup rules before user confirmation");
+                AiConversationTurnItem preFlightTurn = aiVm.CleanupSession.ConversationTurns[^1];
+                Require(preFlightTurn.ScanActionCards.Count == 1, "Pre-flight check must attach an interactive scan confirmation card");
+
+                AiScanActionCardItem card = preFlightTurn.ScanActionCards[0];
+                Require(card.AllDrives.Count == 6 && card.HasOverflowDrives && card.VisibleDrives.Count == AiScanActionCardItem.CollapsedVisibleCount,
+                    $"6 drives must collapse to {AiScanActionCardItem.CollapsedVisibleCount} visible rows by default, got {card.VisibleDrives.Count}");
+                Require(card.CheckedDriveCount == 2 && card.CheckedDriveCount < card.AllDrives.Count,
+                    $"Default checked drives should only select recommended/tight drives (C: & E:), NOT all 6 drives; got {card.CheckedDriveCount}");
+                Require(card.AutoContinueAfterScan, "AutoContinueAfterScan should default to true");
+
+                card.ToggleOverflowDrivesCommand.Execute(null);
+                Require(card.IsExpandedAllDrives && card.VisibleDrives.Count == 6, "Expanding overflow toggle must reveal all 6 drives");
+
+                // 仅保留勾选 C: 后点击开始扫描
+                card.SelectSystemDriveOnlyCommand.Execute(null);
+                Require(card.CheckedDriveCount == 1, "SelectSystemDriveOnly should leave only C: checked");
+
+                await aiVm.CleanupSession.StartScanCardCommand.ExecuteAsync(card);
+                Require(card.IsCompleted && scannedDriveCallbackCount == 1 && scannedCleanupCallbackCount == 1,
+                    "User-confirmed card scan must run selected cleanup + drive scan and mark card completed");
+                Require(aiVm.HasAuthorizedSnapshot && aiVm.HasAuthorizedCleanupSnapshot,
+                    "Completed card scan must authorize both snapshots into AI toolset");
+                Require(aiVm.CleanupSession.ConversationTurns.Count == 3
+                    && aiVm.CleanupSession.ConversationTurns[^1].AssistantText.Contains("扫完后自动续跑分析结论"),
+                    "Completing scan card with AutoContinueAfterScan=true must automatically feed results back to AI and continue analysis");
+
+                // 6. 验证模型主动调用 request_user_scan_action 白名单工具时正确发射事件且绝不自动扫盘
+                var scanToolAgent = new BuiltInAiAgentService(toolset, (_, _) => new ScriptedMockChatClient(
+                [
+                    [
+                        new FunctionCallContent("sc1", "request_user_scan_action", new Dictionary<string, object?>
+                        {
+                            ["actionKind"] = "DiskScan",
+                            ["recommendedDrives"] = new[] { "D" },
+                            ["reason"] = "需要扫描 D 盘目录结构以排查残留"
+                        })
+                    ],
+                    [new TextContent("请在下方卡片确认后开始扫描 D 盘。")]
+                ]));
+                AiAgentAnalysisResult scanReqRes = await scanToolAgent.RunAnalysisAsync(
+                    new AiProviderSettings { Preset = AiProviderPreset.Ollama, Endpoint = "http://localhost:11434/v1", ModelName = "mock" },
+                    null,
+                    new AiAgentAnalysisRequest(null, "帮我看看 D 盘有什么规则外垃圾", Scene: AiChatScene.Cleanup));
+                Require(scanReqRes.Succeeded && scanReqRes.ScanActionProposals is { Length: 1 }
+                    && scanReqRes.ScanActionProposals[0].RecommendedDrives.SequenceEqual(["D:"]),
+                    "request_user_scan_action tool must normalize drive letter and emit ScanActionProposal without auto-scanning");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        });
+    }
+
+    private sealed class ConcurrentBarrierChatClient(
+        TaskCompletionSource<bool> startedSignal,
+        Task releaseTask,
+        string replyText) : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, replyText)));
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            startedSignal.TrySetResult(true);
+            await releaseTask.WaitAsync(cancellationToken);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(replyText)]);
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+        public void Dispose() { }
     }
 
     public static void VerifyWpfUiInCurrentSta(Action<DependencyObject> assertButtonsSafe)

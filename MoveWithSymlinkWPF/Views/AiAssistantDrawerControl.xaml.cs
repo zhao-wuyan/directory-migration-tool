@@ -16,17 +16,29 @@ public partial class AiAssistantDrawerControl : UserControl
         typeof(AiAssistantDrawerControl),
         new PropertyMetadata(true));
 
+    public static readonly DependencyProperty ShowSessionSwitcherProperty = DependencyProperty.Register(
+        nameof(ShowSessionSwitcher),
+        typeof(bool),
+        typeof(AiAssistantDrawerControl),
+        new PropertyMetadata(false));
+
     public bool ShowCloseButton
     {
         get => (bool)GetValue(ShowCloseButtonProperty);
         set => SetValue(ShowCloseButtonProperty, value);
     }
 
+    public bool ShowSessionSwitcher
+    {
+        get => (bool)GetValue(ShowSessionSwitcherProperty);
+        set => SetValue(ShowSessionSwitcherProperty, value);
+    }
+
     /// <summary>
     /// 是否处于自动贴底跟踪状态：滚动条在底部时随流式输出自动保持底部；用户向上翻看历史时自动暂停，滚回底部或发送新消息后恢复。
     /// </summary>
     private bool _stickToBottom = true;
-    private AiAssistantViewModel? _subscribedVm;
+    private INotifyCollectionChanged? _subscribedTurns;
 
     public AiAssistantDrawerControl()
     {
@@ -37,22 +49,31 @@ public partial class AiAssistantDrawerControl : UserControl
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        DetachVm();
-        if (e.NewValue is AiAssistantViewModel vm)
+        DetachTurns();
+        INotifyCollectionChanged? turns = e.NewValue switch
         {
-            _subscribedVm = vm;
-            _subscribedVm.ConversationTurns.CollectionChanged += ConversationTurns_OnCollectionChanged;
+            AiChatSessionViewModel session => session.ConversationTurns,
+            AiAssistantViewModel vm => vm.ConversationTurns,
+            _ => null
+        };
+
+        if (turns is not null)
+        {
+            _subscribedTurns = turns;
+            _subscribedTurns.CollectionChanged += ConversationTurns_OnCollectionChanged;
+            _stickToBottom = true;
+            ChatScrollViewer.ScrollToEnd();
         }
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => DetachVm();
+    private void OnUnloaded(object sender, RoutedEventArgs e) => DetachTurns();
 
-    private void DetachVm()
+    private void DetachTurns()
     {
-        if (_subscribedVm is not null)
+        if (_subscribedTurns is not null)
         {
-            _subscribedVm.ConversationTurns.CollectionChanged -= ConversationTurns_OnCollectionChanged;
-            _subscribedVm = null;
+            _subscribedTurns.CollectionChanged -= ConversationTurns_OnCollectionChanged;
+            _subscribedTurns = null;
         }
     }
 
@@ -60,7 +81,6 @@ public partial class AiAssistantDrawerControl : UserControl
     {
         if (e.Action == NotifyCollectionChangedAction.Add)
         {
-            // 用户发送新提问时立即重新吸底，确保新消息与实时回复始终可见
             _stickToBottom = true;
             ChatScrollViewer.ScrollToEnd();
         }
@@ -99,27 +119,35 @@ public partial class AiAssistantDrawerControl : UserControl
 
         if (extentHeightChange > 0.5)
         {
-            // 内容增长（流式打字/工具项展开）：仅当原本贴底时自动跟到底部，绝不打断用户向上翻看历史
             return (currentStickToBottom, currentStickToBottom);
         }
 
         if (Math.Abs(extentHeightChange) <= 0.5)
         {
-            // 用户主动滚轮/拖拽滚动条或窗口高度变更：检查是否位于底部容差内
             bool atBottom = verticalOffset >= scrollableHeight - Math.Max(0, tolerance);
             return (atBottom, false);
         }
 
-        // 内容变短（折叠详情或清空）：若本身贴底或已经到底部，保持贴底
         bool stillAtBottom = currentStickToBottom || verticalOffset >= scrollableHeight - Math.Max(0, tolerance);
         return (stillAtBottom, false);
     }
 
     private void PromptInput_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None
-            && DataContext is AiAssistantViewModel vm
-            && vm.CanSendPrompt)
+        if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        if (DataContext is AiChatSessionViewModel session && session.CanSendPrompt)
+        {
+            e.Handled = true;
+            if (session.SendPromptCommand.CanExecute(null))
+            {
+                session.SendPromptCommand.Execute(null);
+            }
+        }
+        else if (DataContext is AiAssistantViewModel vm && vm.CanSendPrompt)
         {
             e.Handled = true;
             if (vm.SendPromptCommand.CanExecute(null))

@@ -268,6 +268,18 @@ public sealed record AiSpecialFolderLocationDto(
     bool IsOnSystemDrive);
 
 /// <summary>
+/// 迁移备份与清理隔离区的脱敏只读可释放空间摘要（帮助 AI 在全盘腾空间规划中优先提醒已有备份与隔离区）。
+/// </summary>
+public sealed record AiBackupAndQuarantineSummaryDto(
+    int UnverifiedBackupCount,
+    long EstimatedBackupBytes,
+    bool HasEstimatedBackupBytes,
+    int RecoveryRequiredCount,
+    int QuarantineBatchCount,
+    long QuarantineBytes,
+    string SummaryNote);
+
+/// <summary>
 /// 脱敏只读系统与磁盘环境总览（严禁包含真实用户名、计算机名、SID、IP/MAC、环境变量全文或任何文件内容）。
 /// </summary>
 public sealed record AiSystemEnvironmentResponse(
@@ -282,7 +294,10 @@ public sealed record AiSystemEnvironmentResponse(
     int AuthorizedScanCount,
     AiDiskVolumeInfoDto[] Drives,
     AiSpecialFolderLocationDto[] SpecialFolders,
-    string PrivacyNotice);
+    string PrivacyNotice,
+    AiBackupAndQuarantineSummaryDto? StorageReclaimSummary = null,
+    string[]? AuthorizedScanDrives = null,
+    bool HasCleanupScanSnapshot = false);
 
 public sealed record AiPolicyLevelDescription(
     string Code,

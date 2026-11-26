@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
              xmlns:views="clr-namespace:MoveWithSymlinkWPF.Views"
+             xmlns:vm="clr-namespace:MoveWithSymlinkWPF.ViewModels"
              mc:Ignorable="d"
              d:DesignHeight="610"
              d:DesignWidth="1000"
@@ -20,97 +21,231 @@
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
     </UserControl.Resources>
 
-    <!-- 严格对齐 docs/untitled.pen 画板 10：左侧上下文 + BYOK 配置，右侧可拖动 AI 分析助手抽屉（默认 374px，支持按窗口动态范围调整） -->
+    <!-- 左侧：全局上下文驾驶舱 / 模型配置双标签；右侧：支持三会话切换的宽屏 AI 分析助手 -->
     <Grid x:Name="RootLayoutGrid" Margin="18,14" SizeChanged="RootLayoutGrid_OnSizeChanged">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="LeftMainColumn" Width="*" MinWidth="500"/>
+            <ColumnDefinition x:Name="LeftMainColumn" Width="*" MinWidth="460"/>
             <ColumnDefinition Width="14"/>
-            <ColumnDefinition x:Name="RightDrawerColumn" Width="374" MinWidth="320" MaxWidth="920"/>
+            <ColumnDefinition x:Name="RightDrawerColumn" Width="410" MinWidth="340" MaxWidth="920"/>
         </Grid.ColumnDefinitions>
 
         <!-- LeftMainArea -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- S10Head -->
-            <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="工具内置 AI 助手（BYOK / 本地模型）" FontSize="17" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Path Data="{StaticResource IconShieldCheck}" Width="11" Height="11" Stretch="Uniform"
-                                  Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="MEAI 受控单 Agent · 零执行权" FontSize="11" FontWeight="SemiBold" Foreground="#0078D4"/>
-                        </StackPanel>
-                    </Border>
+            <!-- 顶部标题 + 左栏视图切换（分析上下文 | 模型配置） -->
+            <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                <Border DockPanel.Dock="Right" Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="3" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Command="{Binding SelectLeftTabCommand}" CommandParameter="Context"
+                                AutomationProperties.AutomationId="AiLeftTabContext"
+                                Tag="{Binding ContextTabChipTag}"
+                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Height="27" MinWidth="0" Padding="11,0" FontSize="11" Margin="0,0,3,0">
+                            <TextBlock Text="分析上下文"/>
+                        </Button>
+                        <Button Command="{Binding SelectLeftTabCommand}" CommandParameter="Config"
+                                AutomationProperties.AutomationId="AiLeftTabConfig"
+                                Tag="{Binding ConfigTabChipTag}"
+                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Height="27" MinWidth="0" Padding="11,0" FontSize="11">
+                            <TextBlock Text="模型配置"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="AI 空间诊断中心" FontSize="17" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconShieldCheck}" Width="11" Height="11" Stretch="Uniform"
+                                      Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="三会话隔离 · 零执行权" FontSize="11" FontWeight="SemiBold" Foreground="#0078D4"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="联合各盘余量、双扫描快照与备份/隔离区做全局腾空间规划；右侧可随时切回扫描或清理会话宽屏续聊。"
+                               FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap" Margin="0,3,0,0"/>
                 </StackPanel>
-                <TextBlock Text="扫描页与垃圾清理页共用右侧 AI 抽屉；直接调用共享只读底座，自动脱敏且永不读文件内容。"
-                           FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap" Margin="0,3,0,0"/>
-            </StackPanel>
+            </DockPanel>
 
-            <!-- ScanSnapshotSummary：当前共享给内置 AI 的扫描快照（已脱敏） -->
-            <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,12">
+            <!-- Tab 1：全局分析上下文（已配好模型时默认展示） -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding IsContextTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
-                    <DockPanel Margin="0,0,0,8">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SnapshotContextMeta}" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <Button Command="{Binding ToggleSnapshotSharingCommand}"
-                                    Style="{StaticResource FluentLinkButtonStyle}"
-                                    FontSize="11"
-                                    Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock Text="撤销共享"/>
-                            </Button>
-                        </StackPanel>
-                        <TextBlock Text="{Binding SnapshotContextTitle}" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    </DockPanel>
+                    <!-- 卡片 1：共享本机各盘空间余量 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Command="{Binding RefreshSharedContextCommand}"
+                                        Style="{StaticResource FluentLinkButtonStyle}" FontSize="11" VerticalAlignment="Center">
+                                    <TextBlock Text="刷新状态"/>
+                                </Button>
+                                <TextBlock Text="本机磁盘空间态势（多页共享缓存）" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </DockPanel>
 
-                    <!-- 无扫描快照时的引导 -->
-                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,9"
-                            Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Command="{Binding OpenDiskScanCommand}"
-                                    Style="{StaticResource FluentSoftPrimaryButtonStyle}" Height="28" Padding="11,0" FontSize="11.5" Margin="10,0,0,0">
-                                <TextBlock Text="前往磁盘扫描"/>
-                            </Button>
-                            <TextBlock Text="完成任意磁盘扫描后，此处将自动展示 Top 大目录（用户名已脱敏为 &lt;USER&gt;），供右侧 AI 分析助手只读诊断。"
-                                       FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <ItemsControl ItemsSource="{Binding SharedDriveRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:AiSharedDriveRowItem}">
+                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="9,7" Margin="0,0,0,6">
+                                            <StackPanel>
+                                                <DockPanel Margin="0,0,0,4">
+                                                    <Border DockPanel.Dock="Right" Background="{Binding StatusBadgeBg}" BorderBrush="{Binding StatusBadgeBorder}"
+                                                            BorderThickness="1" CornerRadius="8" Padding="6,1" VerticalAlignment="Center" Margin="6,0,0,0">
+                                                        <TextBlock Text="{Binding StatusBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding StatusBadgeFg}"/>
+                                                    </Border>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SpaceMetaText}" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding TitleText}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                </DockPanel>
+                                                <ProgressBar Value="{Binding UsedPercent}" Maximum="100" Height="4"
+                                                             Foreground="{Binding BarColor}" Background="#E2E8F0" BorderThickness="0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
 
-                    <!-- Top 脱敏热点目录行 -->
-                    <ItemsControl ItemsSource="{Binding ContextHotspots}"
-                                  Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,0,6">
+                    <!-- 卡片 2：双快照授权状态（磁盘扫描多盘共存 + 垃圾清理快照） -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="AI 只读数据授权（双快照上下文）" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,8"/>
+
+                            <!-- 磁盘扫描多盘快照 -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                <StackPanel>
                                     <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12.5" FontWeight="Bold" Foreground="#0078D4" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                        <StackPanel>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Path Data="{StaticResource IconFolder}" Width="13" Height="13" Stretch="Uniform"
-                                                      Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                                <Border Background="{Binding BadgeBg}" BorderBrush="{Binding BadgeBorder}" BorderThickness="1"
-                                                        CornerRadius="9" Padding="7,1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding BadgeText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding BadgeFg}"/>
-                                                </Border>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding SanitizedPath}" FontSize="10.5" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Command="{Binding ToggleSnapshotSharingCommand}"
+                                                    Style="{StaticResource FluentLinkButtonStyle}" FontSize="10.5" Margin="0,0,8,0"
+                                                    Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="撤销共享"/>
+                                            </Button>
+                                            <Button Command="{Binding OpenDiskScanCommand}"
+                                                    Style="{StaticResource FluentSoftPrimaryButtonStyle}" Height="25" Padding="9,0" FontSize="10.5">
+                                                <TextBlock Text="磁盘扫描"/>
+                                            </Button>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding SnapshotContextTitle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding SnapshotContextMeta}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
 
-            <!-- ByokConfigCard：AI 模型配置（BYOK · OpenAI 兼容 / 本地 Ollama） -->
-            <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#BFDBFE" BorderThickness="1.2" CornerRadius="10" Padding="14">
+                                    <!-- 已授权的多盘快照胶囊列表 -->
+                                    <ItemsControl ItemsSource="{Binding AuthorizedDiskScans}" Margin="0,7,0,0"
+                                                  Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:AiAuthorizedScanRowItem}">
+                                                <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="10" Padding="7,2" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SummaryText}" FontSize="10" FontWeight="SemiBold" Foreground="#0F7B4B" VerticalAlignment="Center"/>
+                                                        <Button Command="{Binding DataContext.RevokeSingleDiskScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Style="{StaticResource FluentLinkButtonStyle}"
+                                                                Foreground="#0F7B4B" FontSize="10" Margin="5,0,0,0" ToolTip="撤销此盘快照共享">
+                                                            <TextBlock Text="✕"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 垃圾清理快照 -->
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,8">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Command="{Binding OpenCleanupCommand}"
+                                            Style="{StaticResource FluentSoftPrimaryButtonStyle}" Height="25" Padding="9,0" FontSize="10.5" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="垃圾清理"/>
+                                    </Button>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CleanupSnapshotTitle}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding CleanupSnapshotMeta}" FontSize="10.5" Foreground="#64748B" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 卡片 3：已有留存空间（备份 + 清理隔离区）与本轮建议汇总 -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="可直接安全释放的留存空间 &amp; 建议汇总" FontSize="12.5" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,8"/>
+
+                            <DockPanel Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Command="{Binding OpenBackupCenterCommand}"
+                                        Style="{StaticResource FluentSecondaryButtonStyle}" Height="24" Padding="9,0" FontSize="10.5" Margin="8,0,0,0">
+                                    <TextBlock Text="备份管理"/>
+                                </Button>
+                                <TextBlock Text="{Binding BackupSummaryTitle}" FontSize="11" Foreground="#334155" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            </DockPanel>
+
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Command="{Binding OpenQuarantineCommand}"
+                                        Style="{StaticResource FluentSecondaryButtonStyle}" Height="24" Padding="9,0" FontSize="10.5" Margin="8,0,0,0">
+                                    <TextBlock Text="清理隔离区"/>
+                                </Button>
+                                <TextBlock Text="{Binding QuarantineSummaryTitle}" FontSize="11" Foreground="#334155" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            </DockPanel>
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="9,6">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Left" Text="建议收件箱：" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ProposalInboxSummaryText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 卡片 4：脱敏热点大目录预览（有磁盘扫描快照时展示） -->
+                    <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="12"
+                            Visibility="{Binding HasAuthorizedSnapshot, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="最新扫描热点大目录（用户名已脱敏为 &lt;USER&gt;）" FontSize="12" FontWeight="Bold" Foreground="#0F172A" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding ContextHotspots}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,0,6">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" FontSize="12" FontWeight="Bold" Foreground="#0078D4" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Path Data="{StaticResource IconFolder}" Width="13" Height="13" Stretch="Uniform"
+                                                              Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                        <Border Background="{Binding BadgeBg}" BorderBrush="{Binding BadgeBorder}" BorderThickness="1"
+                                                                CornerRadius="9" Padding="7,1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding BadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding BadgeFg}"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding SanitizedPath}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Tab 2：BYOK / 本地 Ollama 模型配置卡（未配置模型时默认显示，点设置齿轮可随时切回） -->
+            <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#BFDBFE" BorderThickness="1.2" CornerRadius="10" Padding="14"
+                    Visibility="{Binding IsConfigTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DockPanel>
                     <!-- CfgFoot 固定吸底 -->
                     <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
@@ -143,7 +278,6 @@
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
-                            <!-- CfgHead -->
                             <DockPanel Margin="0,0,0,10">
                                 <Border DockPanel.Dock="Right" Background="{Binding ConnectionBadgeBg}" BorderBrush="{Binding ConnectionBadgeBorder}"
                                         BorderThickness="1" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
@@ -160,7 +294,6 @@
                                 </StackPanel>
                             </DockPanel>
 
-                            <!-- ProviderPresets：6 个预设胶囊 -->
                             <ItemsControl ItemsSource="{Binding PresetChips}" Margin="0,0,0,10">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -182,7 +315,6 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <!-- FormFields -->
                             <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="78"/>
@@ -219,14 +351,14 @@
                                 <TextBox Grid.Column="4"
                                          Text="{Binding MaxToolSteps, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="AiMaxToolStepsInput"
-                                         ToolTip="单次分析工具调用步数上限：填 0 表示不限制（推荐，内置重复调用拦截、复读纠偏与 20 分钟总超时安全兜底）；也可填写 1~200 指定具体上限"
+                                         ToolTip="单次分析工具调用步数上限：填 0 表示不限制（推荐）；也可填写 1~200 指定具体上限"
                                          Style="{StaticResource FluentCompactTextBoxStyle}"
                                          Background="#F8FAFC" Height="30" FontSize="11" HorizontalContentAlignment="Center"/>
                                 <TextBlock Grid.Column="6" Text="无响应 (秒)" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                 <TextBox Grid.Column="7"
                                          Text="{Binding TimeoutSeconds, UpdateSourceTrigger=PropertyChanged}"
                                          AutomationProperties.AutomationId="AiTimeoutSecondsInput"
-                                         ToolTip="动态无响应超时（默认 90 秒，范围 15~300 秒）：只要模型持续输出就会自动续期，仅在长时间无任何回复时中止；单轮提问 AI 持续分析整体兜底上限为 20 分钟（发新消息重新计时），持续复读超 5 秒自动纠偏。"
+                                         ToolTip="动态无响应超时（默认 90 秒，范围 15~300 秒）"
                                          Style="{StaticResource FluentCompactTextBoxStyle}"
                                          Background="#F8FAFC" Height="30" FontSize="11" HorizontalContentAlignment="Center"/>
                             </Grid>
@@ -253,7 +385,6 @@
 
                             <TextBlock Text="{Binding ApiKeyStatusHint}" FontSize="10.5" Foreground="#64748B" Margin="78,2,0,8" TextWrapping="Wrap"/>
 
-                            <!-- 回复语言偏好：默认简体中文，可选 English -->
                             <Grid Margin="0,0,0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="78"/>
@@ -290,7 +421,7 @@
             </Border>
         </Grid>
 
-        <!-- 左右可拖动分隔条（动态约束范围，保障左侧完整显示，最大化窗口时可拉宽至 920px） -->
+        <!-- 左右可拖动分隔条 -->
         <GridSplitter x:Name="DrawerGridSplitter"
                       Grid.Column="1"
                       Style="{StaticResource FluentVerticalGridSplitterStyle}"
@@ -299,9 +430,10 @@
                       DragCompleted="DrawerGridSplitter_OnDragCompleted"
                       MouseDoubleClick="DrawerGridSplitter_OnMouseDoubleClick"/>
 
-        <!-- RightAiDrawer（与磁盘扫描页共用同一组件） -->
+        <!-- RightAiDrawer：绑定当前活动独立会话，并开启顶部三会话切换条 -->
         <views:AiAssistantDrawerControl Grid.Column="2"
-                                          DataContext="{Binding}"
-                                          ShowCloseButton="False"/>
+                                          DataContext="{Binding ActiveStandaloneSession}"
+                                          ShowCloseButton="False"
+                                          ShowSessionSwitcher="True"/>
     </Grid>
 </UserControl>

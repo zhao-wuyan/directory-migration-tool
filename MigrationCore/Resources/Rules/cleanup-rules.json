@@ -1,0 +1,1109 @@
+{
+  "version": "2026.11-phase3-v2",
+  "groups": {
+    "browsers": "浏览器缓存",
+    "ide": "编辑器、IDE 与开发工具",
+    "dev-packages": "开发者包管理器与构建缓存",
+    "chat": "社交与办公协同缓存",
+    "creative-productivity": "创作、效率与网盘客户端",
+    "gaming-media": "游戏平台与影音客户端"
+  },
+  "rules": [
+    {
+      "ruleId": "sys-temp-24h",
+      "displayName": "用户与系统临时文件（>24 小时）",
+      "shortDescription": "%TEMP% 与 Windows\\Temp；自动跳过 24h 内新建、占用中及本工具目录。",
+      "category": "SystemTempAndShader",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserTemp", "relativeSubPath": "" },
+        { "rootKind": "WindowsTemp", "relativeSubPath": "" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "TEMP" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "TMP" }
+      ],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "100% 可重建临时文件；默认仅处理修改时间超过 24 小时的文件，无功能副作用。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "win-thumb-icon-cache",
+      "displayName": "Windows 缩略图与图标缓存",
+      "shortDescription": "Explorer 缩略图（thumbcache_*.db）与图标缓存；清理后由资源管理器按需重建。",
+      "category": "SystemTempAndShader",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Microsoft\\Windows\\Explorer", "includeFilePatterns": ["thumbcache_*.db", "iconcache_*.db"], "recursive": false }
+      ],
+      "costAndReclaimNote": "正在被 Explorer 锁定的活跃缓存文件会自动跳过；下次浏览目录时系统自动重建缩略图。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "gpu-shader-cache",
+      "displayName": "DirectX 与 NVIDIA / AMD / Intel 显卡着色器缓存",
+      "shortDescription": "D3DSCache、NVIDIA DXCache/GLCache/NV_Cache、AMD DxCache 与 Intel ShaderCache；下次启动自动重建。",
+      "category": "SystemTempAndShader",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "D3DSCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NVIDIA\\DXCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NVIDIA\\GLCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NVIDIA Corporation\\NV_Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "AMD\\DxCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "AMD\\GLCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "AMD\\DxcCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Intel\\ShaderCache" }
+      ],
+      "costAndReclaimNote": "清理后首次启动大型 3D 游戏可能需要短暂重新编译着色器，不影响存档或设置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "win-wer-crash-logs",
+      "displayName": "Windows 错误报告与过期系统日志",
+      "shortDescription": "WER ReportArchive、旧崩溃转储（CrashDumps）与过期 CBS/DISM 归档日志。",
+      "category": "SystemTempAndShader",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "ProgramData", "relativeSubPath": "Microsoft\\Windows\\WER\\ReportArchive" },
+        { "rootKind": "ProgramData", "relativeSubPath": "Microsoft\\Windows\\WER\\ReportQueue" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "CrashDumps", "includeFilePatterns": ["*.dmp"], "recursive": false },
+        { "rootKind": "WindowsDirectory", "relativeSubPath": "Logs\\CBS", "includeFilePatterns": ["CbsPersist_*.cab", "CbsPersist_*.log"], "recursive": false },
+        { "rootKind": "WindowsDirectory", "relativeSubPath": "Logs\\DISM", "includeFilePatterns": ["dism.log.bak"], "recursive": false }
+      ],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "仅清理历史错误报告与过期诊断归档，保留 24 小时内近期日志便于排障。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "win-delivery-optimization",
+      "displayName": "传递优化缓存（Delivery Optimization）",
+      "shortDescription": "调用 Windows 官方 Delete-DeliveryOptimizationCache 接口安全释放更新分发缓存。",
+      "category": "SystemUpdateAndComponent",
+      "tier": "Recommended",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "DeliveryOptimization",
+      "targetSpecs": [
+        { "rootKind": "WindowsDirectory", "relativeSubPath": "ServiceProfiles\\NetworkService\\AppData\\Local\\Microsoft\\Windows\\DeliveryOptimization\\Cache" }
+      ],
+      "costAndReclaimNote": "由 Windows 官方传递优化接口回收，不影响已安装更新或应用；不进入隔离区。",
+      "channelBadgeText": "官方接口 · 不可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "win-update-download-cache",
+      "displayName": "Windows 更新下载缓存（SoftwareDistribution\\Download）",
+      "shortDescription": "仅清理已完成的更新下载暂存，绝不触碰 DataStore 更新历史库；清理前检测更新服务状态。",
+      "category": "SystemUpdateAndComponent",
+      "tier": "OnDemand",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "WindowsUpdateDownload",
+      "targetSpecs": [
+        { "rootKind": "WindowsDirectory", "relativeSubPath": "SoftwareDistribution\\Download" }
+      ],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "未安装完成的待安装补丁后续需重新下载；若系统正在下载/安装更新则自动跳过保护。",
+      "channelBadgeText": "官方接口 · 不可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "win-winsxs-standard",
+      "displayName": "被取代的 WinSxS 组件（标准模式）",
+      "shortDescription": "调用 Dism /StartComponentCleanup（保留近期更新卸载能力）；耗时 2～5 分钟。",
+      "category": "SystemUpdateAndComponent",
+      "tier": "OnDemand",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "DismStartComponentCleanup",
+      "targetSpecs": [],
+      "costAndReclaimNote": "走微软官方 DISM 组件存储维护，不带 /ResetBase，安全且保留近期更新卸载能力；预计耗时 2～5 分钟。",
+      "channelBadgeText": "官方 DISM 接口 · 不可恢复",
+      "isRebuildable": false
+    },
+    {
+      "ruleId": "browser-edge-cache",
+      "groupId": "browsers",
+      "template": "chromium-browser",
+      "softwareName": "Microsoft Edge",
+      "rootKind": "LocalAppData",
+      "userDataSubPath": "Microsoft\\Edge\\User Data",
+      "requiredStoppedProcesses": ["msedge"]
+    },
+    {
+      "ruleId": "browser-chrome-cache",
+      "groupId": "browsers",
+      "template": "chromium-browser",
+      "softwareName": "Google Chrome",
+      "rootKind": "LocalAppData",
+      "userDataSubPath": "Google\\Chrome\\User Data",
+      "requiredStoppedProcesses": ["chrome"]
+    },
+    {
+      "ruleId": "browser-firefox-cache",
+      "groupId": "browsers",
+      "displayName": "Mozilla Firefox 网页与启动缓存",
+      "shortDescription": "仅清 Firefox Profiles 下的 cache2 / startupCache / thumbnails，永久排除书签、密码、Cookies 与历史。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Mozilla\\Firefox\\Profiles\\*\\cache2" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Mozilla\\Firefox\\Profiles\\*\\startupCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Mozilla\\Firefox\\Profiles\\*\\jumpListCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Mozilla\\Firefox\\Profiles\\*\\thumbnails" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Mozilla\\Firefox\\Profiles\\*\\shader-cache" }
+      ],
+      "requiredStoppedProcesses": ["firefox"],
+      "costAndReclaimNote": "清理前需先关闭 Firefox（工具不强杀浏览器）；仅清理 LocalAppData 缓存，绝不触碰 Roaming 下的密码、Cookies、书签与扩展数据。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true,
+      "isBrowserCacheRule": true
+    },
+    {
+      "ruleId": "browser-brave-cache",
+      "groupId": "browsers",
+      "template": "chromium-browser",
+      "softwareName": "Brave 浏览器",
+      "rootKind": "LocalAppData",
+      "userDataSubPath": "BraveSoftware\\Brave-Browser\\User Data",
+      "requiredStoppedProcesses": ["brave"]
+    },
+    {
+      "ruleId": "browser-opera-cache",
+      "groupId": "browsers",
+      "displayName": "Opera / Opera GX 网页与 GPU 缓存",
+      "shortDescription": "仅清 Opera / Opera GX 的 Cache / Code Cache / GPUCache，永久排除 Cookies、凭据与书签。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera Stable\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera Stable\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera Stable\\GPUCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera GX Stable\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera GX Stable\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Opera Software\\Opera GX Stable\\GPUCache" }
+      ],
+      "requiredStoppedProcesses": ["opera"],
+      "costAndReclaimNote": "清理前需关闭 Opera；绝不触碰密码、Cookie、登录态与书签。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true,
+      "isBrowserCacheRule": true
+    },
+    {
+      "ruleId": "browser-vivaldi-cache",
+      "groupId": "browsers",
+      "template": "chromium-browser",
+      "softwareName": "Vivaldi 浏览器",
+      "rootKind": "LocalAppData",
+      "userDataSubPath": "Vivaldi\\User Data",
+      "requiredStoppedProcesses": ["vivaldi"]
+    },
+    {
+      "ruleId": "browser-360-cache",
+      "groupId": "browsers",
+      "displayName": "360 极速 / 安全浏览器网页缓存",
+      "shortDescription": "仅清 360 浏览器 User Data 下的 Cache / Code Cache / GPUCache，永久排除 Cookies 与登录态。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "360Chrome\\Chrome\\User Data\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "360Chrome\\Chrome\\User Data\\Default\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "360Chrome\\Chrome\\User Data\\Default\\GPUCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "360ChromeX\\Chrome\\User Data\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "360ChromeX\\Chrome\\User Data\\Default\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "360ChromeX\\Chrome\\User Data\\Default\\GPUCache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "360se6\\User Data\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "360se6\\User Data\\Default\\Code Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "360se6\\User Data\\Default\\GPUCache" }
+      ],
+      "requiredStoppedProcesses": ["360chrome", "360chromex", "360se"],
+      "costAndReclaimNote": "清理前需关闭 360 浏览器；绝不触碰密码、Cookie、收藏夹与历史记录。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true,
+      "isBrowserCacheRule": true
+    },
+    {
+      "ruleId": "browser-qqbrowser-cache",
+      "groupId": "browsers",
+      "template": "chromium-browser",
+      "softwareName": "QQ 浏览器",
+      "rootKind": "LocalAppData",
+      "userDataSubPath": "Tencent\\QQBrowser\\User Data",
+      "requiredStoppedProcesses": ["QQBrowser"]
+    },
+    {
+      "ruleId": "app-vscode-cache",
+      "groupId": "ide",
+      "template": "vscode-family",
+      "softwareName": "Visual Studio Code",
+      "roamingFolders": ["Code"],
+      "requiredStoppedProcesses": ["Code"]
+    },
+    {
+      "ruleId": "app-cursor-cache",
+      "groupId": "ide",
+      "template": "vscode-family",
+      "softwareName": "Cursor 编辑器",
+      "roamingFolders": ["Cursor"],
+      "requiredStoppedProcesses": ["Cursor"],
+      "extraSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "cursor-compile-cache" }
+      ]
+    },
+    {
+      "ruleId": "app-windsurf-cache",
+      "groupId": "ide",
+      "template": "vscode-family",
+      "softwareName": "Windsurf 编辑器",
+      "roamingFolders": ["Windsurf"],
+      "requiredStoppedProcesses": ["Windsurf"]
+    },
+    {
+      "ruleId": "app-trae-cache",
+      "groupId": "ide",
+      "template": "vscode-family",
+      "softwareName": "Trae 编辑器",
+      "roamingFolders": ["Trae", "Trae CN", "TRAE SOLO CN"],
+      "requiredStoppedProcesses": ["Trae", "Trae CN"]
+    },
+    {
+      "ruleId": "app-visualstudio-cache",
+      "groupId": "ide",
+      "displayName": "Visual Studio 组件与设计器缓存",
+      "shortDescription": "清理 ComponentModelCache、ImageLibrary、Designer ShadowCache 与 Roslyn 临时缓存；不影响项目与设置。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Microsoft\\VisualStudio\\*\\ComponentModelCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Microsoft\\VisualStudio\\*\\ImageLibrary" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Microsoft\\VisualStudio\\*\\Designer\\ShadowCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Microsoft\\VisualStudio\\Roslyn\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["devenv"],
+      "costAndReclaimNote": "清理前需关闭 Visual Studio；绝不触碰 Installer 或 Packages 安装元数据，下次启动自动重建 MEF 组件缓存。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    { "ruleId": "app-jetbrains-idea-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "IntelliJ IDEA", "folderPattern": "IntelliJIdea*", "requiredStoppedProcesses": ["idea64"] },
+    { "ruleId": "app-jetbrains-pycharm-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "PyCharm", "folderPattern": "PyCharm*", "requiredStoppedProcesses": ["pycharm64"] },
+    { "ruleId": "app-jetbrains-webstorm-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "WebStorm", "folderPattern": "WebStorm*", "requiredStoppedProcesses": ["webstorm64"] },
+    { "ruleId": "app-jetbrains-rider-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "JetBrains Rider", "folderPattern": "Rider*", "requiredStoppedProcesses": ["rider64"] },
+    { "ruleId": "app-jetbrains-goland-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "GoLand", "folderPattern": "GoLand*", "requiredStoppedProcesses": ["goland64"] },
+    { "ruleId": "app-jetbrains-clion-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "CLion", "folderPattern": "CLion*", "requiredStoppedProcesses": ["clion64"] },
+    { "ruleId": "app-jetbrains-datagrip-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "DataGrip", "folderPattern": "DataGrip*", "requiredStoppedProcesses": ["datagrip64"] },
+    { "ruleId": "app-jetbrains-phpstorm-cache", "groupId": "ide", "template": "jetbrains-ide", "softwareName": "PhpStorm", "folderPattern": "PhpStorm*", "requiredStoppedProcesses": ["phpstorm64"] },
+    {
+      "ruleId": "app-jetbrains-toolbox-cache",
+      "groupId": "ide",
+      "displayName": "JetBrains Toolbox 下载缓存与旧日志",
+      "shortDescription": "清理 JetBrains Toolbox 安装包下载缓存与超过 24h 的运行日志；不影响已安装 IDE。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "JetBrains\\Toolbox\\cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "JetBrains\\Toolbox\\logs", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["jetbrains-toolbox"],
+      "costAndReclaimNote": "清理前需关闭 JetBrains Toolbox；仅移除安装包下载缓存与旧日志，不影响已安装的 IDE 与配置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-android-studio-cache",
+      "groupId": "ide",
+      "displayName": "Android Studio 索引缓存与日志",
+      "shortDescription": "清理 LocalAppData\\Google\\AndroidStudio* 下的 caches / index / tmp / compile-server；不影响代码与 SDK。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Google\\AndroidStudio*\\caches" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Google\\AndroidStudio*\\index" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Google\\AndroidStudio*\\tmp" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Google\\AndroidStudio*\\compile-server" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Google\\AndroidStudio*\\log", "minAgeHoursOverride": 24 },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "cache", "customRootOverride": "ANDROID_USER_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "build-cache", "customRootOverride": "ANDROID_USER_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": ".android\\cache", "customRootOverride": "ANDROID_SDK_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": ".android\\build-cache", "customRootOverride": "ANDROID_SDK_HOME" }
+      ],
+      "requiredStoppedProcesses": ["studio64"],
+      "costAndReclaimNote": "清理前需关闭 Android Studio；下次打开项目需重新构建索引，不影响项目源码、Android SDK、插件与配置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-wechat-devtools-cache",
+      "groupId": "ide",
+      "displayName": "微信开发者工具网页与 GPU 缓存",
+      "shortDescription": "仅清微信开发者工具 User Data 下的 Cache / Code Cache / GPUCache；不影响小程序项目与登录态。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "微信开发者工具\\User Data\\*\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "微信开发者工具\\User Data\\*\\Default\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "微信开发者工具\\User Data\\*\\Default\\GPUCache" }
+      ],
+      "requiredStoppedProcesses": ["wechatdevtools"],
+      "costAndReclaimNote": "清理前需关闭微信开发者工具；仅清理可重建网页与 GPU 缓存，保留项目记录与配置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true,
+      "isBrowserCacheRule": true
+    },
+    {
+      "ruleId": "app-wechat-cache",
+      "groupId": "chat",
+      "displayName": "微信（WeChat）运行日志与网页缓存",
+      "shortDescription": "仅清 AppData 下的运行日志（>24h）、崩溃转储与内嵌网页缓存，绝不触碰 WeChat Files 聊天记录与文件。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\WeChat\\log", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\WeChat\\crash_dump", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\WeChat\\All Users\\CefCache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\xwechat\\log", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\xwechat\\radium\\web\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["WeChat", "Weixin"],
+      "costAndReclaimNote": "清理前需先退出微信；永久排除 WeChat Files / xwechat_files，绝不触碰聊天记录、图片、视频及收发文件。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-qq-cache",
+      "groupId": "chat",
+      "displayName": "QQ / NTQQ 网页缓存与运行日志",
+      "shortDescription": "仅清 NTQQ 的 Cache / Code Cache / Crashpad 与过期日志，绝不触碰 Tencent Files 聊天记录与登录凭据。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "QQ\\Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "QQ\\Code Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "QQ\\Crashpad\\reports", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "QQ\\log", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\QQ\\Logs", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\QQ\\Temp", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\Logs", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["QQ", "QQScLauncher"],
+      "costAndReclaimNote": "清理前需先退出 QQ；绝不触碰 Tencent Files 聊天记录、图片文件及 auth/Network 登录态。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-wxwork-cache",
+      "groupId": "chat",
+      "displayName": "企业微信运行日志与临时缓存",
+      "shortDescription": "仅清企业微信 AppData 下的 Log / Temp / Cache；不影响工作消息与本地文档。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\WXWork\\Log", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Tencent\\WXWork\\Temp", "minAgeHoursOverride": 24 },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Tencent\\WXWork\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "wxworkweb\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["WXWork"],
+      "costAndReclaimNote": "清理前需退出企业微信；仅清理运行日志与网页缓存，不触碰聊天记录与微盘文件。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-dingtalk-cache",
+      "groupId": "chat",
+      "displayName": "钉钉图片缓存与运行日志",
+      "shortDescription": "仅清钉钉图片预览缓存（image_res_cache / image_translate_cache）与超过 24h 的运行日志。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\image_res_cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\image_translate_cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\log", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\holmeslogs", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\recordLog", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "DingTalk\\updaterlogs", "minAgeHoursOverride": 24 },
+        { "rootKind": "LocalAppData", "relativeSubPath": "DingTalk\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["DingTalk"],
+      "costAndReclaimNote": "清理前需退出钉钉；仅清预览图片缓存与过期运行日志，绝不触碰账号配置与聊天数据库。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-feishu-cache",
+      "groupId": "chat",
+      "displayName": "飞书 / Lark 网页缓存与旧日志",
+      "shortDescription": "仅清 Feishu / Lark 的 User Data\\Cache 与过期日志；不影响云文档、聊天记录与登录态。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Feishu\\User Data\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Feishu\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Feishu\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Feishu\\GPUCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Lark\\User Data\\Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "LarkShell\\sdk_storage\\log", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["Feishu", "Lark"],
+      "costAndReclaimNote": "清理前需退出飞书 / Lark；仅清理网页渲染缓存与过期日志，保留全部账号与本地配置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-wemeet-cache",
+      "groupId": "chat",
+      "displayName": "腾讯会议运行日志与缓存",
+      "shortDescription": "仅清腾讯会议 Logs（>24h）与 .nx_caches 临时缓存；不影响会议录制文件与配置。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Tencent\\Wemeet\\Logs", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "wemeetapp\\.nx_caches" }
+      ],
+      "requiredStoppedProcesses": ["wemeetapp"],
+      "costAndReclaimNote": "清理前需退出腾讯会议；仅清过期日志与内部缓存，绝不触碰本地录制视频。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    { "ruleId": "app-discord-cache", "groupId": "chat", "template": "electron-app", "softwareName": "Discord", "roamingFolder": "discord", "requiredStoppedProcesses": ["Discord"] },
+    { "ruleId": "app-slack-cache", "groupId": "chat", "template": "electron-app", "softwareName": "Slack", "roamingFolder": "Slack", "requiredStoppedProcesses": ["slack"], "includeLogs": true },
+    {
+      "ruleId": "app-teams-cache",
+      "groupId": "chat",
+      "displayName": "Microsoft Teams 网页与临时缓存",
+      "shortDescription": "仅清 Teams 的 Cache / Code Cache / GPUCache / tmp；不影响登录态与聊天内容。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Microsoft\\Teams\\Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Microsoft\\Teams\\Code Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Microsoft\\Teams\\GPUCache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Microsoft\\Teams\\tmp", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["Teams", "ms-teams"],
+      "costAndReclaimNote": "清理前需退出 Microsoft Teams；下次启动自动重建界面缓存。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-telegram-cache",
+      "groupId": "chat",
+      "displayName": "Telegram Desktop 媒体缓存",
+      "shortDescription": "仅清 tdata\\user_data 下的 cache 与 media_cache，绝不触碰登录会话密钥；清理后历史图片视频按需从云端重新加载。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Telegram Desktop\\tdata\\user_data\\cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Telegram Desktop\\tdata\\user_data\\media_cache" }
+      ],
+      "requiredStoppedProcesses": ["Telegram"],
+      "costAndReclaimNote": "清理前需退出 Telegram；不会退出账号，但已缓存的图片/视频再次查看时会从 Telegram 云端重新下载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-blender-cache",
+      "groupId": "creative-productivity",
+      "displayName": "Blender 缩略图与临时缓存",
+      "shortDescription": "仅清 LocalAppData\\Blender Foundation\\Blender\\Cache；不影响工程文件、资产库与插件配置。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Blender Foundation\\Blender\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["blender"],
+      "costAndReclaimNote": "清理前需关闭 Blender；仅移除缩略图与渲染临时缓存，保留全部工程与用户偏好设置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-adobe-media-cache",
+      "groupId": "creative-productivity",
+      "displayName": "Adobe 媒体与 CameraRaw 缓存（Pr / Ae / Ps）",
+      "shortDescription": "清理 Adobe Common Media Cache / Peak Files 与 CameraRaw 缓存；打开剪辑工程时会按需重新生成波形与预览。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Adobe\\Common\\Media Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Adobe\\Common\\Media Cache Files" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "Adobe\\Common\\Peak Files" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Adobe\\CameraRaw\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Adobe\\CameraRaw\\Cache2" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Adobe\\Acrobat\\*\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["Adobe Premiere Pro", "AfterFX", "Photoshop", "Acrobat"],
+      "costAndReclaimNote": "清理前需关闭 Adobe 相关软件；不影响原素材与工程文件，下次打开大型剪辑工程需短暂重新生成音频波形与预览缓存。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-jianying-cache",
+      "groupId": "creative-productivity",
+      "displayName": "剪映专业版 / CapCut 临时缓存",
+      "shortDescription": "仅清 User Data\\Cache 目录；绝不触碰草稿箱（Projects / Drafts）与导出视频。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "JianyingPro\\User Data\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "CapCut\\User Data\\Cache" }
+      ],
+      "requiredStoppedProcesses": ["JianyingPro", "CapCut"],
+      "costAndReclaimNote": "清理前需关闭剪映 / CapCut；仅清临时素材缓存，绝不触碰任何草稿工程。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-obs-logs",
+      "groupId": "creative-productivity",
+      "displayName": "OBS Studio 过期日志与崩溃报告",
+      "shortDescription": "仅清超过 24 小时的 OBS logs / crashes / profiler_data；不影响场景配置与录屏视频。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "obs-studio\\logs", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "obs-studio\\crashes", "minAgeHoursOverride": 24 },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "obs-studio\\profiler_data", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["obs64"],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "清理前需关闭 OBS Studio；仅清理超过 24h 的诊断日志，保留全部场景、推流设置与视频。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    { "ruleId": "app-figma-cache", "groupId": "creative-productivity", "template": "electron-app", "softwareName": "Figma", "roamingFolder": "Figma", "requiredStoppedProcesses": ["Figma"], "includeLogs": true },
+    { "ruleId": "app-notion-cache", "groupId": "creative-productivity", "template": "electron-app", "softwareName": "Notion", "roamingFolder": "Notion", "requiredStoppedProcesses": ["Notion"], "includeLogs": true },
+    { "ruleId": "app-obsidian-cache", "groupId": "creative-productivity", "template": "electron-app", "softwareName": "Obsidian", "roamingFolder": "obsidian", "requiredStoppedProcesses": ["Obsidian"] },
+    { "ruleId": "app-postman-cache", "groupId": "ide", "template": "electron-app", "softwareName": "Postman", "roamingFolder": "Postman", "requiredStoppedProcesses": ["Postman"], "includeLogs": true },
+    { "ruleId": "app-apifox-cache", "groupId": "ide", "template": "electron-app", "softwareName": "Apifox", "roamingFolder": "Apifox", "requiredStoppedProcesses": ["Apifox"], "includeLogs": true },
+    { "ruleId": "app-cherrystudio-cache", "groupId": "creative-productivity", "template": "electron-app", "softwareName": "Cherry Studio", "roamingFolder": "CherryStudio", "requiredStoppedProcesses": ["Cherry Studio"] },
+    {
+      "ruleId": "app-utools-cache",
+      "groupId": "creative-productivity",
+      "displayName": "uTools 网页与代码缓存",
+      "shortDescription": "仅清 uTools 的 Cache / Code Cache，绝不触碰插件目录、本地数据库与配置。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "RoamingAppData", "relativeSubPath": "uTools\\Cache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "uTools\\Code Cache" }
+      ],
+      "requiredStoppedProcesses": ["uTools"],
+      "costAndReclaimNote": "清理前需退出 uTools；保留全部插件与本地数据。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    { "ruleId": "app-baidunetdisk-cache", "groupId": "creative-productivity", "template": "electron-app", "softwareName": "百度网盘客户端", "roamingFolder": "BaiduNetdisk", "requiredStoppedProcesses": ["BaiduNetdisk"] },
+    {
+      "ruleId": "app-quarkclouddrive-cache",
+      "groupId": "creative-productivity",
+      "displayName": "夸克网盘客户端网页与 GPU 缓存",
+      "shortDescription": "仅清夸克网盘 User Data 下的 Cache / Code Cache / GPUCache / GrShaderCache，不影响下载文件与登录态。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "QuarkCloudDrive\\User Data\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "QuarkCloudDrive\\User Data\\Default\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "QuarkCloudDrive\\User Data\\Default\\GPUCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "QuarkCloudDrive\\User Data\\GrShaderCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "QuarkCloudDrive\\User Data\\GraphiteDawnCache" }
+      ],
+      "requiredStoppedProcesses": ["QuarkCloudDrive"],
+      "costAndReclaimNote": "清理前需退出夸克网盘；仅清理内嵌浏览器缓存，绝不触碰已下载文件与登录凭据。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true,
+      "isBrowserCacheRule": true
+    },
+    {
+      "ruleId": "app-steam-cache",
+      "groupId": "gaming-media",
+      "displayName": "Steam 客户端网页、着色器与跨盘库缓存",
+      "shortDescription": "清理 Steam htmlcache 以及跨盘 Steam 库中的 httpcache / depotcache / shadercache 与过期日志；绝不触碰已安装游戏、创意工坊与存档。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\GPUCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\Default\\Cache\\Cache_Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\Default\\Code Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Steam\\htmlcache\\Default\\GPUCache" },
+        { "rootKind": "SteamLibraries", "relativeSubPath": "appcache\\httpcache" },
+        { "rootKind": "SteamLibraries", "relativeSubPath": "depotcache" },
+        { "rootKind": "SteamLibraries", "relativeSubPath": "logs", "minAgeHoursOverride": 24 },
+        { "rootKind": "SteamLibraries", "relativeSubPath": "steamapps\\shadercache" }
+      ],
+      "requiredStoppedProcesses": ["steam", "steamwebhelper"],
+      "costAndReclaimNote": "清理前需退出 Steam；支持自动识别装在非系统盘的 Steam 库缓存与着色器缓存，绝不触碰游戏本体、userdata 与登录凭据。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-epic-cache",
+      "groupId": "gaming-media",
+      "displayName": "Epic Games 启动器网页缓存与旧日志",
+      "shortDescription": "仅清 EpicGamesLauncher\\Saved 下的 webcache 与超过 24h 的运行日志；不影响已安装游戏。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "EpicGamesLauncher\\Saved\\webcache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "EpicGamesLauncher\\Saved\\webcache_*" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "EpicGamesLauncher\\Saved\\Logs", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["EpicGamesLauncher"],
+      "costAndReclaimNote": "清理前需退出 Epic Games 启动器；仅清理商店网页缓存与过期日志，不影响游戏本体与存档。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-battlenet-cache",
+      "groupId": "gaming-media",
+      "displayName": "暴雪战网（Battle.net）网页缓存与日志",
+      "shortDescription": "仅清 Battle.net 的 Cache / BrowserCache 与超过 24h 的 Logs；不影响游戏安装目录。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Battle.net\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Battle.net\\BrowserCache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Battle.net\\Logs", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["Battle.net"],
+      "costAndReclaimNote": "清理前需退出暴雪战网客户端；仅清理启动器网页缓存与旧日志。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-cloudmusic-cache",
+      "groupId": "gaming-media",
+      "displayName": "网易云音乐播放与临时缓存",
+      "shortDescription": "仅清 NetEase\\CloudMusic 下的 Cache / Temp 与过期日志；不影响下载的本地无损音乐。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "NetEase\\CloudMusic\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NetEase\\CloudMusic\\Temp", "minAgeHoursOverride": 24 },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NetEase\\CloudMusic\\Log", "minAgeHoursOverride": 24 }
+      ],
+      "requiredStoppedProcesses": ["cloudmusic"],
+      "costAndReclaimNote": "清理前需退出网易云音乐；仅清理试听缓存与临时日志，保留所有已下载歌曲与歌单设置。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "app-spotify-cache",
+      "groupId": "gaming-media",
+      "displayName": "Spotify 音频与界面缓存",
+      "shortDescription": "清理 LocalAppData\\Spotify 的 Data / Storage / Browser 缓存；清理后已缓存歌曲需重新流式加载。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Spotify\\Data" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Spotify\\Storage" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "Spotify\\Browser\\Cache\\Cache_Data" }
+      ],
+      "requiredStoppedProcesses": ["Spotify"],
+      "costAndReclaimNote": "清理前需退出 Spotify；不会退出登录，但已缓存的歌曲再次播放时将重新在线加载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    { "ruleId": "app-bilibili-cache", "groupId": "gaming-media", "template": "electron-app", "softwareName": "哔哩哔哩客户端", "roamingFolder": "bilibili", "requiredStoppedProcesses": ["哔哩哔哩", "bilibili"], "includeLogs": true },
+    {
+      "ruleId": "dev-npm-cache",
+      "groupId": "dev-packages",
+      "displayName": "npm 包下载缓存（_cacache）",
+      "shortDescription": "Node.js npm 本地下载缓存；清理后不影响现有项目 node_modules，但离线装包需重新联网下载。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "npm-cache\\_cacache" },
+        { "rootKind": "RoamingAppData", "relativeSubPath": "npm-cache\\_cacache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "_cacache", "customRootOverride": "NPM_CONFIG_CACHE" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "_cacache", "customRootOverride": "npm_config_cache" },
+        { "rootKind": "NpmConfigCache", "relativeSubPath": "_cacache" }
+      ],
+      "costAndReclaimNote": "安全不伤项目源码与已安装依赖；下次 npm install 未命中缓存的包时将重新从镜像源下载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-pnpm-cache",
+      "groupId": "dev-packages",
+      "displayName": "pnpm 元数据与 dlx 缓存",
+      "shortDescription": "仅清 LocalAppData\\pnpm-cache 下的元数据与 dlx 缓存，绝不触碰硬链接依赖存储（pnpm\\store）。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "pnpm-cache" }
+      ],
+      "costAndReclaimNote": "仅清理 pnpm 元数据与 dlx 缓存，不触碰 pnpm\\store 硬链接仓库；如需裁剪 store 建议使用官方 `pnpm store prune`。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-yarn-cache",
+      "groupId": "dev-packages",
+      "displayName": "Yarn 包下载缓存",
+      "shortDescription": "清理 LocalAppData\\Yarn\\Cache 下载缓存；下次安装依赖将按需重新拉取。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Yarn\\Cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "YARN_CACHE_FOLDER" }
+      ],
+      "costAndReclaimNote": "不影响现有项目 node_modules；清理后离线装包需重新联网下载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-bun-cache",
+      "groupId": "dev-packages",
+      "displayName": "Bun 包下载缓存",
+      "shortDescription": "清理 %USERPROFILE%\\.bun\\install\\cache 及 BUN_INSTALL 跨盘缓存；下次 bun install 将重新从镜像源拉取。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserProfile", "relativeSubPath": ".bun\\install\\cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "BUN_INSTALL_CACHE_DIR" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "install\\cache", "customRootOverride": "BUN_INSTALL" }
+      ],
+      "costAndReclaimNote": "不影响已安装依赖与 Bun 运行时本体；清理后再次装包需重新下载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-pip-cache",
+      "groupId": "dev-packages",
+      "displayName": "pip（Python）下载缓存",
+      "shortDescription": "清理 LocalAppData\\pip\\Cache 及 PIP_CACHE_DIR 跨盘下载缓存；不影响已有虚拟环境。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "pip\\Cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "PIP_CACHE_DIR" }
+      ],
+      "costAndReclaimNote": "不影响任何已安装的 Python 包或虚拟环境；再次 pip install 时需重新下载。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-uv-cache",
+      "groupId": "dev-packages",
+      "displayName": "uv（Python）包下载缓存",
+      "shortDescription": "清理 LocalAppData\\uv\\cache 及 UV_CACHE_DIR 跨盘缓存；不影响已创建的 .venv 环境。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "uv\\cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "UV_CACHE_DIR" }
+      ],
+      "costAndReclaimNote": "安全不伤项目与虚拟环境；清理后再次使用 uv 装包会重新下载并构建缓存。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-conda-cache",
+      "groupId": "dev-packages",
+      "displayName": "Conda 安装包压缩包与索引缓存",
+      "shortDescription": "仅清 Conda pkgs\\cache（含 CONDA_PKGS_DIRS 跨盘目录）索引缓存与 .tar.bz2 / .conda 原始归档包，绝不触碰已解压环境目录。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserProfile", "relativeSubPath": ".conda\\pkgs\\cache" },
+        { "rootKind": "UserProfile", "relativeSubPath": ".conda\\pkgs", "includeFilePatterns": ["*.tar.bz2", "*.conda"], "recursive": false },
+        { "rootKind": "UserProfile", "relativeSubPath": "miniconda3\\pkgs\\cache" },
+        { "rootKind": "UserProfile", "relativeSubPath": "miniconda3\\pkgs", "includeFilePatterns": ["*.tar.bz2", "*.conda"], "recursive": false },
+        { "rootKind": "UserProfile", "relativeSubPath": "anaconda3\\pkgs\\cache" },
+        { "rootKind": "UserProfile", "relativeSubPath": "anaconda3\\pkgs", "includeFilePatterns": ["*.tar.bz2", "*.conda"], "recursive": false },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "cache", "customRootOverride": "CONDA_PKGS_DIRS" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "includeFilePatterns": ["*.tar.bz2", "*.conda"], "recursive": false, "customRootOverride": "CONDA_PKGS_DIRS" }
+      ],
+      "costAndReclaimNote": "等价于 `conda clean --tarballs --index-cache`，绝不破坏现有 Conda 虚拟环境；新建环境时需重新下载对应包。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-nuget-cache",
+      "groupId": "dev-packages",
+      "displayName": "NuGet（.NET）HTTP 与插件缓存",
+      "shortDescription": "仅清 LocalAppData\\NuGet 及 NUGET_HTTP/PLUGINS_CACHE_PATH 跨盘缓存，保留 .nuget\\packages 离线还原包。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "NuGet\\v3-cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NuGet\\plugins-cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "NuGet\\Cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "NUGET_HTTP_CACHE_PATH" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "NUGET_PLUGINS_CACHE_PATH" }
+      ],
+      "costAndReclaimNote": "仅清 HTTP 与插件缓存，不影响 .nuget\\packages 中已还原的全局包；下次 dotnet restore 会重新拉取元数据。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-gradle-cache",
+      "groupId": "dev-packages",
+      "displayName": "Gradle（Java / Android）依赖与构建缓存",
+      "shortDescription": "清理 .gradle\\caches（含 GRADLE_USER_HOME 跨盘目录）下的 modules-2 / build-cache-1 / transforms-*。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserProfile", "relativeSubPath": ".gradle\\caches\\modules-2\\files-2.1" },
+        { "rootKind": "UserProfile", "relativeSubPath": ".gradle\\caches\\build-cache-1" },
+        { "rootKind": "UserProfile", "relativeSubPath": ".gradle\\caches\\transforms-*" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "caches\\modules-2\\files-2.1", "customRootOverride": "GRADLE_USER_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "caches\\build-cache-1", "customRootOverride": "GRADLE_USER_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "caches\\transforms-*", "customRootOverride": "GRADLE_USER_HOME" }
+      ],
+      "costAndReclaimNote": "安全不伤项目源码，但下次 Gradle 构建需重新联网拉取依赖并重新执行构建缓存，离线环境请勿勾选。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-maven-cache",
+      "groupId": "dev-packages",
+      "displayName": "Maven（Java）本地仓库缓存（.m2）",
+      "shortDescription": "清理 %USERPROFILE%\\.m2\\repository 及 settings.xml 自定义跨盘本地依赖库；离线构建或内网环境请勿勾选。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserProfile", "relativeSubPath": ".m2\\repository" },
+        { "rootKind": "MavenCustomRepository", "relativeSubPath": "" }
+      ],
+      "costAndReclaimNote": "清理后不影响项目源码与 settings.xml，但下次 mvn 构建需重新联网下载依赖；使用 Maven 离线模式（-o）时请勿勾选。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-cargo-cache",
+      "groupId": "dev-packages",
+      "displayName": "Cargo（Rust）包下载与源码缓存",
+      "shortDescription": "清理 .cargo\\registry（含 CARGO_HOME 跨盘目录）下的 cache 与 src；不影响工具链。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "UserProfile", "relativeSubPath": ".cargo\\registry\\cache" },
+        { "rootKind": "UserProfile", "relativeSubPath": ".cargo\\registry\\src" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "registry\\cache", "customRootOverride": "CARGO_HOME" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "registry\\src", "customRootOverride": "CARGO_HOME" }
+      ],
+      "costAndReclaimNote": "保留已安装的 cargo bin 与 rustup 工具链；清理后下次编译新项目会重新下载 crate 源码。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-go-cache",
+      "groupId": "dev-packages",
+      "displayName": "Go 构建与模块下载缓存",
+      "shortDescription": "清理 go-build（含 GOCACHE）与 go\\pkg\\mod\\cache\\download（含 GOMODCACHE / GOPATH 跨盘目录）。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "go-build" },
+        { "rootKind": "UserProfile", "relativeSubPath": "go\\pkg\\mod\\cache\\download" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "GOCACHE" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "cache\\download", "customRootOverride": "GOMODCACHE" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "pkg\\mod\\cache\\download", "customRootOverride": "GOPATH" }
+      ],
+      "costAndReclaimNote": "等价于清理 GOCACHE 与模块下载压缩包；下次 go build 会短暂重新编译或拉取模块。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-composer-cache",
+      "groupId": "dev-packages",
+      "displayName": "Composer（PHP）包下载缓存",
+      "shortDescription": "清理 LocalAppData\\Composer 及 COMPOSER_CACHE_DIR 跨盘缓存目录；不影响已安装 vendor 依赖。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Composer" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "COMPOSER_CACHE_DIR" }
+      ],
+      "costAndReclaimNote": "清理后下次 composer install 需重新从镜像源下载包。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-electron-cache",
+      "groupId": "dev-packages",
+      "displayName": "Electron / node-gyp 下载与编译缓存",
+      "shortDescription": "清理 electron / electron-builder / node-gyp（含 ELECTRON_CACHE 跨盘目录）的下载与编译缓存。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "OnDemand",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "electron\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "electron-builder\\Cache" },
+        { "rootKind": "LocalAppData", "relativeSubPath": "node-gyp\\Cache" },
+        { "rootKind": "EnvironmentVariable", "relativeSubPath": "", "customRootOverride": "ELECTRON_CACHE" }
+      ],
+      "costAndReclaimNote": "不影响已构建应用与源码；下次打包或编译原生 Node 模块时需重新下载 Electron 二进制或头文件。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "dev-docker-logs",
+      "groupId": "dev-packages",
+      "displayName": "Docker Desktop 过期运行日志（>24 小时）",
+      "shortDescription": "仅清 LocalAppData\\Docker\\log 下的过期运行日志，绝不触碰 WSL2 虚拟磁盘（ext4.vhdx）、镜像与容器卷。",
+      "category": "SoftwareAndDeveloperCache",
+      "tier": "Recommended",
+      "channel": "FileQuarantine",
+      "targetSpecs": [
+        { "rootKind": "LocalAppData", "relativeSubPath": "Docker\\log", "minAgeHoursOverride": 24 }
+      ],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "仅清理 24 小时前的 Docker 诊断日志；容器、镜像与卷数据完全不受影响。",
+      "channelBadgeText": "同卷隔离可恢复",
+      "isRebuildable": true
+    },
+    {
+      "ruleId": "caution-winsxs-resetbase",
+      "displayName": "深度 WinSxS 清理（/ResetBase）",
+      "shortDescription": "清理后将无法卸载已安装的 Windows 更新；请确认系统近期运行稳定后再选择。",
+      "category": "CautionItems",
+      "tier": "Caution",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "DismResetBase",
+      "targetSpecs": [],
+      "costAndReclaimNote": "调用官方 Dism /StartComponentCleanup /ResetBase；不可恢复且无法卸载历史更新。",
+      "channelBadgeText": "官方接口 · 不可回退",
+      "isRebuildable": false,
+      "cautionReason": {
+        "oneLineImpact": "清理后将无法卸载已安装的 Windows 更新，不可逆。",
+        "hoverSummary": "高危但可自选：调用官方 DISM /ResetBase 压缩基线，清理后所有已装系统更新将固化不可卸载。",
+        "riskCause": "WinSxS 保存了 Windows 更新前后的组件历史版本，/ResetBase 会把当前组件基线固化并移除全部旧版本。",
+        "possibleImpact": "执行完成后，控制面板与设置中的「卸载已安装更新」将无法回退之前安装的累积更新。",
+        "protectionStrategy": "严格通过微软官方 Dism.exe 执行，绝不手删 WinSxS 目录；执行前需输入确认短语且默认不勾选。"
+      }
+    },
+    {
+      "ruleId": "caution-windows-old",
+      "displayName": "旧版 Windows 安装（Windows.old）",
+      "shortDescription": "仅在系统盘存在旧版 Windows 备份时可用；清理后无法回退到上一版本 Windows。",
+      "category": "CautionItems",
+      "tier": "Caution",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "WindowsOldOfficial",
+      "targetSpecs": [
+        { "rootKind": "SystemDriveRoot", "relativeSubPath": "Windows.old" }
+      ],
+      "costAndReclaimNote": "仅通过 Windows 官方磁盘清理接口清理，绝不暴力删目录；清理后不可回退旧版系统。",
+      "channelBadgeText": "官方接口 · 不可回退",
+      "isRebuildable": false,
+      "cautionReason": {
+        "oneLineImpact": "清理后将无法通过系统设置回退到上一版本 Windows。",
+        "hoverSummary": "高危但可自选：移除升级保留的 Windows.old，空间释放大但彻底失去系统版本回滚机会。",
+        "riskCause": "Windows.old 保存了系统大版本升级前的完整操作系统文件与旧配置副本。",
+        "possibleImpact": "清理后将无法使用「系统恢复 → 返回」回退旧版 Windows，且其中尚未拷贝走的旧个人文件将一并丢失。",
+        "protectionStrategy": "仅在检测到 Windows.old 真实存在时开放勾选，调用官方系统清理接口而非手工强删，执行前强制短语确认。"
+      }
+    },
+    {
+      "ruleId": "caution-superseded-drivers",
+      "displayName": "被取代的旧版驱动（pnputil 枚举）",
+      "shortDescription": "可能导致外设/显卡异常时无法快速回滚；仅通过官方 pnputil 移除非活动旧版驱动包。",
+      "category": "CautionItems",
+      "tier": "Caution",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "PnpUtilSupersededDrivers",
+      "targetSpecs": [],
+      "costAndReclaimNote": "仅移除未被任何设备使用且已有更新版本取代的 oemXX.inf 驱动包，绝不直接删除 FileRepository。",
+      "channelBadgeText": "官方 pnputil · 不可恢复",
+      "isRebuildable": false,
+      "cautionReason": {
+        "oneLineImpact": "可能导致外设或显卡新驱动异常时无法通过设备管理器一键回滚。",
+        "hoverSummary": "高危但可自选：仅通过官方 pnputil 移除已被新版本取代且未使用的旧驱动，确认前请核对右侧列表。",
+        "riskCause": "Windows DriverStore 保留历史版本第三方驱动包（如多代 NVIDIA/AMD 显卡驱动），用于在驱动故障时回滚。",
+        "possibleImpact": "若新版本显卡或外设驱动出现兼容性问题，清理后将无法直接「回退驱动程序」，需自行重新下载旧驱动安装。",
+        "protectionStrategy": "严格通过官方 pnputil /enum-drivers 交叉比对当前活跃驱动，仅列出被同发布商新版取代的非活动包，绝不手删 FileRepository。"
+      }
+    },
+    {
+      "ruleId": "caution-orphaned-installer",
+      "displayName": "孤立 Windows\\Installer 补丁与安装包缓存",
+      "shortDescription": "仅核对注册表无已安装产品引用的孤立 MSI/MSP，强制先入同卷隔离区保留回滚机会。",
+      "category": "CautionItems",
+      "tier": "Caution",
+      "channel": "FileQuarantine",
+      "officialApiKind": "OrphanedInstallerMsi",
+      "targetSpecs": [
+        { "rootKind": "WindowsDirectory", "relativeSubPath": "Installer", "includeFilePatterns": ["*.msi", "*.msp"], "recursive": false }
+      ],
+      "requiredStoppedProcesses": ["msiexec"],
+      "minAgeHours": 24,
+      "costAndReclaimNote": "严禁清空整目录！仅移入确认无引用的孤立 MSI/MSP 至同卷隔离区（可一键恢复），执行前需短语确认。",
+      "channelBadgeText": "孤立 MSI 先入隔离区 · 强确认",
+      "isRebuildable": false,
+      "forceSameVolumeQuarantineOnly": true,
+      "cautionReason": {
+        "oneLineImpact": "误判可能导致 Office / Visual Studio 等 MSI 软件修复或卸载异常。",
+        "hoverSummary": "高危但可自选：仅清无引用的孤立补丁/安装包并强制先入同卷隔离区，确认前请阅读右侧完整影响。",
+        "riskCause": "Windows\\Installer 保存已安装软件的 MSI 安装包与 MSP 补丁元数据，软件修复、更新或卸载均依赖这些文件。",
+        "possibleImpact": "若某款软件的注册表引用不规范而被误判为孤立，可能导致 Office / VS / 工业软件无法正常修复、升级或卸载。",
+        "protectionStrategy": "交叉核对 HKLM/HKCU Windows Installer 数据库中全部 LocalPackage 引用，严禁清空整目录，强制先入同卷隔离区并要求输入短语确认。"
+      }
+    },
+    {
+      "ruleId": "caution-recycle-bin-all-drives",
+      "displayName": "全盘回收站（C / D / E… 各卷汇总）",
+      "shortDescription": "通过 Windows 官方回收站接口汇总所有本地固定磁盘的回收站占用；清空后不可通过隔离区恢复。",
+      "category": "CautionItems",
+      "tier": "Caution",
+      "channel": "OfficialSystemApi",
+      "officialApiKind": "RecycleBinAllDrives",
+      "targetSpecs": [],
+      "costAndReclaimNote": "通过 Windows 官方 SHEmptyRecycleBin 接口逐卷清空非空回收站；执行后无法从本工具隔离区或系统回收站找回。",
+      "channelBadgeText": "官方回收站接口 · 不可恢复",
+      "isRebuildable": false,
+      "cautionReason": {
+        "oneLineImpact": "将清空所有非空固定磁盘的 Windows 回收站，清理后无法恢复。",
+        "hoverSummary": "不可恢复：清空全盘回收站前请先在系统回收站核对是否还有误删的个人文档或素材。",
+        "riskCause": "系统回收站可能暂存了您近期手动删除的个人文件、工作文档或旧备份，并不区分来源。",
+        "possibleImpact": "执行清空后，这些文件将从各磁盘 $Recycle.Bin 永久释放，无法通过回收站或本工具隔离区一键还原。",
+        "protectionStrategy": "默认折叠且绝不自动勾选；仅通过 Windows 官方 Shell API 统计与清空，执行前强制二次输入短语确认。"
+      }
+    }
+  ]
+}

@@ -25,15 +25,28 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- DrawerHead：机器人图标 + 标题 + 模型来源徽章 + 设置/收起按钮 -->
-            <DockPanel Grid.Row="0" Margin="0,0,0,9">
+            <!-- DrawerHead：机器人图标 + 标题 + 模型来源徽章 + 清空/设置/收起按钮 -->
+            <DockPanel Grid.Row="0" Margin="0,0,0,8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Command="{Binding OpenAiSettingsCommand}"
+                    <Button Command="{Binding ClearConversationCommand}"
+                            AutomationProperties.AutomationId="AiDrawerClearSessionButton"
+                            ToolTip="清空当前场景会话记录（不影响其他场景会话）"
+                            IsEnabled="{Binding IsAnalyzing, Converter={StaticResource InverseBoolConverter}}"
+                            Visibility="{Binding HasConversationTurns, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Style="{StaticResource FluentIconButtonStyle}"
+                            Background="#F8FAFC" Width="24" Height="24" Margin="0,0,5,0">
+                        <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Width="24" Height="24">
+                            <Path Data="{StaticResource IconTrash2}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                  Stroke="#64748B" StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Button>
+                    <Button Command="{Binding Host.OpenAiSettingsCommand}"
                             AutomationProperties.AutomationId="AiDrawerOpenSettingsButton"
                             ToolTip="打开 BYOK / 本地模型配置"
                             Style="{StaticResource FluentIconButtonStyle}"
@@ -43,9 +56,9 @@
                                   Stroke="#64748B" StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </Button>
-                    <Button Command="{Binding CloseDrawerCommand}"
+                    <Button Command="{Binding Host.CloseDrawerCommand}"
                             AutomationProperties.AutomationId="AiDrawerCloseButton"
-                            ToolTip="收起 AI 抽屉（或清空会话）"
+                            ToolTip="收起 AI 抽屉（会话自动保留）"
                             Style="{StaticResource FluentIconButtonStyle}"
                             Background="#F8FAFC" Width="24" Height="24"
                             Visibility="{Binding ShowCloseButton, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -61,49 +74,83 @@
                           Stroke="#0078D4" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                           Margin="0,0,6,0" VerticalAlignment="Center"/>
                     <TextBlock Text="AI 分析助手" FontSize="13.5" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <Border Background="{Binding OriginBadgeBg}" BorderBrush="{Binding OriginBadgeBorder}" BorderThickness="1"
+                    <Border Background="{Binding Host.OriginBadgeBg}" BorderBrush="{Binding Host.OriginBadgeBorder}" BorderThickness="1"
                             CornerRadius="10" Padding="7,2" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding OriginBadgeText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding OriginBadgeFg}"/>
+                        <TextBlock Text="{Binding Host.OriginBadgeText}" FontSize="10" FontWeight="SemiBold" Foreground="{Binding Host.OriginBadgeFg}"/>
                     </Border>
                 </StackPanel>
             </DockPanel>
 
-            <!-- QuickPrompts：3 个快捷诊断胶囊 -->
-            <UniformGrid Grid.Row="1" Rows="1" Columns="3" Margin="0,0,0,9"
+            <!-- 独立 AI 页专属三会话切换条（扫描页/清理页抽屉自动隐藏并锁定对应会话） -->
+            <Border Grid.Row="1" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="3" Margin="0,0,0,8"
+                    Visibility="{Binding ShowSessionSwitcher, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                <UniformGrid Rows="1" Columns="3">
+                    <Button Command="{Binding Host.SelectStandaloneSessionCommand}" CommandParameter="General"
+                            AutomationProperties.AutomationId="AiSessionTabGeneral"
+                            Tag="{Binding Host.GeneralSessionChipTag}"
+                            Style="{StaticResource FluentSecondaryButtonStyle}"
+                            Height="25" MinWidth="0" Padding="4,0" Margin="0,0,3,0" FontSize="10.5"
+                            ToolTip="综合诊断：联合各盘余量、备份/隔离区、垃圾清理与多盘扫描">
+                        <TextBlock Text="{Binding Host.GeneralSession.SessionTabBadgeText}" TextTrimming="CharacterEllipsis"/>
+                    </Button>
+                    <Button Command="{Binding Host.SelectStandaloneSessionCommand}" CommandParameter="DiskScan"
+                            AutomationProperties.AutomationId="AiSessionTabDiskScan"
+                            Tag="{Binding Host.DiskScanSessionChipTag}"
+                            Style="{StaticResource FluentSecondaryButtonStyle}"
+                            Height="25" MinWidth="0" Padding="4,0" Margin="0,0,3,0" FontSize="10.5"
+                            ToolTip="无缝查看或续聊「磁盘扫描」页抽屉会话">
+                        <TextBlock Text="{Binding Host.DiskScanSession.SessionTabBadgeText}" TextTrimming="CharacterEllipsis"/>
+                    </Button>
+                    <Button Command="{Binding Host.SelectStandaloneSessionCommand}" CommandParameter="Cleanup"
+                            AutomationProperties.AutomationId="AiSessionTabCleanup"
+                            Tag="{Binding Host.CleanupSessionChipTag}"
+                            Style="{StaticResource FluentSecondaryButtonStyle}"
+                            Height="25" MinWidth="0" Padding="4,0" FontSize="10.5"
+                            ToolTip="无缝查看或续聊「垃圾清理」页抽屉会话">
+                        <TextBlock Text="{Binding Host.CleanupSession.SessionTabBadgeText}" TextTrimming="CharacterEllipsis"/>
+                    </Button>
+                </UniformGrid>
+            </Border>
+
+            <!-- QuickPrompts：按入口场景动态定制的 3 个快捷诊断胶囊 -->
+            <UniformGrid Grid.Row="2" Rows="1" Columns="3" Margin="0,0,0,9"
                          IsEnabled="{Binding IsAnalyzing, Converter={StaticResource InverseBoolConverter}}">
-                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="LargeDirs"
+                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="{Binding QuickPrompt1Key}"
+                        ToolTip="{Binding QuickPrompt1ToolTip}"
                         AutomationProperties.AutomationId="AiQuickPromptLargeDirs"
                         Style="{StaticResource FluentSoftPrimaryButtonStyle}"
-                        Height="28" MinWidth="0" Padding="6,0" Margin="0,0,5,0" FontSize="10.5">
-                    <TextBlock Text="分析大目录"/>
+                        Height="28" MinWidth="0" Padding="5,0" Margin="0,0,5,0" FontSize="10.5">
+                    <TextBlock Text="{Binding QuickPrompt1Title}" TextTrimming="CharacterEllipsis"/>
                 </Button>
-                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="UnknownDirs"
+                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="{Binding QuickPrompt2Key}"
+                        ToolTip="{Binding QuickPrompt2ToolTip}"
                         AutomationProperties.AutomationId="AiQuickPromptUnknownDirs"
                         Style="{StaticResource FluentSoftPrimaryButtonStyle}"
-                        Height="28" MinWidth="0" Padding="6,0" Margin="0,0,5,0" FontSize="10.5">
-                    <TextBlock Text="诊断未知占用"/>
+                        Height="28" MinWidth="0" Padding="5,0" Margin="0,0,5,0" FontSize="10.5">
+                    <TextBlock Text="{Binding QuickPrompt2Title}" TextTrimming="CharacterEllipsis"/>
                 </Button>
-                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="MigrateVsClean"
+                <Button Command="{Binding RunQuickPromptCommand}" CommandParameter="{Binding QuickPrompt3Key}"
+                        ToolTip="{Binding QuickPrompt3ToolTip}"
                         AutomationProperties.AutomationId="AiQuickPromptMigrateVsClean"
                         Style="{StaticResource FluentSoftPrimaryButtonStyle}"
-                        Height="28" MinWidth="0" Padding="6,0" FontSize="10.5">
-                    <TextBlock Text="迁移 vs 清理"/>
+                        Height="28" MinWidth="0" Padding="5,0" FontSize="10.5">
+                    <TextBlock Text="{Binding QuickPrompt3Title}" TextTrimming="CharacterEllipsis"/>
                 </Button>
             </UniformGrid>
 
             <!-- 对话与受控工具调用流 -->
-            <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+            <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                           ScrollChanged="ChatScrollViewer_OnScrollChanged"
                           Margin="0,0,0,8">
                 <StackPanel>
-                    <!-- 空态引导 -->
+                    <!-- 空态引导（随入口场景定制） -->
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="11"
                             Visibility="{Binding HasConversationTurns, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                         <StackPanel>
-                            <TextBlock Text="只读 AI 分析已就绪（零执行权）" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,4"/>
-                            <TextBlock Text="点击上方快捷按钮或直接提问，内置 Agent 将通过 MEAI 只读白名单工具读取脱敏目录元数据，为你梳理可迁移大目录并生成待审阅建议卡片。"
+                            <TextBlock Text="{Binding EmptyStateTitle}" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,0,0,4"/>
+                            <TextBlock Text="{Binding EmptyStateDescription}"
                                        FontSize="11" Foreground="#64748B" TextWrapping="Wrap" LineHeight="17"/>
-                            <TextBlock Text="• 绝不读取任何文件内容或敏感凭据&#x0a;• 绝不自动执行迁移、清理或删除&#x0a;• L0 系统与高危目录由服务端硬拦截"
+                            <TextBlock Text="• 绝不读取任何文件内容或敏感凭据&#x0a;• 绝不自动扫描磁盘、迁移、清理或删除&#x0a;• 缺少扫描数据时将弹出选盘确认卡片由你自主决定"
                                        FontSize="10.5" Foreground="#475569" TextWrapping="Wrap" LineHeight="17" Margin="0,6,0,0"/>
                         </StackPanel>
                     </Border>
@@ -118,17 +165,16 @@
                                         <TextBlock Text="{Binding UserPrompt, StringFormat=我：{0}}" FontSize="11.5" Foreground="#0F172A" TextWrapping="Wrap" LineHeight="17"/>
                                     </Border>
 
-                                    <!-- 顶部轻量状态元信息条（不再把所有步骤套死在一个置顶大框里） -->
+                                    <!-- 顶部轻量状态元信息条 -->
                                     <DockPanel Margin="2,0,2,6">
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadgeText}" FontSize="10" FontWeight="Medium" Foreground="{Binding StatusBadgeFg}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding TraceHeaderText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     </DockPanel>
 
-                                    <!-- 统一自然时间线流：思考过程、AI 文字说明 / 最终回复、连续工具调用分组严格按发生顺序交错排布 -->
+                                    <!-- 统一自然时间线流 -->
                                     <ItemsControl ItemsSource="{Binding TimelineItems}" Margin="0,0,0,6"
                                                   Visibility="{Binding HasTimelineItems, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <ItemsControl.Resources>
-                                            <!-- 1. 思考步骤：无厚重外框，折叠态单行预览，点击沿左侧细竖线展开完整推理 -->
                                             <DataTemplate DataType="{x:Type vm:AiThinkingStepItem}">
                                                 <StackPanel Margin="0,2,0,5">
                                                     <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
@@ -150,14 +196,12 @@
                                                 </StackPanel>
                                             </DataTemplate>
 
-                                            <!-- 2. AI 文字发言（工具前的过程说明或最终 Markdown 结论，直接落在它发生的位置，零 Hyperlink） -->
                                             <DataTemplate DataType="{x:Type vm:AiAssistantMessageStepItem}">
                                                 <controls:SafeMarkdownViewer MarkdownText="{Binding Text}"
                                                                              BaseFontSize="11.5"
                                                                              Margin="2,2,2,6"/>
                                             </DataTemplate>
 
-                                            <!-- 3. 连续工具调用分组（顶部一行聚合汇总 + 左侧细竖线缩进的单行工具项，单行点击展开详情） -->
                                             <DataTemplate DataType="{x:Type vm:AiToolBatchStepItem}">
                                                 <StackPanel Margin="0,2,0,6">
                                                     <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
@@ -204,7 +248,7 @@
                                                                                     <TextBlock Text="结果：" FontSize="10" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
                                                                                     <TextBlock Text="{Binding ResultSummary}" FontSize="10" Foreground="{Binding ResultForeground}" TextWrapping="Wrap" LineHeight="15" VerticalAlignment="Center"
                                                                                                Visibility="{Binding HasResultPayload, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                                                                                    <Button Command="{Binding DataContext.InspectToolResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                    <Button Command="{Binding DataContext.Host.InspectToolResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                                             CommandParameter="{Binding}"
                                                                                             Style="{StaticResource FluentLinkButtonStyle}"
                                                                                             Foreground="{Binding StatusColor}"
@@ -228,7 +272,6 @@
                                                 </StackPanel>
                                             </DataTemplate>
 
-                                            <!-- 4. 系统纠偏/警告提示 -->
                                             <DataTemplate DataType="{x:Type vm:AiNoticeStepItem}">
                                                 <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="7" Padding="8,5" Margin="0,2,0,5">
                                                     <DockPanel>
@@ -240,13 +283,154 @@
                                         </ItemsControl.Resources>
                                     </ItemsControl>
 
+                                    <!-- 交互式扫描确认卡片（多硬盘智能勾选、>4 盘自动折叠、原地进度、扫完默认自动续跑） -->
+                                    <ItemsControl ItemsSource="{Binding ScanActionCards}"
+                                                  Visibility="{Binding HasScanActionCards, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:AiScanActionCardItem}">
+                                                <Border Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="1.2"
+                                                        CornerRadius="9" Padding="10" Margin="0,0,0,8">
+                                                    <StackPanel>
+                                                        <!-- 卡片头部 -->
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,5">
+                                                            <Path Data="{StaticResource IconRadar}" Width="13" Height="13" Stretch="Uniform"
+                                                                  Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding CardTitle}" FontSize="11.5" FontWeight="Bold" Foreground="#0F172A" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+
+                                                        <!-- 快捷选盘胶囊（固定盘 ≥ 3 块且未开始时显示） -->
+                                                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,6"
+                                                                   Visibility="{Binding ShowQuickDrivePresets, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                   IsEnabled="{Binding ShowIdleActions}">
+                                                            <TextBlock Text="快捷：" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <Button Command="{Binding SelectSystemDriveOnlyCommand}" Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                    Height="21" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,0">
+                                                                <TextBlock Text="仅系统盘"/>
+                                                            </Button>
+                                                            <Button Command="{Binding SelectTightDrivesCommand}" Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                    Height="21" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,0">
+                                                                <TextBlock Text="紧张盘 ≥85%"/>
+                                                            </Button>
+                                                            <Button Command="{Binding SelectAllDrivesCommand}" Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                    Height="21" MinWidth="0" Padding="7,0" FontSize="10">
+                                                                <TextBlock Text="全选固定盘"/>
+                                                            </Button>
+                                                        </WrapPanel>
+
+                                                        <!-- 多硬盘选择列表（1~4 盘全显，≥5 盘默认展示前 3 块，展开后限高内部滚动） -->
+                                                        <ScrollViewer MaxHeight="210" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                                                      Visibility="{Binding ShowDrivePicker, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                      Margin="0,0,0,4">
+                                                            <ItemsControl ItemsSource="{Binding VisibleDrives}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate DataType="{x:Type vm:AiScanDriveOptionItem}">
+                                                                        <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="7,5" Margin="0,0,0,4">
+                                                                            <DockPanel>
+                                                                                <TextBlock DockPanel.Dock="Right" Text="{Binding CapacityText}" FontSize="10" Foreground="#64748B"
+                                                                                           VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                                                              IsEnabled="{Binding DataContext.ShowIdleActions, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                              VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="11" FontWeight="SemiBold" Foreground="#0F172A"
+                                                                                               VerticalAlignment="Center" Margin="0,0,5,0" TextTrimming="CharacterEllipsis"/>
+                                                                                    <Border Background="{Binding PrimaryBadgeBg}" BorderBrush="{Binding PrimaryBadgeBorder}" BorderThickness="1"
+                                                                                            CornerRadius="8" Padding="5,1" VerticalAlignment="Center" Margin="0,0,4,0">
+                                                                                        <TextBlock Text="{Binding PrimaryBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding PrimaryBadgeFg}"/>
+                                                                                    </Border>
+                                                                                    <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1"
+                                                                                            CornerRadius="8" Padding="5,1" VerticalAlignment="Center"
+                                                                                            Visibility="{Binding HasSecondaryUrgency, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                                        <TextBlock Text="{Binding SecondaryUrgencyText}" FontSize="9.5" FontWeight="SemiBold" Foreground="#C42B1C"/>
+                                                                                    </Border>
+                                                                                </StackPanel>
+                                                                            </DockPanel>
+                                                                        </Border>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </ScrollViewer>
+
+                                                        <!-- 超过 4 块硬盘时的折叠/展开切换 -->
+                                                        <Button Command="{Binding ToggleOverflowDrivesCommand}"
+                                                                Style="{StaticResource FluentLinkButtonStyle}"
+                                                                HorizontalAlignment="Left" FontSize="10.5" Margin="2,0,0,6"
+                                                                Visibility="{Binding HasOverflowDrives, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <TextBlock Text="{Binding OverflowToggleText}"/>
+                                                        </Button>
+
+                                                        <!-- 垃圾清理规则扫描勾选项 -->
+                                                        <CheckBox IsChecked="{Binding IncludeCleanupScan, Mode=TwoWay}"
+                                                                  IsEnabled="{Binding ShowIdleActions}"
+                                                                  Visibility="{Binding ShowCleanupOption, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                  Margin="2,2,0,6">
+                                                            <TextBlock Text="同步执行垃圾清理规则扫描（覆盖全盘已知缓存，预计数秒）" FontSize="10.5" Foreground="#1E293B" TextWrapping="Wrap"/>
+                                                        </CheckBox>
+
+                                                        <!-- 扫完自动续聊选项（默认勾选） -->
+                                                        <CheckBox IsChecked="{Binding AutoContinueAfterScan, Mode=TwoWay}"
+                                                                  Visibility="{Binding ShowIdleActions, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                                  Margin="2,0,0,7">
+                                                            <TextBlock Text="扫描完成后自动将结果喂给 AI 继续分析" FontSize="10" Foreground="#64748B" TextWrapping="Wrap"/>
+                                                        </CheckBox>
+
+                                                        <!-- 扫描进度条与状态 -->
+                                                        <StackPanel Margin="0,2,0,7" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <TextBlock Text="{Binding StatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                                            <ProgressBar Value="{Binding ProgressPercent}" Maximum="100"
+                                                                         IsIndeterminate="{Binding ProgressIsIndeterminate}"
+                                                                         Height="5" Style="{StaticResource FluentProgressBarStyle}"/>
+                                                        </StackPanel>
+
+                                                        <TextBlock Text="{Binding StatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0F7B4B" TextWrapping="Wrap" Margin="0,0,0,6"
+                                                                   Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                                        <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="6" Padding="7,5" Margin="0,0,0,6"
+                                                                Visibility="{Binding HasErrorMessage, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <TextBlock Text="{Binding ErrorMessage}" FontSize="10" Foreground="#C42B1C" TextWrapping="Wrap"/>
+                                                        </Border>
+
+                                                        <!-- 底部操作按钮 -->
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Button Command="{Binding DataContext.StartScanCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    IsEnabled="{Binding CanStartScan}"
+                                                                    Style="{StaticResource FluentPrimaryButtonStyle}"
+                                                                    Height="27" Padding="11,0" FontSize="10.5"
+                                                                    Visibility="{Binding ShowIdleActions, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="{Binding StartScanButtonText}"/>
+                                                            </Button>
+
+                                                            <Button Command="{Binding DataContext.CancelScanCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Style="{StaticResource FluentDangerButtonStyle}"
+                                                                    Height="27" Padding="11,0" FontSize="10.5"
+                                                                    Visibility="{Binding ShowRunningActions, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="停止扫描"/>
+                                                            </Button>
+
+                                                            <Button Command="{Binding DataContext.ContinueAfterScanCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    IsEnabled="{Binding DataContext.CanSendPrompt, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                    Height="26" Padding="10,0" FontSize="10.5"
+                                                                    Visibility="{Binding ShowCompletedActions, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="基于新快照再次分析 →"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
                                     <!-- 错误或停止提示 -->
                                     <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="7" Padding="8,6" Margin="0,0,0,7"
                                             Visibility="{Binding HasErrorText, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <TextBlock Text="{Binding ErrorText}" FontSize="11" Foreground="#C42B1C" TextWrapping="Wrap"/>
                                     </Border>
 
-                                    <!-- 结构化建议卡片列表（L1/L3 绿色迁移卡、琥珀色疑似残留/原生引导卡、红色 L0 拦截卡） -->
+                                    <!-- 结构化建议卡片列表 -->
                                     <ItemsControl ItemsSource="{Binding ProposalCards}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -260,8 +444,7 @@
                                                         <TextBlock Text="{Binding SanitizedPath}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" ToolTip="{Binding SanitizedPath}" Margin="0,0,0,4"/>
                                                         <TextBlock Text="{Binding Reason}" FontSize="10.5" Foreground="#334155" TextWrapping="Wrap" LineHeight="16" Margin="0,0,0,6"/>
 
-                                                        <!-- 可采纳为待迁移清单的按钮（仅加入清单，绝不自动执行） -->
-                                                        <Button Command="{Binding DataContext.AdoptProposalCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        <Button Command="{Binding DataContext.Host.AdoptProposalCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                 CommandParameter="{Binding}"
                                                                 IsEnabled="{Binding CanAdopt}"
                                                                 HorizontalAlignment="Left"
@@ -272,8 +455,17 @@
                                                             <TextBlock Text="{Binding AdoptButtonText}"/>
                                                         </Button>
 
-                                                        <!-- 疑似残留 / L2 引导：定位到目录树核实 -->
-                                                        <Button Command="{Binding DataContext.LocateProposalInTreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        <Button Command="{Binding DataContext.Host.OpenCleanupResidualReviewCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                HorizontalAlignment="Left"
+                                                                Height="26" Padding="9,0" FontSize="10.5" FontWeight="SemiBold"
+                                                                Background="#FFFFFF" BorderBrush="{Binding CardBorder}" Foreground="{Binding CardAccentFg}"
+                                                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Visibility="{Binding ShowOpenCleanupResidualButton, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <TextBlock Text="→ 转入清理页「AI 疑似残留」复核"/>
+                                                        </Button>
+
+                                                        <Button Command="{Binding DataContext.Host.LocateProposalInTreeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                 CommandParameter="{Binding}"
                                                                 HorizontalAlignment="Left"
                                                                 Height="26" Padding="9,0" FontSize="10.5" FontWeight="SemiBold"
@@ -295,7 +487,7 @@
             </ScrollViewer>
 
             <!-- DrawerDisclaimer：底部强制免责声明 -->
-            <Border Grid.Row="3" Background="#F8FAFC" CornerRadius="6" Padding="8,5" Margin="0,0,0,8">
+            <Border Grid.Row="4" Background="#F8FAFC" CornerRadius="6" Padding="8,5" Margin="0,0,0,8">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{StaticResource IconInfo}" Width="11" Height="11" Stretch="Uniform"
                           Stroke="#64748B" StrokeThickness="1.8" Margin="0,0,5,0" VerticalAlignment="Center"/>
@@ -304,7 +496,7 @@
             </Border>
 
             <!-- ChatInputRow：输入框 + 发送/停止按钮 -->
-            <Grid Grid.Row="4">
+            <Grid Grid.Row="5">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -312,7 +504,7 @@
 
                 <TextBox Grid.Column="0"
                          Text="{Binding UserPromptInput, UpdateSourceTrigger=PropertyChanged}"
-                         Tag="追问目录用途或迁移风险..."
+                         Tag="{Binding InputPlaceholder}"
                          AutomationProperties.AutomationId="AiDrawerPromptInput"
                          Style="{StaticResource FluentCompactTextBoxStyle}"
                          Background="#F8FAFC"

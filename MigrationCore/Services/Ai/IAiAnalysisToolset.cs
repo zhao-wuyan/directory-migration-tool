@@ -30,4 +30,14 @@ public interface IAiAnalysisToolset
     AiMigrationProposalReceipt SubmitMigrationProposal(AiMigrationProposalRequest request);
 
     AiProposalStatusResponse GetProposalStatus(Guid proposalId);
+
+    // ---- 三期：垃圾清理只读分析与受限建议提交（物理零执行权） ----
+
+    AiCleanupScanSummaryResponse GetCleanupScanSummary(Guid cleanupScanId);
+
+    AiCleanupItemsResponse ListCleanupItems(Guid cleanupScanId, string? tier = null, string? cursor = null, int pageSize = 30);
+
+    AiCleanupItemDetailsResponse GetCleanupItemDetails(Guid cleanupScanId, string ruleId);
+
+    AiCleanupProposalReceipt SubmitCleanupProposal(AiCleanupProposalRequest request);
 }

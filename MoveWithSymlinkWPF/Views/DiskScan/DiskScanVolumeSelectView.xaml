@@ -1,0 +1,475 @@
+<UserControl x:Class="MoveWithSymlinkWPF.Views.DiskScan.DiskScanVolumeSelectView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+             xmlns:vm="clr-namespace:MoveWithSymlinkWPF.ViewModels"
+             xmlns:views="clr-namespace:MoveWithSymlinkWPF.Views"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+    </UserControl.Resources>
+        <!-- ========================================================================= -->
+        <!-- 阶段 00：选盘入口与扫描态（严格对齐 docs/untitled.pen Artboard 00）          -->
+        <!-- ========================================================================= -->
+        <Grid Margin="18,12" Visibility="{Binding IsVolumeSelectView, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题行 -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="磁盘空间扫描与大目录迁移" FontSize="20" FontWeight="Bold" Foreground="#0F172A"/>
+                    <TextBlock Text="用于找出空间不足磁盘（如 C 盘）中占空间的大目录，通过符号链接安全迁移到空间充足的磁盘以释放空间（只读 MFT 高速扫描，不改原数据）。"
+                               FontSize="12" Foreground="#64748B" TextWrapping="Wrap" Margin="0,2,12,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding LoadVolumesCommand}"
+                        IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                        Style="{StaticResource FluentSecondaryButtonStyle}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconRefreshCw}" Width="14" Height="14" Stretch="Uniform"
+                              Stroke="#0F172A" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="0,0,6,0"/>
+                        <TextBlock Text="刷新磁盘列表"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- 磁盘卡片组（横向等宽卡片，多盘时自动横向滚动避免挤压） -->
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,10">
+                <ItemsControl ItemsSource="{Binding VolumeCards}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#FFFFFF"
+                                    BorderBrush="{Binding CardBorderBrush}"
+                                    BorderThickness="1.2"
+                                    CornerRadius="10"
+                                    Padding="13,9"
+                                    MinWidth="260"
+                                    Margin="0,0,8,0">
+                            <StackPanel>
+                                <!-- 卡片头部：图标 + 盘名 + 状态胶囊 -->
+                                <DockPanel Margin="0,0,0,7">
+                                    <Border DockPanel.Dock="Right"
+                                            Background="{Binding StatusBadgeBg}"
+                                            BorderBrush="{Binding StatusBadgeBorder}"
+                                            BorderThickness="1" CornerRadius="11" Padding="9,3"
+                                            VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding StatusBadgeText}" FontSize="11.5" FontWeight="Medium" Foreground="{Binding StatusBadgeFg}"/>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="32" Height="32" Background="{Binding IconBgBrush}" CornerRadius="8" Margin="0,0,8,0">
+                                            <Path Data="{StaticResource IconHardDrive}" Width="16" Height="16" Stretch="Uniform"
+                                                  Stroke="{Binding IconStrokeBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding BackendSubtitle}" FontSize="11" Foreground="#64748B" Margin="0,1,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <!-- 可用空间大数字 + 已用/总量 -->
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding UsedOverTotalText}" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Bottom"/>
+                                    <TextBlock Text="{Binding FreeText}" FontSize="17" FontWeight="Bold" Foreground="{Binding FreeTextBrush}"/>
+                                </DockPanel>
+
+                                <!-- 圆角容量进度条 -->
+                                <ProgressBar Value="{Binding UsedPercent, Mode=OneWay}" Maximum="100" Height="7"
+                                             Foreground="{Binding BarBrush}" Style="{StaticResource FluentProgressBarStyle}" Margin="0,0,0,8"/>
+
+                                <!-- 卡片底部：占比/缓存状态 + 查看/扫描 + 重扫按钮 -->
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Command="{Binding DataContext.StartScanForVolumeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding DataContext.IsScanning, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
+                                                Visibility="{Binding ShowRescanButton, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                Height="30" Padding="8,0" Margin="0,0,6,0"
+                                                ToolTip="强制重新全盘扫描该磁盘">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource IconRefreshCw}" Width="11.5" Height="11.5" Stretch="Uniform"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                      StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="0,0,4,0"/>
+                                                <TextBlock Text="重扫" FontSize="11.5"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding DataContext.OpenOrScanVolumeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding DataContext.IsScanning, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolConverter}}"
+                                                Height="30" Padding="12,0"
+                                                ToolTip="{Binding CapabilityReason}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource FluentSecondaryButtonStyle}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrentlyScanning}" Value="True">
+                                                            <Setter Property="Background" Value="#EBF5FF"/>
+                                                            <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                                                            <Setter Property="Foreground" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding HasCachedSnapshot}" Value="True">
+                                                            <Setter Property="Background" Value="#EBF5FF"/>
+                                                            <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                                                            <Setter Property="Foreground" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource IconPlay}" Width="12" Height="12" Stretch="Uniform"
+                                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                      StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{Binding ActionText}" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding UsedPercentText}" FontSize="11.5" Foreground="#64748B"/>
+                                        <Border Background="{Binding CacheBadgeBg}"
+                                                BorderBrush="{Binding CacheBadgeBorder}"
+                                                BorderThickness="1" CornerRadius="6" Padding="6,1" Margin="0,3,0,0"
+                                                HorizontalAlignment="Left"
+                                                ToolTip="{Binding CacheStatusToolTip}"
+                                                Visibility="{Binding HasCacheBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock Text="{Binding CacheStatusText}" FontSize="10.5" FontWeight="Medium" Foreground="{Binding CacheBadgeFg}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- 中间主内容区：左侧 3 阶段实时扫描面板 + 右侧备份提醒与最近扫描 -->
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="63*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="37*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左侧 ScanningPanel -->
+                <Border Grid.Column="0" Style="{StaticResource FluentCardBorderStyle}" Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 阶段标题栏 -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,7">
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding ScanElapsedText}" FontSize="12" FontWeight="Medium" Foreground="#64748B" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="11" Padding="9,3" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconRadar}" Width="12" Height="12" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8" Margin="0,0,5,0"/>
+                                        <TextBlock Text="{Binding ScanStageBadgeText}" FontSize="11.5" FontWeight="Medium" Foreground="#0078D4"/>
+                                    </StackPanel>
+                                </Border>
+                                <TextBlock Text="{Binding ScanStageHeading}" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- 渐变进度条 -->
+                        <ProgressBar Grid.Row="1" Value="{Binding ScanProgressPercent, Mode=OneWay}" Maximum="100" Height="7"
+                                     Style="{StaticResource FluentProgressBarStyle}" Margin="0,0,0,8">
+                            <ProgressBar.Foreground>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#0078D4" Offset="0"/>
+                                    <GradientStop Color="#38BDF8" Offset="1"/>
+                                </LinearGradientBrush>
+                            </ProgressBar.Foreground>
+                        </ProgressBar>
+
+                        <!-- 3 张实时指标小卡 -->
+                        <UniformGrid Grid.Row="2" Rows="1" Columns="3" Margin="0,0,0,8">
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="已解析 MFT / 目录记录" FontSize="11" Foreground="#64748B"/>
+                                    <TextBlock Text="{Binding ScanProcessedRecordsText}" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="已发现大目录 (&gt;1 GB)" FontSize="11" Foreground="#64748B"/>
+                                    <TextBlock Text="{Binding ScanLargeDirCountText}" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,6">
+                                <StackPanel>
+                                    <TextBlock Text="命中 L1 推荐软件" FontSize="11" Foreground="#64748B"/>
+                                    <TextBlock Text="{Binding ScanL1SummaryText}" FontSize="14" FontWeight="Bold" Foreground="#0F172A" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- 3 阶段状态列表（带防御性滚动条，确保 1000x700 永不裁切） -->
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- Stage 1 -->
+                            <Border CornerRadius="7" Padding="10,5" Margin="0,0,0,5" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ScanStep1State}" Value="1">
+                                                <Setter Property="Background" Value="#EBF5FF"/>
+                                                <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ScanStep1Status}" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#64748B"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ScanStep1State}" Value="1"><Setter Property="Foreground" Value="#0078D4"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding ScanStep1State}" Value="2"><Setter Property="Foreground" Value="#0F7B4B"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconCheckCircle}" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.8" Margin="0,0,8,0">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Stroke" Value="#94A3B8"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ScanStep1State}" Value="1"><Setter Property="Stroke" Value="#0078D4"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding ScanStep1State}" Value="2"><Setter Property="Stroke" Value="#0F7B4B"/></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                        <StackPanel>
+                                            <TextBlock Text="1. 读取原始 MFT 主表" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                            <TextBlock Text="顺序分块解析 $DATA、ADS、WOF 压缩与云占位（失败自动降级目录遍历）" FontSize="11" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Stage 2 -->
+                            <Border CornerRadius="7" Padding="10,5" Margin="0,0,0,5" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ScanStep2State}" Value="1">
+                                                <Setter Property="Background" Value="#EBF5FF"/>
+                                                <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ScanStep2Status}" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#64748B"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ScanStep2State}" Value="1"><Setter Property="Foreground" Value="#0078D4"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding ScanStep2State}" Value="2"><Setter Property="Foreground" Value="#0F7B4B"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconCheckCircle}" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.8" Margin="0,0,8,0">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Stroke" Value="#94A3B8"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ScanStep2State}" Value="1"><Setter Property="Stroke" Value="#0078D4"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding ScanStep2State}" Value="2"><Setter Property="Stroke" Value="#0F7B4B"/></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                        <StackPanel>
+                                            <TextBlock Text="2. 构建目录邻接树" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                            <TextBlock Text="校验文件 ID 序列号，去重硬链接空间口径并按占用降序排布" FontSize="11" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Stage 3 -->
+                            <Border CornerRadius="7" Padding="10,5" BorderThickness="1">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ScanStep3State}" Value="1">
+                                                <Setter Property="Background" Value="#EBF5FF"/>
+                                                <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ScanStep3Status}" FontSize="11.5" FontWeight="Medium" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#64748B"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ScanStep3State}" Value="1"><Setter Property="Foreground" Value="#0078D4"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding ScanStep3State}" Value="2"><Setter Property="Foreground" Value="#0F7B4B"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource IconCheckCircle}" Width="15" Height="15" Stretch="Uniform" StrokeThickness="1.8" Margin="0,0,8,0">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Stroke" Value="#94A3B8"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ScanStep3State}" Value="1"><Setter Property="Stroke" Value="#0078D4"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding ScanStep3State}" Value="2"><Setter Property="Stroke" Value="#0F7B4B"/></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                        <StackPanel>
+                                            <TextBlock Text="3. 匹配软件归属与 4 级准入" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                            <TextBlock Text="识别 NovaStudio / ComfyUI / Steam / Blender / Docker 等应用目录" FontSize="11" Foreground="#64748B"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- 右侧：待验证备份提醒 + 最近扫描记录 -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="10"
+                            Padding="12" Margin="0,0,0,10"
+                            Visibility="{Binding HasUnverifiedBackupReminder, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Path Data="{StaticResource IconArchive}" Width="15" Height="15" Stretch="Uniform" Stroke="#B45309" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding UnverifiedReminderTitle}" FontSize="13" FontWeight="Bold" Foreground="#B45309"/>
+                            </StackPanel>
+                            <TextBlock Text="上次迁移保留了源盘备份。确认软件运行正常后，可在备份管理中经双确认手动释放空间。"
+                                       FontSize="12" Foreground="#334155" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button Command="{Binding OpenBackupCenterCommand}" Style="{StaticResource FluentSecondaryButtonStyle}"
+                                    HorizontalAlignment="Right" Height="30">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="前往备份管理" Margin="0,0,6,0"/>
+                                    <Path Data="{StaticResource IconArrowRight}" Width="13" Height="13" Stretch="Uniform" Stroke="#0F172A" StrokeThickness="1.8"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource FluentCardBorderStyle}" Padding="12">
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="清除开发缓存" Command="{Binding ClearDevCacheCommand}"
+                                        Style="{StaticResource FluentLinkButtonStyle}" FontSize="11" Foreground="#64748B"
+                                        Visibility="{Binding HasDevCache, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                <TextBlock Text="最近扫描记录" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Text="本次会话尚无扫描记录。点击上方任意磁盘卡片的「开始扫描」即可秒级生成目录树快照。"
+                                       FontSize="12" Foreground="#64748B" TextWrapping="Wrap"
+                                       Visibility="{Binding HasRecentScans, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                            <ItemsControl ItemsSource="{Binding RecentScans}"
+                                          Visibility="{Binding HasRecentScans, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding DataContext.OpenRecentScanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                HorizontalContentAlignment="Stretch" Height="Auto" Padding="11,8" Margin="0,0,0,7"
+                                                Background="#F8FAFC" BorderBrush="#E2E8F0">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding CompletedTimeText}" FontSize="11" Foreground="#64748B"/>
+                                                    <TextBlock Text="{Binding VolumeTitle}" FontSize="12.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding SummaryText}" FontSize="11.5" Foreground="#64748B" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- 底部只读承诺脚栏 -->
+            <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="9" Padding="14,9">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Command="{Binding StartScanCommand}"
+                                AutomationProperties.AutomationId="DiskScanStartButton"
+                                Style="{StaticResource FluentPrimaryButtonStyle}"
+                                Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconPlay}" Width="13" Height="13" Stretch="Uniform" Stroke="#FFFFFF" StrokeThickness="1.8" Margin="0,0,6,0"/>
+                                <TextBlock Text="扫描选中磁盘"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding GoToDirectoryTreeCommand}"
+                                Style="{StaticResource FluentSoftPrimaryButtonStyle}"
+                                Visibility="{Binding CanReturnToTreeFromSelect, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="查看上次目录树" Margin="0,0,5,0"/>
+                                <Path Data="{StaticResource IconArrowRight}" Width="13" Height="13" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding CancelScanCommand}"
+                                AutomationProperties.AutomationId="DiskScanCancelButton"
+                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconX}" Width="13" Height="13" Stretch="Uniform" Stroke="#0F172A" StrokeThickness="1.8" Margin="0,0,5,0"/>
+                                <TextBlock Text="取消扫描"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconShieldCheck}" Width="15" Height="15" Stretch="Uniform" Stroke="#0F7B4B" StrokeThickness="1.8" Margin="0,0,7,0"/>
+                        <TextBlock Text="只读扫描模式：绝不修改卷数据或文件权限；扫描完成后自动进入目录树。" FontSize="12" Foreground="#334155"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+</UserControl>

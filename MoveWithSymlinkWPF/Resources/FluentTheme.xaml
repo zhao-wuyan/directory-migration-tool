@@ -73,6 +73,37 @@
     <Geometry x:Key="IconPanelRightClose">M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z M15 3v18 M8 9l3 3-3 3</Geometry>
     <Geometry x:Key="IconSend">M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z</Geometry>
     <Geometry x:Key="IconStopCircle">M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M9 9h6v6H9z</Geometry>
+    <Geometry x:Key="IconShield">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z</Geometry>
+    <Geometry x:Key="IconShieldAlert">M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M12 8v4 M12 16h.01</Geometry>
+    <Geometry x:Key="IconCpu">M6 6h12v12H6z M9 9h6v6H9z M9 1v3 M15 1v3 M9 20v3 M15 20v3 M20 9h3 M20 14h3 M1 9h3 M1 14h3</Geometry>
+    <Geometry x:Key="IconLayers">M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5</Geometry>
+    <Geometry x:Key="IconKeyRound">M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4L2 18z M16.5 7.5h.01</Geometry>
+    <Geometry x:Key="IconEye">M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z</Geometry>
+    <Geometry x:Key="IconEyeOff">M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94 M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19 M1 1l22 22</Geometry>
+    <Geometry x:Key="IconTrash2">M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6</Geometry>
+    <Geometry x:Key="IconMousePointerClick">M14 4.1L12 6 M5.1 8L2.9 8 M6 12l-1.9 2 M7.2 2.2L8 5.1 M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074l-4.5-11z</Geometry>
+    <Geometry x:Key="IconSquareCheck">M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M9 12l2 2 4-4</Geometry>
+
+    <!-- 透明无默认阴影/缩放的自定义卡片/胶囊容器按钮样式（防继承 App.xaml 隐式 Button 的 MinWidth/Height/ScaleTransform） -->
+    <Style x:Key="FluentBareButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Height" Value="Auto"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <!-- 轻量卡片容器样式 -->
     <Style x:Key="FluentCardBorderStyle" TargetType="Border">
@@ -240,6 +271,38 @@
         <Setter Property="BorderBrush" Value="#FECACA"/>
         <Setter Property="Foreground" Value="#C42B1C"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- 琥珀谨慎确认主按钮（对齐画板 11 确认移入隔离区按钮） -->
+    <Style x:Key="FluentAmberPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource FluentPrimaryButtonStyle}">
+        <Setter Property="Background" Value="#B45309"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#92400E"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#78350F"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Background" Value="#E2E8F0"/>
+                            <Setter Property="Foreground" Value="#94A3B8"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- 纯图标紧凑按钮（用于目录树展开/收起 ▸▾、打开文件夹图标按钮等；不继承全局 ScaleTransform 动画，根治 RenderTransform 异常） -->

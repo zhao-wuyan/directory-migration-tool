@@ -130,13 +130,27 @@
                                 AutomationProperties.Name="磁盘扫描"
                                 AutomationProperties.AutomationId="NavDiskScan"
                                 Style="{StaticResource FluentNavPillButtonStyle}"
-                                Tag="{Binding DiskScanNavTag}">
+                                Tag="{Binding DiskScanNavTag}"
+                                Margin="0,0,4,0">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconRadar}" Width="14" Height="14" Stretch="Uniform"
                                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                       StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                       Margin="0,0,6,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="磁盘扫描" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding ShowCleanupCommand}"
+                                AutomationProperties.Name="垃圾清理"
+                                AutomationProperties.AutomationId="NavCleanup"
+                                Style="{StaticResource FluentNavPillButtonStyle}"
+                                Tag="{Binding CleanupNavTag}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconSparkles}" Width="14" Height="14" Stretch="Uniform"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="垃圾清理" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -1159,6 +1173,12 @@
                            Content="{Binding AiAssistantPage}"
                            Style="{StaticResource FadeInContentControl}"
                            Visibility="{Binding IsAiAssistantMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- Standalone Garbage Cleanup Content (Phase 3: 3-Tier Cleanup + Quarantine + AI Residual Review) -->
+            <ContentControl Grid.Column="0" Grid.ColumnSpan="2"
+                           Content="{Binding CleanupPage}"
+                           Style="{StaticResource FadeInContentControl}"
+                           Visibility="{Binding IsCleanupMode, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </Grid>
         </Grid>
         

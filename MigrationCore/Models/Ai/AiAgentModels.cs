@@ -154,6 +154,39 @@ public sealed record AiToolTraceEntry(
     bool Succeeded,
     string? ResultPayload = null);
 
+/// <summary>
+/// AI 助手所处的业务入口场景（驱动独立会话隔离、快捷推荐按钮与系统提示词侧重）。
+/// </summary>
+public enum AiChatScene
+{
+    /// <summary>独立 AI 工作台：全盘腾空间综合诊断视角（联合磁盘环境、双快照与备份/隔离区）。</summary>
+    General = 0,
+    /// <summary>磁盘扫描页抽屉：聚焦大目录定位、L1/L3 安全迁移与 L2 原生引导。</summary>
+    DiskScan = 1,
+    /// <summary>垃圾清理页抽屉：聚焦三档规则解读、谨慎项风险评估与规则外「AI 疑似残留」排查。</summary>
+    Cleanup = 2
+}
+
+/// <summary>
+/// AI 交互式扫描引导卡片请求的扫描类型（零执行权：仅向用户弹出勾选确认卡片，绝不自动扫描）。
+/// </summary>
+public enum AiScanActionKind
+{
+    DiskScan = 0,
+    CleanupScan = 1,
+    Both = 2
+}
+
+/// <summary>
+/// AI 发起的交互式扫描确认卡片载荷（仅引导 UI 渲染，用户手动选盘并点击后才开始扫描）。
+/// </summary>
+public sealed record AiScanActionProposal(
+    Guid RequestId,
+    AiScanActionKind Kind,
+    string[] RecommendedDrives,
+    string Reason,
+    bool IncludeCleanupScan);
+
 public enum AiAgentEventKind
 {
     ThinkingDelta,
@@ -161,6 +194,7 @@ public enum AiAgentEventKind
     ToolCallStarted,
     ToolCallCompleted,
     ProposalRecorded,
+    ScanActionRequested,
     Warning,
     Completed,
     Cancelled,
@@ -177,7 +211,9 @@ public sealed record AiAgentRunEvent(
     string? TextDelta = null,
     AiToolTraceEntry? TraceEntry = null,
     AiMigrationProposalReceipt? ProposalReceipt = null,
-    string? Message = null);
+    string? Message = null,
+    AiCleanupProposalReceipt? CleanupProposalReceipt = null,
+    AiScanActionProposal? ScanActionProposal = null);
 
 /// <summary>
 /// 对话历史轮次（纯文本）。
@@ -192,7 +228,10 @@ public sealed record AiConversationTurn(
 public sealed record AiAgentAnalysisRequest(
     Guid? ActiveScanId,
     string UserPrompt,
-    IReadOnlyList<AiConversationTurn>? History = null);
+    IReadOnlyList<AiConversationTurn>? History = null,
+    Guid? ActiveCleanupScanId = null,
+    AiChatScene Scene = AiChatScene.General,
+    IReadOnlyList<Guid>? AuthorizedScanIds = null);
 
 /// <summary>
 /// 单次 AI 分析最终结果。
@@ -207,4 +246,6 @@ public sealed record AiAgentAnalysisResult(
     int StepsUsed,
     int MaxSteps,
     long ElapsedMilliseconds,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    AiCleanupProposalReceipt[]? CleanupProposals = null,
+    AiScanActionProposal[]? ScanActionProposals = null);
