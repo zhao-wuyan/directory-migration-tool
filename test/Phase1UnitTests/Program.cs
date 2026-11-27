@@ -38,7 +38,8 @@ internal static class Program
             RunGroup("WpfUiSmokeCases", RunWpfUiSmokeCases),
             await RunGroupAsync("Phase2AiCases", Phase2AiCases.RunAsync),
             await RunGroupAsync("CacheAndTargetedVerifyCases", CacheAndTargetedVerifyCases.RunAsync),
-            await RunGroupAsync("Phase3CleanupCases", Phase3CleanupCases.RunAsync)
+            await RunGroupAsync("Phase3CleanupCases", Phase3CleanupCases.RunAsync),
+            await RunGroupAsync("OverviewHomeCases", OverviewHomeCases.RunAsync)
         };
 
         int totalPassed = results.Sum(r => r.Passed);

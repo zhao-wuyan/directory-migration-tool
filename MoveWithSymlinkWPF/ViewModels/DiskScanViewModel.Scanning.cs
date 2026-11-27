@@ -43,6 +43,29 @@ public partial class DiskScanViewModel
     }
 
     /// <summary>
+    /// 供概览首页跳转到磁盘扫描页时预设选中盘符（仅切换选中卡片，不自动启动扫描）。
+    /// </summary>
+    public void SelectVolumeByRoot(string? driveRoot)
+    {
+        if (IsScanning || string.IsNullOrWhiteSpace(driveRoot))
+        {
+            return;
+        }
+
+        string normalized = VolumeSnapshotCache.NormalizeDriveRoot(driveRoot);
+        VolumeCardItem? matched = VolumeCards.FirstOrDefault(v =>
+            v.DriveRoot.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        if (matched is not null)
+        {
+            SelectedVolumeCard = matched;
+            if (!HasSnapshot || ActiveSubView != DiskScanSubView.DirectoryTree)
+            {
+                ActiveSubView = DiskScanSubView.VolumeSelectAndScan;
+            }
+        }
+    }
+
+    /// <summary>
     /// 磁盘卡片主按钮：命中有效会话缓存（新鲜或陈旧但未硬过期）时直接秒开目录树，否则发起新扫描。
     /// </summary>
     [RelayCommand]

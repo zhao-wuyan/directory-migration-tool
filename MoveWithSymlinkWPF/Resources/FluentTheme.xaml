@@ -37,6 +37,7 @@
 
     <!-- 24x24 Lucide 风格线性矢量图标几何定义（高 DPI 锐利清晰，无外置字体依赖） -->
     <Geometry x:Key="IconFolderInput">M2 9V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1 M2 13h10 M9 10l3 3-3 3</Geometry>
+    <Geometry x:Key="IconLayoutGrid">M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z</Geometry>
     <Geometry x:Key="IconZap">M13 2L3 14h9l-1 8 10-12h-9l1-8z</Geometry>
     <Geometry x:Key="IconRadar">M19.07 4.93A10 10 0 0 0 6.99 3.34 M4 6h.01 M2.29 9.62A10 10 0 1 0 21.31 8.35 M16.24 7.76A6 6 0 1 0 8.23 16.67 M12 18h.01 M17.99 11.66A6 6 0 0 1 15.77 16.67 M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M13.41 10.59l5.66-5.66</Geometry>
     <Geometry x:Key="IconArchive">M21 8v13H3V8 M1 3h22v5H1z M10 12h4</Geometry>
@@ -121,9 +122,9 @@
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="FontSize" Value="12.5"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="Padding" Value="13,0"/>
+        <Setter Property="Padding" Value="11,0"/>
         <Setter Property="Height" Value="32"/>
-        <Setter Property="MinWidth" Value="74"/>
+        <Setter Property="MinWidth" Value="66"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Effect" Value="{x:Null}"/>
         <Setter Property="Template">

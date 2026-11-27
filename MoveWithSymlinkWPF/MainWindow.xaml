@@ -12,7 +12,8 @@
   Title="目录迁移工具 - Directory Migration Tool"
   Icon="pack://application:,,,/Resources/app-icon.ico"
   AutomationProperties.AutomationId="MigrationMainWindow"
-  Height="700" Width="1000"
+  Height="760" Width="1120"
+  MinHeight="640" MinWidth="960"
   WindowStartupLocation="CenterScreen"
   TextOptions.TextFormattingMode="Display"
   TextOptions.TextRenderingMode="ClearType"
@@ -80,55 +81,49 @@
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <!-- 左侧品牌图标与精简标题 -->
-        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-          <Image Source="{StaticResource AppIconDrawingImage}"
-            Width="32" Height="32"
-            Margin="0,0,10,0"
-            VerticalAlignment="Center"
-            RenderOptions.BitmapScalingMode="HighQuality" />
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="目录迁移" FontSize="14.5" FontWeight="Bold" Foreground="#0F172A" />
-            <TextBlock Text="{Binding VersionText}" FontSize="10.5" FontWeight="Medium"
-              Foreground="#64748B" Margin="0,1,0,0" />
+        <!-- 左侧品牌图标与精简标题（点击返回概览首页） -->
+        <Button Grid.Column="0"
+          Command="{Binding ShowOverviewCommand}"
+          Style="{StaticResource FluentBareButtonStyle}"
+          AutomationProperties.Name="返回概览首页"
+          AutomationProperties.AutomationId="NavBrandOverview"
+          ToolTip="返回概览首页"
+          IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
+          VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Image Source="{StaticResource AppIconDrawingImage}"
+              Width="32" Height="32"
+              Margin="0,0,10,0"
+              VerticalAlignment="Center"
+              RenderOptions.BitmapScalingMode="HighQuality" />
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="目录迁移" FontSize="14.5" FontWeight="Bold" Foreground="#0F172A" />
+              <TextBlock Text="{Binding VersionText}" FontSize="10.5" FontWeight="Medium"
+                Foreground="#64748B" Margin="0,1,0,0" />
+            </StackPanel>
           </StackPanel>
-        </StackPanel>
+        </Button>
 
-        <!-- 中央 Fluent 分段胶囊导航栏 -->
+        <!-- 中央 Fluent 分段胶囊导航栏（新动线：概览 | 磁盘扫描 | 垃圾清理 | 手动模式 | 一键迁移） -->
         <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
           Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10"
           Padding="4"
           IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}">
           <StackPanel Orientation="Horizontal">
-            <Button Command="{Binding ShowManualModeCommand}"
-              AutomationProperties.Name="手动模式"
-              AutomationProperties.AutomationId="NavManualMode"
+            <Button Command="{Binding ShowOverviewCommand}"
+              AutomationProperties.Name="概览"
+              AutomationProperties.AutomationId="NavOverview"
               Style="{StaticResource FluentNavPillButtonStyle}"
-              Tag="{Binding ManualNavTag}"
-              Margin="0,0,4,0">
+              Tag="{Binding OverviewNavTag}"
+              Margin="0,0,3,0">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Path Data="{StaticResource IconFolderInput}" Width="14" Height="14"
+                <Path Data="{StaticResource IconLayoutGrid}" Width="13.5" Height="13.5"
                   Stretch="Uniform"
                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                   StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                   StrokeLineJoin="Round"
-                  Margin="0,0,6,0" VerticalAlignment="Center" />
-                <TextBlock Text="手动模式" VerticalAlignment="Center" />
-              </StackPanel>
-            </Button>
-            <Button Command="{Binding ShowQuickMigrateCommand}"
-              AutomationProperties.Name="⏩ 一键迁移"
-              AutomationProperties.AutomationId="NavQuickMigrate"
-              Style="{StaticResource FluentNavPillButtonStyle}"
-              Tag="{Binding QuickMigrateNavTag}"
-              Margin="0,0,4,0">
-              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Path Data="{StaticResource IconZap}" Width="14" Height="14" Stretch="Uniform"
-                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                  StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                  StrokeLineJoin="Round"
-                  Margin="0,0,6,0" VerticalAlignment="Center" />
-                <TextBlock Text="一键迁移" VerticalAlignment="Center" />
+                  Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="概览" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
             <Button Command="{Binding ShowDiskScanCommand}"
@@ -136,13 +131,13 @@
               AutomationProperties.AutomationId="NavDiskScan"
               Style="{StaticResource FluentNavPillButtonStyle}"
               Tag="{Binding DiskScanNavTag}"
-              Margin="0,0,4,0">
+              Margin="0,0,3,0">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Path Data="{StaticResource IconRadar}" Width="14" Height="14" Stretch="Uniform"
                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                   StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                   StrokeLineJoin="Round"
-                  Margin="0,0,6,0" VerticalAlignment="Center" />
+                  Margin="0,0,5,0" VerticalAlignment="Center" />
                 <TextBlock Text="磁盘扫描" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
@@ -150,14 +145,45 @@
               AutomationProperties.Name="垃圾清理"
               AutomationProperties.AutomationId="NavCleanup"
               Style="{StaticResource FluentNavPillButtonStyle}"
-              Tag="{Binding CleanupNavTag}">
+              Tag="{Binding CleanupNavTag}"
+              Margin="0,0,3,0">
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Path Data="{StaticResource IconSparkles}" Width="14" Height="14" Stretch="Uniform"
                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                   StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                   StrokeLineJoin="Round"
-                  Margin="0,0,6,0" VerticalAlignment="Center" />
+                  Margin="0,0,5,0" VerticalAlignment="Center" />
                 <TextBlock Text="垃圾清理" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ShowManualModeCommand}"
+              AutomationProperties.Name="手动模式"
+              AutomationProperties.AutomationId="NavManualMode"
+              Style="{StaticResource FluentNavPillButtonStyle}"
+              Tag="{Binding ManualNavTag}"
+              Margin="0,0,3,0">
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Path Data="{StaticResource IconFolderInput}" Width="14" Height="14"
+                  Stretch="Uniform"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="手动模式" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ShowQuickMigrateCommand}"
+              AutomationProperties.Name="⏩ 一键迁移"
+              AutomationProperties.AutomationId="NavQuickMigrate"
+              Style="{StaticResource FluentNavPillButtonStyle}"
+              Tag="{Binding QuickMigrateNavTag}">
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Path Data="{StaticResource IconZap}" Width="14" Height="14" Stretch="Uniform"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round"
+                  Margin="0,0,5,0" VerticalAlignment="Center" />
+                <TextBlock Text="一键迁移" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
           </StackPanel>
@@ -1223,6 +1249,12 @@
             </Grid>
           </Border>
         </Grid>
+
+        <!-- Overview Home Mode Content (Default Landing Page) -->
+        <ContentControl Grid.Column="0" Grid.ColumnSpan="2"
+          Content="{Binding OverviewPage}"
+          Style="{StaticResource FadeInContentControl}"
+          Visibility="{Binding IsOverviewMode, Converter={StaticResource BoolToVisibilityConverter}}" />
 
         <!-- Quick Migrate Mode Content - 添加淡入淡出动画 -->
         <ContentControl Grid.Column="0" Grid.ColumnSpan="2"

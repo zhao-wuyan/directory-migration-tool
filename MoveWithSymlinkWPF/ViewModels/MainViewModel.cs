@@ -15,8 +15,12 @@ namespace MoveWithSymlinkWPF.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OverviewNavTag))]
+    private bool _isOverviewMode = !MigrationRuntime.IsTestLab;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ManualNavTag))]
-    private bool _isManualMode = true;
+    private bool _isManualMode = MigrationRuntime.IsTestLab;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(QuickMigrateNavTag))]
@@ -39,6 +43,9 @@ public partial class MainViewModel : ObservableObject
     private bool _isCleanupMode = false;
 
     [ObservableProperty]
+    private object? _overviewPage;
+
+    [ObservableProperty]
     private object? _quickMigratePage;
 
     [ObservableProperty]
@@ -53,8 +60,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private object? _cleanupPage;
 
+    public OverviewViewModel OverviewViewModel { get; }
     public AiAssistantViewModel AiAssistantViewModel { get; }
 
+    public string OverviewNavTag => IsOverviewMode ? "Active" : string.Empty;
     public string ManualNavTag => IsManualMode ? "Active" : string.Empty;
     public string QuickMigrateNavTag => IsQuickMigrateMode ? "Active" : string.Empty;
     public string DiskScanNavTag => IsDiskScanMode ? "Active" : string.Empty;
@@ -214,6 +223,7 @@ public partial class MainViewModel : ObservableObject
         GlobalBackupPage = new GlobalBackupPage();
         CleanupPage = new CleanupPage();
 
+        QuickMigrateViewModel? quickMigrateVm = (QuickMigratePage as QuickMigratePage)?.DataContext as QuickMigrateViewModel;
         DiskScanViewModel? diskScanVm = (DiskScanPage as DiskScanPage)?.DataContext as DiskScanViewModel;
         CleanupViewModel? cleanupVm = (CleanupPage as CleanupPage)?.DataContext as CleanupViewModel;
         if (cleanupVm is not null)
@@ -222,6 +232,63 @@ public partial class MainViewModel : ObservableObject
             {
                 if (e.PropertyName == nameof(CleanupViewModel.IsExecuting))
                     OnPropertyChanged(nameof(IsOperationBusy));
+            };
+        }
+
+        OverviewViewModel = new OverviewViewModel(
+            openDiskScanCallback: driveRoot =>
+            {
+                if (IsOperationBusy) return;
+                if (!string.IsNullOrWhiteSpace(driveRoot))
+                {
+                    diskScanVm?.SelectVolumeByRoot(driveRoot);
+                }
+                SetActiveMode(diskScan: true);
+            },
+            openCleanupCallback: () =>
+            {
+                if (IsOperationBusy) return;
+                ShowCleanup();
+            },
+            openQuarantineCallback: () =>
+            {
+                if (IsOperationBusy) return;
+                SetActiveMode(cleanup: true);
+                if (cleanupVm is not null)
+                {
+                    cleanupVm.OpenQuarantineViewCommand.Execute(null);
+                    _ = cleanupVm.OnEnteredCleanupPageAsync();
+                }
+            },
+            openManualModeCallback: () =>
+            {
+                if (!IsOperationBusy) ShowManualMode();
+            },
+            openQuickMigrateCallback: () =>
+            {
+                if (!IsOperationBusy) ShowQuickMigrate();
+            },
+            openAiAssistantCallback: () =>
+            {
+                if (!IsOperationBusy) ShowAiAssistant();
+            },
+            openBackupCenterCallback: () =>
+            {
+                if (!IsOperationBusy) ShowBackupCenter();
+            },
+            readQuickMigrateSummary: () => BuildQuickMigrateOverviewSummary(quickMigrateVm));
+        OverviewPage = new OverviewPage { DataContext = OverviewViewModel };
+
+        if (quickMigrateVm is not null)
+        {
+            quickMigrateVm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(QuickMigrateViewModel.IsLoading)
+                    or nameof(QuickMigrateViewModel.PendingTaskCount)
+                    or nameof(QuickMigrateViewModel.MigratedTaskCount))
+                {
+                    OverviewViewModel.RefreshQuickMigrateSummary();
+                }
             };
         }
 
@@ -308,7 +375,11 @@ public partial class MainViewModel : ObservableObject
         if (diskScanVm is not null)
         {
             diskScanVm.AiAssistant = AiAssistantViewModel;
-            diskScanVm.SnapshotChanged += (_, snap) => AiAssistantViewModel.SyncScanSnapshot(snap);
+            diskScanVm.SnapshotChanged += (_, snap) =>
+            {
+                AiAssistantViewModel.SyncScanSnapshot(snap);
+                OverviewViewModel.RefreshScanSnapshotHint();
+            };
             if (diskScanVm.CurrentSnapshot is not null)
             {
                 AiAssistantViewModel.SyncScanSnapshot(diskScanVm.CurrentSnapshot);
@@ -323,11 +394,23 @@ public partial class MainViewModel : ObservableObject
         AiAssistantPage = new AiAssistantPage { DataContext = AiAssistantViewModel };
 
         _ = RestoreLastTransactionAsync();
+        if (IsOverviewMode)
+        {
+            _ = OverviewViewModel.OnEnteredOverviewPageAsync();
+        }
         
 #if DEBUG
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] MainViewModel initialized");
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Version: {VersionText}");
 #endif
+    }
+
+    [RelayCommand]
+    private void ShowOverview()
+    {
+        if (IsOperationBusy) return;
+        SetActiveMode(overview: true);
+        _ = OverviewViewModel.OnEnteredOverviewPageAsync();
     }
 
     [RelayCommand]
@@ -401,8 +484,16 @@ public partial class MainViewModel : ObservableObject
         SourcePath = sourcePath;
     }
 
-    private void SetActiveMode(bool manual = false, bool quick = false, bool diskScan = false, bool backupCenter = false, bool aiAssistant = false, bool cleanup = false)
+    private void SetActiveMode(
+        bool overview = false,
+        bool manual = false,
+        bool quick = false,
+        bool diskScan = false,
+        bool backupCenter = false,
+        bool aiAssistant = false,
+        bool cleanup = false)
     {
+        IsOverviewMode = overview;
         IsManualMode = manual;
         IsQuickMigrateMode = quick;
         IsDiskScanMode = diskScan;
@@ -413,6 +504,47 @@ public partial class MainViewModel : ObservableObject
         {
             dvm.SyncUnverifiedBackupCount(UnverifiedBackupCount);
         }
+    }
+
+    private static OverviewQuickMigrateSummary BuildQuickMigrateOverviewSummary(QuickMigrateViewModel? qvm)
+    {
+        if (qvm is null || (qvm.IsLoading && !qvm.HasConfig))
+        {
+            return new OverviewQuickMigrateSummary(IsReady: false, PendingCount: 0, MigratedCount: 0, MatchedGroupNames: []);
+        }
+
+        static bool IsTestPresetTask(QuickMigrateTask task)
+        {
+            if (string.Equals(task.ProfileName, "测试迁移", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            string src = task.SourcePath ?? string.Empty;
+            return src.StartsWith(@"C:\testMove", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var pending = qvm.PendingTaskGroups
+            .SelectMany(g => g.Tasks)
+            .Where(t => !IsTestPresetTask(t))
+            .ToArray();
+        var migrated = qvm.MigratedTaskGroups
+            .SelectMany(g => g.Tasks)
+            .Where(t => !IsTestPresetTask(t))
+            .ToArray();
+
+        string[] groupNames = pending
+            .Concat(migrated)
+            .Select(t => !string.IsNullOrWhiteSpace(t.ProfileName) ? t.ProfileName! : t.DisplayName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new OverviewQuickMigrateSummary(
+            IsReady: !qvm.IsLoading,
+            PendingCount: pending.Length,
+            MigratedCount: migrated.Length,
+            MatchedGroupNames: groupNames);
     }
 
     /// <summary>
