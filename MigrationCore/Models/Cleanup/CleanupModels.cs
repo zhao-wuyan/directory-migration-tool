@@ -222,33 +222,118 @@ public sealed record CleanupRuleScanResult(
     {
         var drives = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        static void TryAddDrive(SortedSet<string> set, string? path)
-        {
-            if (string.IsNullOrWhiteSpace(path)) return;
-            string p = path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
-            if (p.Length >= 2 && char.IsLetter(p[0]) && p[1] == ':')
-            {
-                set.Add(char.ToUpperInvariant(p[0]) + ":");
-            }
-        }
-
         foreach (CleanupDirectoryExpectation exp in VerificationExpectations)
         {
-            TryAddDrive(drives, exp.RootDirectoryPath);
+            if (TryExtractDriveLabel(exp.RootDirectoryPath, out string d))
+            {
+                drives.Add(d);
+            }
         }
 
         foreach (CleanupPreviewItem item in PreviewItems)
         {
-            TryAddDrive(drives, item.FullPath);
+            if (TryExtractDriveLabel(item.FullPath, out string d))
+            {
+                drives.Add(d);
+            }
         }
 
         if (drives.Count == 0 && IsAvailable && Rule.Channel == CleanupExecutionChannel.OfficialSystemApi)
         {
             string? sysRoot = Path.GetPathRoot(Environment.SystemDirectory);
-            TryAddDrive(drives, sysRoot);
+            if (TryExtractDriveLabel(sysRoot, out string d))
+            {
+                drives.Add(d);
+            }
         }
 
         return drives.ToArray();
+    }
+
+    /// <summary>
+    /// 按盘符汇总该条规则命中的精确体积：
+    /// 单盘规则直接归属 TotalBytes；跨多盘规则优先汇总完整的 VerificationExpectations，
+    /// 无期望清单时回退到 PreviewItems（如全盘回收站按卷一项），避免 PreviewItems 截断导致各盘体积之和偏小。
+    /// </summary>
+    public Dictionary<string, long> GetBytesByDrive()
+    {
+        var totals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        string[] affected = GetAffectedDrives();
+        if (affected.Length == 0)
+        {
+            return totals;
+        }
+
+        if (affected.Length == 1)
+        {
+            totals[affected[0]] = Math.Max(0, TotalBytes);
+            return totals;
+        }
+
+        foreach (string drive in affected)
+        {
+            totals[drive] = 0;
+        }
+
+        if (VerificationExpectations.Length > 0)
+        {
+            long expectedSum = 0;
+            foreach (CleanupDirectoryExpectation exp in VerificationExpectations)
+            {
+                string? fallbackDrive = TryExtractDriveLabel(exp.RootDirectoryPath, out string rootDrive)
+                    ? rootDrive
+                    : null;
+
+                foreach (CleanupFileExpectation file in exp.ExpectedFiles)
+                {
+                    long bytes = Math.Max(0, file.ExpectedLogicalBytes);
+                    if (bytes == 0) continue;
+
+                    if (TryExtractDriveLabel(file.FullPath, out string fileDrive))
+                    {
+                        totals[fileDrive] = totals.GetValueOrDefault(fileDrive) + bytes;
+                        expectedSum += bytes;
+                    }
+                    else if (fallbackDrive is not null)
+                    {
+                        totals[fallbackDrive] = totals.GetValueOrDefault(fallbackDrive) + bytes;
+                        expectedSum += bytes;
+                    }
+                }
+            }
+
+            if (expectedSum > 0)
+            {
+                return totals;
+            }
+        }
+
+        foreach (CleanupPreviewItem item in PreviewItems)
+        {
+            long bytes = Math.Max(0, item.SizeBytes);
+            if (bytes == 0) continue;
+
+            if (TryExtractDriveLabel(item.FullPath, out string itemDrive))
+            {
+                totals[itemDrive] = totals.GetValueOrDefault(itemDrive) + bytes;
+            }
+        }
+
+        return totals;
+    }
+
+    private static bool TryExtractDriveLabel(string? path, out string driveLabel)
+    {
+        driveLabel = string.Empty;
+        if (string.IsNullOrWhiteSpace(path)) return false;
+
+        string p = path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
+        if (p.Length >= 2 && char.IsLetter(p[0]) && p[1] == ':')
+        {
+            driveLabel = char.ToUpperInvariant(p[0]) + ":";
+            return true;
+        }
+        return false;
     }
 }
 

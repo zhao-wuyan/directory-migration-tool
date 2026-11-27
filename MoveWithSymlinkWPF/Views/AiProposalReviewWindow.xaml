@@ -202,109 +202,138 @@
                     <TextBlock Text="可切换分类标签、取消「仅看可添加」或清空搜索关键词查看全部建议。" FontSize="11" Foreground="#94A3B8" Margin="0,4,0,0" HorizontalAlignment="Center"/>
                 </StackPanel>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                              Visibility="{Binding HasVisibleRows, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <ItemsControl ItemsSource="{Binding VisibleRows}" Padding="1">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:AiProposalReviewRowItem}">
-                                <Border Background="{Binding RowBg}" BorderBrush="{Binding RowBorder}" BorderThickness="1"
-                                        CornerRadius="7" Padding="0" Margin="0,0,3,5">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="4"/>
-                                            <ColumnDefinition Width="32"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                <!-- 严格 UI 虚拟化 + 容器回收 + 预冻结画刷 + 零 RelativeSource 树遍历，首帧仅渲染可视行，消除开窗白屏 -->
+                <ListView ItemsSource="{Binding VisibleRows}"
+                          Visibility="{Binding HasVisibleRows, Converter={StaticResource BoolToVisibilityConverter}}"
+                          BorderThickness="0"
+                          Background="Transparent"
+                          Padding="1"
+                          ScrollViewer.CanContentScroll="True"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          VirtualizingPanel.ScrollUnit="Pixel"
+                          AutomationProperties.AutomationId="AiProposalReviewVirtualizedList">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Focusable" Value="False"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:AiProposalReviewRowItem}">
+                            <Border Background="{Binding RowBgBrush}" BorderBrush="{Binding RowBorderBrush}" BorderThickness="1"
+                                    CornerRadius="7" Padding="0" Margin="0,0,3,5">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="4"/>
+                                        <ColumnDefinition Width="32"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
 
-                                        <!-- 左侧 4px 档位/类型识别色条（1档绿 / 2档蓝 / 3档与疑似残留琥珀 / 拦截红） -->
-                                        <Border Grid.Column="0" Background="{Binding AccentStripeColor}" CornerRadius="6,0,0,6"/>
+                                    <!-- 左侧 4px 档位/类型识别色条（1档绿 / 2档蓝 / 3档与疑似残留琥珀 / 拦截红） -->
+                                    <Border Grid.Column="0" Background="{Binding AccentStripeBrush, Mode=OneWay}" CornerRadius="6,0,0,6"/>
 
-                                        <!-- 左列：复选框 / 状态图标 -->
-                                        <Grid Grid.Column="1" VerticalAlignment="Top" Margin="8,9,0,7">
-                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                      IsEnabled="{Binding CanSelect}"
-                                                      Visibility="{Binding ShowCheckBox, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                      HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                            <Path Data="{StaticResource IconCheckCircle}" Width="14" Height="14" Stretch="Uniform"
-                                                  Stroke="#0F7B4B" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                  Visibility="{Binding ShowCompletedGlyph, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <Path Data="{StaticResource IconShieldBan}" Width="14" Height="14" Stretch="Uniform"
-                                                  Stroke="#C42B1C" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                  Visibility="{Binding ShowBlockedGlyph, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                            <Path Data="{StaticResource IconInfo}" Width="13.5" Height="13.5" Stretch="Uniform"
-                                                  Stroke="#64748B" StrokeThickness="1.9" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                  Visibility="{Binding ShowReadOnlyGlyph, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                        </Grid>
-
-                                        <!-- 中列：紧凑两行（首行：徽章 + 标题 + 内联路径/规则ID；次行：理由 + 可选精简风险行） -->
-                                        <StackPanel Grid.Column="2" Margin="0,7,12,7">
-                                            <DockPanel Margin="0,0,0,2.5">
-                                                <Border DockPanel.Dock="Left" Background="{Binding CategoryBadgeBg}" BorderBrush="{Binding CategoryBadgeBorder}" BorderThickness="1"
-                                                        CornerRadius="7" Padding="5.5,1" Margin="0,0,6,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding CategoryBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding CategoryBadgeFg}"/>
-                                                </Border>
-                                                <TextBlock DockPanel.Dock="Left" Text="{Binding DisplayName}" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
-                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding SanitizedPath}"
-                                                           ToolTip="{Binding PathToolTip}"
-                                                           Visibility="{Binding HasPathText, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                           FontSize="10.5" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                            </DockPanel>
-
-                                            <TextBlock Text="{Binding Reason}" FontSize="11" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5"/>
-
-                                            <TextBlock Visibility="{Binding HasRiskWarning, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                       FontSize="10.5" Foreground="#B45309" TextWrapping="Wrap" LineHeight="14.5" Margin="0,2.5,0,0">
-                                                <Run Text="⚠ 风险：" FontWeight="Bold"/>
-                                                <Run Text="{Binding RiskWarning, Mode=OneWay}"/>
-                                            </TextBlock>
-                                        </StackPanel>
-
-                                        <!-- 右列：体积 + 非默认状态徽章 + 内联轻动作按钮（不再单独占底部一整行） -->
-                                        <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="104" Margin="0,7,10,7">
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                <Border Background="{Binding StatusBadgeBg}" BorderBrush="{Binding StatusBadgeBorder}" BorderThickness="1"
-                                                        CornerRadius="7" Padding="5.5,1" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                        Visibility="{Binding ShowStatusBadge, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <TextBlock Text="{Binding StatusBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding StatusBadgeFg}"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding SizeText}" FontSize="12" FontWeight="Bold" Foreground="{Binding CategoryBadgeFg}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                                                <Button Command="{Binding DataContext.OpenDirectoryInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Visibility="{Binding CanOpenInExplorer, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                        Style="{StaticResource FluentLinkButtonStyle}"
-                                                        Foreground="#0078D4" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,8,0"
-                                                        ToolTip="在资源管理器中打开该目录核实内容">
-                                                    <TextBlock Text="核实目录"/>
-                                                </Button>
-
-                                                <Button Command="{Binding DataContext.LocateInTreeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Visibility="{Binding CanLocateInTree, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                        Style="{StaticResource FluentLinkButtonStyle}"
-                                                        Foreground="#475569" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,8,0">
-                                                    <TextBlock Text="目录树定位"/>
-                                                </Button>
-
-                                                <Button Command="{Binding DataContext.LocateCleanupRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Visibility="{Binding CanLocateCleanupRule, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                        Style="{StaticResource FluentLinkButtonStyle}"
-                                                        Foreground="#0078D4" FontSize="10.5" FontWeight="SemiBold">
-                                                    <TextBlock Text="{Binding LocateCleanupRuleButtonText}"/>
-                                                </Button>
-                                            </StackPanel>
-                                        </StackPanel>
+                                    <!-- 左列：复选框 / 单一状态符号 -->
+                                    <Grid Grid.Column="1" VerticalAlignment="Top" Margin="8,9,0,7">
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanSelect}"
+                                                  Visibility="{Binding ShowCheckBox, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding NonCheckboxGlyph}"
+                                                   Foreground="{Binding NonCheckboxGlyphBrush}"
+                                                   FontSize="13" FontWeight="Bold"
+                                                   HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,-1,0,0"
+                                                   Visibility="{Binding ShowNonCheckboxGlyph, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+
+                                    <!-- 中列：紧凑两行（首行：徽章 + 标题 + 内联路径/规则ID；次行：理由 + 可选精简风险行） -->
+                                    <StackPanel Grid.Column="2" Margin="0,7,12,7">
+                                        <DockPanel Margin="0,0,0,2.5">
+                                            <Border DockPanel.Dock="Left"
+                                                    Background="{Binding CategoryBadgeBgBrush, Mode=OneWay}"
+                                                    BorderBrush="{Binding CategoryBadgeBorderBrush, Mode=OneWay}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="7" Padding="5.5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CategoryBadgeText, Mode=OneWay}" FontSize="9.5" FontWeight="SemiBold"
+                                                           Foreground="{Binding CategoryBadgeFgBrush, Mode=OneWay}"/>
+                                            </Border>
+                                            <TextBlock DockPanel.Dock="Left" Text="{Binding DisplayName, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="#0F172A"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="{Binding SanitizedPath, Mode=OneWay}"
+                                                       ToolTip="{Binding PathToolTip, Mode=OneWay}"
+                                                       Visibility="{Binding HasPathText, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                       FontSize="10.5" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                        </DockPanel>
+
+                                        <TextBlock Text="{Binding Reason, Mode=OneWay}" FontSize="11" Foreground="#334155" TextWrapping="Wrap" LineHeight="15.5"/>
+
+                                        <TextBlock Visibility="{Binding HasRiskWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                   FontSize="10.5" Foreground="#B45309" TextWrapping="Wrap" LineHeight="14.5" Margin="0,2.5,0,0">
+                                            <Run Text="⚠ 风险：" FontWeight="Bold"/>
+                                            <Run Text="{Binding RiskWarning, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                    <!-- 右列：体积 + 非默认状态徽章 + 内联轻动作按钮 -->
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="104" Margin="0,7,10,7">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Border Background="{Binding StatusBadgeBgBrush}" BorderBrush="{Binding StatusBadgeBorderBrush}" BorderThickness="1"
+                                                    CornerRadius="7" Padding="5.5,1" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                    Visibility="{Binding ShowStatusBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="{Binding StatusBadgeText}" FontSize="9.5" FontWeight="SemiBold" Foreground="{Binding StatusBadgeFgBrush}"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding SizeText, Mode=OneWay}" FontSize="12" FontWeight="Bold"
+                                                       Foreground="{Binding CategoryBadgeFgBrush, Mode=OneWay}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                                            <Button Command="{Binding OpenDirectoryInExplorerCommand, Mode=OneWay}"
+                                                    Visibility="{Binding CanOpenInExplorer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{StaticResource FluentLinkButtonStyle}"
+                                                    Foreground="#0078D4" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,8,0"
+                                                    ToolTip="在资源管理器中打开该目录核实内容">
+                                                <TextBlock Text="核实目录"/>
+                                            </Button>
+
+                                            <Button Command="{Binding LocateInTreeCommand, Mode=OneWay}"
+                                                    Visibility="{Binding CanLocateInTree, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{StaticResource FluentLinkButtonStyle}"
+                                                    Foreground="#475569" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,8,0">
+                                                <TextBlock Text="目录树定位"/>
+                                            </Button>
+
+                                            <Button Command="{Binding LocateCleanupRuleCommand, Mode=OneWay}"
+                                                    Visibility="{Binding CanLocateCleanupRule, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{StaticResource FluentLinkButtonStyle}"
+                                                    Foreground="#0078D4" FontSize="10.5" FontWeight="SemiBold">
+                                                <TextBlock Text="{Binding LocateCleanupRuleButtonText, Mode=OneWay}"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
             </Grid>
         </Border>
 

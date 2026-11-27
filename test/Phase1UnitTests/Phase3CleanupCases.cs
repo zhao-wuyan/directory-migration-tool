@@ -1537,6 +1537,271 @@ internal static class Phase3CleanupCases
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
             }
         });
+
+        await test("Cleanup-drive-filter-exact-bytes-empty-hint-and-ai-cleaned-sync", () =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            CleanupRuleDefinition npmRule = BuiltInCleanupRules.FindById("dev-npm-cache")!;
+            CleanupRuleDefinition recycleRule = BuiltInCleanupRules.FindById("caution-recycle-bin-all-drives")!;
+            CleanupRuleDefinition winSxSRule = BuiltInCleanupRules.FindById("caution-winsxs-resetbase")!;
+            CleanupRuleDefinition sysTempRule = BuiltInCleanupRules.FindById("sys-temp-24h")!;
+
+            const long mb = 1024L * 1024L;
+
+            // 1. 跨多盘规则（C: 50 MB + D: 30 MB），PreviewItems 故意只截断保留 2 条（各 1 MB），
+            //    验证 GetBytesByDrive() 汇总完整 VerificationExpectations，不丢体积
+            var multiDriveNpm = new CleanupRuleScanResult(
+                Rule: npmRule,
+                PreviewItems:
+                [
+                    new CleanupPreviewItem("p1", "a.tgz", @"C:\Users\Alice\AppData\Local\npm-cache\a.tgz", 1 * mb, now.UtcTicks, 1, false, "隔离区"),
+                    new CleanupPreviewItem("p2", "b.tgz", @"D:\DevCache\npm\b.tgz", 1 * mb, now.UtcTicks, 2, false, "隔离区")
+                ],
+                VerificationExpectations:
+                [
+                    new CleanupDirectoryExpectation(@"C:\Users\Alice\AppData\Local\npm-cache", null, now,
+                    [
+                        new CleanupFileExpectation(@"C:\Users\Alice\AppData\Local\npm-cache\a.tgz", 1, 20 * mb, now.UtcTicks),
+                        new CleanupFileExpectation(@"C:\Users\Alice\AppData\Local\npm-cache\a2.tgz", 2, 30 * mb, now.UtcTicks)
+                    ]),
+                    new CleanupDirectoryExpectation(@"D:\DevCache\npm", null, now,
+                    [
+                        new CleanupFileExpectation(@"D:\DevCache\npm\b.tgz", 3, 30 * mb, now.UtcTicks)
+                    ])
+                ],
+                TotalBytes: 80 * mb,
+                MatchedCount: 3,
+                SkippedRecentOrLockedCount: 0,
+                ExcludedProtectedCount: 0,
+                RunningBlockingProcesses: [],
+                IsAvailable: true,
+                StatusNote: "跨 C/D 盘缓存",
+                ScannedAtUtc: now);
+
+            // E: 仅在 3 档谨慎「全盘回收站」中有 88 MB（模拟 ReFS 数据盘仅有回收站）
+            var recycleScan = new CleanupRuleScanResult(
+                Rule: recycleRule,
+                PreviewItems:
+                [
+                    new CleanupPreviewItem("rb:C:", "C: 回收站", @"C:\$Recycle.Bin", 12 * mb, now.UtcTicks, 0, true, "官方回收站", @"C:\"),
+                    new CleanupPreviewItem("rb:E:", "E: 回收站", @"E:\$Recycle.Bin", 88 * mb, now.UtcTicks, 0, true, "官方回收站", @"E:\")
+                ],
+                VerificationExpectations: [],
+                TotalBytes: 100 * mb,
+                MatchedCount: 15,
+                SkippedRecentOrLockedCount: 0,
+                ExcludedProtectedCount: 0,
+                RunningBlockingProcesses: [],
+                IsAvailable: true,
+                StatusNote: "C/E 回收站",
+                ScannedAtUtc: now);
+
+            var winSxSScan = new CleanupRuleScanResult(
+                Rule: winSxSRule,
+                PreviewItems: [new CleanupPreviewItem("winsxs", "DISM", @"C:\Windows\WinSxS", 0, 0, 0, true, "DISM")],
+                VerificationExpectations: [],
+                TotalBytes: 0,
+                MatchedCount: 1,
+                SkippedRecentOrLockedCount: 0,
+                ExcludedProtectedCount: 0,
+                RunningBlockingProcesses: [],
+                IsAvailable: true,
+                StatusNote: "DISM 就绪",
+                ScannedAtUtc: now);
+
+            var sysTempScan = new CleanupRuleScanResult(
+                Rule: sysTempRule,
+                PreviewItems: [new CleanupPreviewItem("t1", "old.tmp", @"C:\Temp\old.tmp", 20 * mb, now.UtcTicks, 10, false, "隔离区")],
+                VerificationExpectations: [],
+                TotalBytes: 20 * mb,
+                MatchedCount: 1,
+                SkippedRecentOrLockedCount: 0,
+                ExcludedProtectedCount: 0,
+                RunningBlockingProcesses: [],
+                IsAvailable: true,
+                StatusNote: "C 盘临时文件",
+                ScannedAtUtc: now);
+
+            Dictionary<string, long> npmDriveBytes = multiDriveNpm.GetBytesByDrive();
+            Require(npmDriveBytes["C:"] == 50 * mb && npmDriveBytes["D:"] == 30 * mb,
+                $"Expected exact per-drive bytes C=50MB, D=30MB, got C={npmDriveBytes.GetValueOrDefault("C:")}, D={npmDriveBytes.GetValueOrDefault("D:")}");
+
+            var snap = new CleanupScanSnapshot(
+                Guid.NewGuid(), now, MigrationSafetyPolicy.CurrentPolicyVersion, BuiltInCleanupRules.CurrentRuleVersion,
+                [multiDriveNpm, recycleScan, winSxSScan, sysTempScan],
+                TotalReclaimableBytes: 200 * mb,
+                RecommendedBytes: 20 * mb,
+                OnDemandBytes: 80 * mb,
+                CautionBytes: 100 * mb);
+
+            var vm = new CleanupViewModel();
+            vm.ApplyScanSnapshot(snap);
+
+            // 验证各盘胶囊体积精确等于总计：C=(50+12+20)=82MB, D=30MB, E=88MB => 82+30+88=200MB
+            CleanupDriveFilterChip cChip = vm.DriveFilterChips.Single(c => c.DriveLabel == "C:");
+            CleanupDriveFilterChip dChip = vm.DriveFilterChips.Single(c => c.DriveLabel == "D:");
+            CleanupDriveFilterChip eChip = vm.DriveFilterChips.Single(c => c.DriveLabel == "E:");
+            Require(cChip.DisplayText.Contains("82.00 MB"), $"Unexpected C chip: {cChip.DisplayText}");
+            Require(dChip.DisplayText.Contains("30.00 MB"), $"Unexpected D chip: {dChip.DisplayText}");
+            Require(eChip.DisplayText.Contains("88.00 MB"), $"Unexpected E chip: {eChip.DisplayText}");
+
+            // 2. 在「软件与开发者缓存」分类下点 E:（谨慎项默认隐藏）→ 应提示 E: 的 88 MB 在谨慎清理项，并可一键切入查看
+            CleanupCategoryNavItem swNav = vm.CategoryNavItems.Single(c => c.Category == CleanupCategory.SoftwareAndDeveloperCache);
+            vm.SelectCategoryCommand.Execute(swNav);
+            vm.SelectDriveFilterCommand.Execute(eChip);
+            Require(vm.ShowNoVisibleRulesHint && vm.HasNoVisibleRulesAction
+                && vm.NoVisibleRulesHintText.Contains("E:") && vm.NoVisibleRulesHintText.Contains("88.00 MB") && vm.NoVisibleRulesHintText.Contains("谨慎清理项"),
+                $"Expected actionable caution hint for E: under Software category, got: {vm.NoVisibleRulesHintText} / {vm.NoVisibleRulesActionText}");
+
+            vm.ResolveNoVisibleRulesHintCommand.Execute(null);
+            Require(vm.ShowCautionItems && vm.SelectedCategoryFilter == CleanupCategory.CautionItems
+                && vm.VisibleRuleItems.Count == 1 && vm.VisibleRuleItems[0].RuleId == recycleRule.RuleId,
+                "Resolving empty hint must switch to CautionItems and reveal E: Recycle Bin");
+
+            // 3. 在「全部分类」且关闭谨慎项时选 E: → 提示展开谨慎项，一键展开即显示
+            vm.ToggleShowCautionItemsCommand.Execute(null); // 关闭谨慎项并清除 CautionItems 分类筛选
+            Require(vm.SelectedCategoryFilter is null && !vm.ShowCautionItems && vm.ShowNoVisibleRulesHint
+                && vm.NoVisibleRulesHintText.Contains("E:") && vm.NoVisibleRulesActionText.Contains("展开谨慎项"),
+                $"Expected expand-caution hint under All categories for E:, got: {vm.NoVisibleRulesHintText} / {vm.NoVisibleRulesActionText}");
+            vm.ResolveNoVisibleRulesHintCommand.Execute(null);
+            Require(vm.ShowCautionItems && vm.VisibleRuleItems.Any(r => r.RuleId == recycleRule.RuleId),
+                "Expand caution hint action must reveal E: Recycle Bin");
+
+            // 4. 在「系统临时」分类下选 D:（D: 仅在软件缓存有 30 MB）→ 提示切到全部分类查看
+            CleanupCategoryNavItem tempNav = vm.CategoryNavItems.Single(c => c.Category == CleanupCategory.SystemTempAndShader);
+            vm.SelectCategoryCommand.Execute(tempNav);
+            vm.SelectDriveFilterCommand.Execute(dChip);
+            Require(vm.ShowNoVisibleRulesHint && vm.HasNoVisibleRulesAction
+                && vm.NoVisibleRulesHintText.Contains("D:") && vm.NoVisibleRulesHintText.Contains("30.00 MB")
+                && vm.NoVisibleRulesActionText.Contains("全部分类"),
+                $"Expected switch-to-all-categories hint for D:, got: {vm.NoVisibleRulesHintText} / {vm.NoVisibleRulesActionText}");
+            vm.ResolveNoVisibleRulesHintCommand.Execute(null);
+            Require(vm.SelectedCategoryFilter is null && vm.VisibleRuleItems.Any(r => r.RuleId == npmRule.RuleId),
+                "Switch-to-all-categories action must reveal D: npm cache");
+
+            // 5. 验证外部执行清理后，AI 建议卡片与「AI 建议统一审阅」弹窗自动同步为「✓ 已清理 / ✓ 已同卷隔离」并更新汇总体积
+            var aiVm = new AiAssistantViewModel(new ReadOnlyAiAnalysisToolset());
+            aiVm.SyncCleanupScanSnapshot(snap);
+            var turn = new AiConversationTurnItem { UserPrompt = "分析垃圾清理" };
+            var cardRecycle = new AiProposalCardItem
+            {
+                ProposalId = Guid.NewGuid(),
+                CleanupScanId = snap.CleanupScanId,
+                RuleId = recycleRule.RuleId,
+                OriginalRuleTier = CleanupRecommendationTier.Caution,
+                DisplayName = recycleRule.DisplayName,
+                SizeBytes = 100 * mb,
+                SizeText = "100.00 MB",
+                Reason = "回收站可清空",
+                IsCleanupRuleAdvice = true
+            };
+            var cardNpm = new AiProposalCardItem
+            {
+                ProposalId = Guid.NewGuid(),
+                CleanupScanId = snap.CleanupScanId,
+                RuleId = npmRule.RuleId,
+                OriginalRuleTier = CleanupRecommendationTier.OnDemand,
+                DisplayName = npmRule.DisplayName,
+                SizeBytes = 80 * mb,
+                SizeText = "80.00 MB",
+                Reason = "npm 缓存可清理",
+                IsCleanupRuleAdvice = true,
+                IsCleanupRuleSelected = true
+            };
+            var cardWinSxS = new AiProposalCardItem
+            {
+                ProposalId = Guid.NewGuid(),
+                CleanupScanId = snap.CleanupScanId,
+                RuleId = winSxSRule.RuleId,
+                OriginalRuleTier = CleanupRecommendationTier.Caution,
+                DisplayName = winSxSRule.DisplayName,
+                SizeBytes = 0,
+                SizeText = "官方接口",
+                Reason = "DISM 深度清理",
+                IsCleanupRuleAdvice = true
+            };
+            var cardTemp = new AiProposalCardItem
+            {
+                ProposalId = Guid.NewGuid(),
+                CleanupScanId = snap.CleanupScanId,
+                RuleId = sysTempRule.RuleId,
+                OriginalRuleTier = CleanupRecommendationTier.Recommended,
+                DisplayName = sysTempRule.DisplayName,
+                SizeBytes = 20 * mb,
+                SizeText = "20.00 MB",
+                Reason = "临时文件",
+                IsCleanupRuleAdvice = true
+            };
+            turn.ProposalCards.Add(cardRecycle);
+            turn.ProposalCards.Add(cardNpm);
+            turn.ProposalCards.Add(cardWinSxS);
+            turn.ProposalCards.Add(cardTemp);
+            aiVm.CleanupSession.ConversationTurns.Add(turn);
+
+            var reviewVm = new AiProposalReviewViewModel(aiVm, turn.ProposalCards, "AI 建议统一审阅与添加", "测试");
+            Require(reviewVm.TotalScopeMetaText.Contains("200.00 MB") && !reviewVm.TotalScopeMetaText.Contains("已清理"),
+                $"Unexpected initial review meta: {reviewVm.TotalScopeMetaText}");
+
+            // 模拟外面清理了全盘回收站 + npm 缓存 + WinSxS，局部复扫后回收站与 npm 归零，WinSxS 仍 IsAvailable=true & TotalBytes=0
+            var postSnap = new CleanupScanSnapshot(
+                Guid.NewGuid(), now.AddSeconds(5), MigrationSafetyPolicy.CurrentPolicyVersion, BuiltInCleanupRules.CurrentRuleVersion,
+                [
+                    CleanupRuleScanner.EmptyRuleResult(npmRule, [], now.AddSeconds(5), "已清理"),
+                    CleanupRuleScanner.EmptyRuleResult(recycleRule, [], now.AddSeconds(5), "已清空"),
+                    winSxSScan,
+                    sysTempScan
+                ],
+                TotalReclaimableBytes: 20 * mb,
+                RecommendedBytes: 20 * mb,
+                OnDemandBytes: 0,
+                CautionBytes: 0);
+
+            var execRes = new CleanupExecutionResult(
+                ExecutionId: Guid.NewGuid(),
+                StartedAtUtc: now.AddSeconds(3),
+                CompletedAtUtc: now.AddSeconds(4),
+                WasCancelled: false,
+                Items:
+                [
+                    new CleanupExecutionItemResult(recycleRule.RuleId, recycleRule.DisplayName, CleanupExecutionChannel.OfficialSystemApi, CleanupItemExecutionStatus.ReclaimedByOfficialApi, 100 * mb, 15, 0, 0, null, "已清空", []),
+                    new CleanupExecutionItemResult(npmRule.RuleId, npmRule.DisplayName, CleanupExecutionChannel.FileQuarantine, CleanupItemExecutionStatus.Quarantined, 80 * mb, 3, 0, 0, "q-1", "已隔离", []),
+                    new CleanupExecutionItemResult(winSxSRule.RuleId, winSxSRule.DisplayName, CleanupExecutionChannel.OfficialSystemApi, CleanupItemExecutionStatus.ReclaimedByOfficialApi, 0, 1, 0, 0, null, "DISM 完成", [])
+                ],
+                QuarantinedBytes: 80 * mb,
+                RecycledBytes: 0,
+                OfficialApiReclaimedBytes: 100 * mb,
+                TotalSkippedCount: 0,
+                TotalFailedCount: 0,
+                SummaryMessage: "清理已完成");
+
+            aiVm.SyncCleanupExecutionResult(postSnap, execRes);
+
+            Require(cardRecycle.IsCleanupRuleCleaned && cardRecycle.CompactStatusText == "✓ 已清理" && cardRecycle.IsActionCompleted,
+                $"Recycle bin card must show ✓ 已清理, got cleaned={cardRecycle.IsCleanupRuleCleaned}, status={cardRecycle.CompactStatusText}");
+            Require(cardNpm.IsCleanupRuleCleaned && !cardNpm.IsCleanupRuleSelected && !cardNpm.CanSelectCleanupRuleInModal && cardNpm.CompactStatusText == "✓ 已同卷隔离",
+                $"npm card must show ✓ 已同卷隔离 and become non-selectable, got status={cardNpm.CompactStatusText}, canSelect={cardNpm.CanSelectCleanupRuleInModal}");
+            Require(cardWinSxS.IsCleanupRuleCleaned && cardWinSxS.CompactStatusText == "✓ 已清理",
+                $"WinSxS official zero-size rule must show ✓ 已清理 after execution, got {cardWinSxS.CompactStatusText}");
+            Require(!cardTemp.IsCleanupRuleCleaned && cardTemp.CanSelectCleanupRuleInModal,
+                "Uncleaned temp rule must remain selectable");
+            Require(reviewVm.TotalScopeMetaText.Contains("20.00 MB") && reviewVm.TotalScopeMetaText.Contains("已清理 3 项"),
+                $"Review modal header must reflect remaining 20 MB and 3 cleaned items, got: {reviewVm.TotalScopeMetaText}");
+
+            // 模拟用户手动清空临时文件后仅执行「重新扫描」（无 CleanupExecutionResult）→ 通过快照同步自动标记为 ✓ 已清理
+            var rescanZeroSnap = postSnap with
+            {
+                CleanupScanId = Guid.NewGuid(),
+                Rules = [.. postSnap.Rules.Where(r => r.Rule.RuleId != sysTempRule.RuleId), CleanupRuleScanner.EmptyRuleResult(sysTempRule, [], now.AddSeconds(10), "已空")],
+                TotalReclaimableBytes = 0,
+                RecommendedBytes = 0
+            };
+            aiVm.SyncCleanupScanSnapshot(rescanZeroSnap);
+            Require(cardTemp.IsCleanupRuleCleaned && cardTemp.CompactStatusText == "✓ 已清理" && !cardTemp.CanSelectCleanupRuleInModal,
+                $"Manual rescan seeing 0 bytes must also mark rule as ✓ 已清理, got {cardTemp.CompactStatusText}");
+
+            reviewVm.CleanupSubscriptions();
+            return Task.CompletedTask;
+        });
     }
 
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>

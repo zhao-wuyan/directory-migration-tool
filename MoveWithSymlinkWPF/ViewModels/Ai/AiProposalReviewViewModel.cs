@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models.Cleanup;
@@ -8,10 +10,27 @@ using MigrationCore.Services;
 namespace MoveWithSymlinkWPF.ViewModels;
 
 /// <summary>
+/// 预冻结画刷缓存：消除 WPF 弹窗首次布局时大量十六进制字符串 BrushConverter 反射解析与非冻结画刷分配。
+/// </summary>
+internal static class FrozenBrushCache
+{
+    private static readonly ConcurrentDictionary<string, Brush> Cache = new(StringComparer.OrdinalIgnoreCase);
+
+    public static Brush Get(string hex) => Cache.GetOrAdd(hex, static h =>
+    {
+        var color = (Color)ColorConverter.ConvertFromString(h);
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    });
+}
+
+/// <summary>
 /// 统一审阅弹框中的单条建议行视图模型（独立持有弹窗内临时勾选态，默认绝不勾选）。
 /// </summary>
 public partial class AiProposalReviewRowItem : ObservableObject
 {
+    private readonly AiProposalReviewViewModel _owner;
     private readonly Action _selectionChangedCallback;
 
     public AiProposalCardItem Card { get; }
@@ -75,10 +94,18 @@ public partial class AiProposalReviewRowItem : ObservableObject
         _ => "#F59E0B"
     };
 
+    public Brush CategoryBadgeBgBrush => FrozenBrushCache.Get(CategoryBadgeBg);
+    public Brush CategoryBadgeBorderBrush => FrozenBrushCache.Get(CategoryBadgeBorder);
+    public Brush CategoryBadgeFgBrush => FrozenBrushCache.Get(CategoryBadgeFg);
+    public Brush AccentStripeBrush => FrozenBrushCache.Get(AccentStripeColor);
+
     public string StatusBadgeText => Card.CompactStatusText;
     public string StatusBadgeBg => Card.CompactStatusBg;
     public string StatusBadgeBorder => Card.CompactStatusBorder;
     public string StatusBadgeFg => Card.CompactStatusFg;
+    public Brush StatusBadgeBgBrush => FrozenBrushCache.Get(StatusBadgeBg);
+    public Brush StatusBadgeBorderBrush => FrozenBrushCache.Get(StatusBadgeBorder);
+    public Brush StatusBadgeFgBrush => FrozenBrushCache.Get(StatusBadgeFg);
 
     public string RowBg => IsBlockedByPolicy
         ? "#FEF2F2"
@@ -94,17 +121,35 @@ public partial class AiProposalReviewRowItem : ObservableObject
             ? "#93C5FD"
             : "#E2E8F0";
 
+    public Brush RowBgBrush => FrozenBrushCache.Get(RowBg);
+    public Brush RowBorderBrush => FrozenBrushCache.Get(RowBorder);
+
+    public string NonCheckboxGlyph => IsBlockedByPolicy
+        ? "⊘"
+        : IsActionCompleted
+            ? "✓"
+            : "ℹ";
+
+    public Brush NonCheckboxGlyphBrush => FrozenBrushCache.Get(
+        IsBlockedByPolicy ? "#C42B1C" : IsActionCompleted ? "#0F7B4B" : "#64748B");
+
+    public bool ShowNonCheckboxGlyph => !CanSelect;
+
     public bool CanOpenInExplorer => Card.CanOpenInExplorer;
     public bool CanLocateInTree => Card.CanLocateInTree;
     public bool CanLocateCleanupRule => Card.CanLocateCleanupRule;
 
-    public string LocateCleanupRuleButtonText => Card.OriginalRuleTier == CleanupRecommendationTier.Caution
-        ? "清理页核对（3档谨慎）"
-        : "清理页定位";
+    public string LocateCleanupRuleButtonText => Card.IsCleanupRuleCleaned
+        ? "清理页查看"
+        : Card.OriginalRuleTier == CleanupRecommendationTier.Caution
+            ? "清理页核对（3档谨慎）"
+            : "清理页定位";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RowBg))]
     [NotifyPropertyChangedFor(nameof(RowBorder))]
+    [NotifyPropertyChangedFor(nameof(RowBgBrush))]
+    [NotifyPropertyChangedFor(nameof(RowBorderBrush))]
     private bool _isSelected;
 
     partial void OnIsSelectedChanged(bool value)
@@ -118,12 +163,22 @@ public partial class AiProposalReviewRowItem : ObservableObject
         _selectionChangedCallback();
     }
 
-    public AiProposalReviewRowItem(AiProposalCardItem card, Action selectionChangedCallback)
+    public AiProposalReviewRowItem(AiProposalReviewViewModel owner, AiProposalCardItem card, Action selectionChangedCallback)
     {
+        _owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Card = card ?? throw new ArgumentNullException(nameof(card));
         _selectionChangedCallback = selectionChangedCallback ?? throw new ArgumentNullException(nameof(selectionChangedCallback));
         Card.PropertyChanged += OnCardPropertyChanged;
     }
+
+    [RelayCommand]
+    private void OpenDirectoryInExplorer() => _owner.OpenDirectoryInExplorerCommand.Execute(this);
+
+    [RelayCommand]
+    private void LocateInTree() => _owner.LocateInTreeCommand.Execute(this);
+
+    [RelayCommand]
+    private void LocateCleanupRule() => _owner.LocateCleanupRuleCommand.Execute(this);
 
     public void Detach()
     {
@@ -142,13 +197,22 @@ public partial class AiProposalReviewRowItem : ObservableObject
         OnPropertyChanged(nameof(ShowCompletedGlyph));
         OnPropertyChanged(nameof(ShowBlockedGlyph));
         OnPropertyChanged(nameof(ShowReadOnlyGlyph));
+        OnPropertyChanged(nameof(ShowNonCheckboxGlyph));
+        OnPropertyChanged(nameof(NonCheckboxGlyph));
+        OnPropertyChanged(nameof(NonCheckboxGlyphBrush));
         OnPropertyChanged(nameof(ShowStatusBadge));
         OnPropertyChanged(nameof(StatusBadgeText));
         OnPropertyChanged(nameof(StatusBadgeBg));
         OnPropertyChanged(nameof(StatusBadgeBorder));
         OnPropertyChanged(nameof(StatusBadgeFg));
+        OnPropertyChanged(nameof(StatusBadgeBgBrush));
+        OnPropertyChanged(nameof(StatusBadgeBorderBrush));
+        OnPropertyChanged(nameof(StatusBadgeFgBrush));
         OnPropertyChanged(nameof(RowBg));
         OnPropertyChanged(nameof(RowBorder));
+        OnPropertyChanged(nameof(RowBgBrush));
+        OnPropertyChanged(nameof(RowBorderBrush));
+        OnPropertyChanged(nameof(LocateCleanupRuleButtonText));
         _selectionChangedCallback();
     }
 }
@@ -168,7 +232,8 @@ public partial class AiProposalReviewViewModel : ObservableObject
     public string WindowTitle { get; }
     public string HeaderSubtitle { get; }
 
-    public ObservableCollection<AiProposalReviewRowItem> VisibleRows { get; } = [];
+    [ObservableProperty]
+    private IReadOnlyList<AiProposalReviewRowItem> _visibleRows = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AllTabTag))]
@@ -268,10 +333,16 @@ public partial class AiProposalReviewViewModel : ObservableObject
     {
         get
         {
-            long nonBlockedBytes = _allRows.Where(r => !r.IsBlockedByPolicy && r.SizeBytes > 0).Sum(r => r.SizeBytes);
+            long remainingBytes = _allRows
+                .Where(r => !r.IsBlockedByPolicy && !r.Card.IsCleanupRuleCleaned && !r.Card.IsResidualQuarantined && r.SizeBytes > 0)
+                .Sum(r => r.SizeBytes);
             int selectable = _allRows.Count(r => r.CanSelect);
-            string sizePart = nonBlockedBytes > 0 ? $" · 涉及约 {FileStatsService.FormatBytes(nonBlockedBytes)}" : string.Empty;
-            return $"共 {TotalCount} 条建议{sizePart} · 当前可勾选添加 {selectable} 项";
+            int cleaned = _allRows.Count(r => r.Card.IsCleanupRuleCleaned || r.Card.IsResidualQuarantined);
+            string sizePart = remainingBytes > 0
+                ? (cleaned > 0 ? $" · 剩余约 {FileStatsService.FormatBytes(remainingBytes)}" : $" · 涉及约 {FileStatsService.FormatBytes(remainingBytes)}")
+                : string.Empty;
+            string cleanedPart = cleaned > 0 ? $" · 已清理 {cleaned} 项" : string.Empty;
+            return $"共 {TotalCount} 条建议{sizePart}{cleanedPart} · 当前可勾选添加 {selectable} 项";
         }
     }
 
@@ -346,7 +417,7 @@ public partial class AiProposalReviewViewModel : ObservableObject
             .OrderBy(c => c.IsBlockedByPolicy ? 2 : (c.CanBatchSelectInModal ? 0 : 1))
             .ThenByDescending(c => c.SizeBytes))
         {
-            _allRows.Add(new AiProposalReviewRowItem(card, OnSelectionOrItemStateChanged));
+            _allRows.Add(new AiProposalReviewRowItem(this, card, OnSelectionOrItemStateChanged));
         }
 
         RebuildVisibleRows();
@@ -363,7 +434,12 @@ public partial class AiProposalReviewViewModel : ObservableObject
     [RelayCommand]
     private void SelectTab(string? tabKey)
     {
-        SelectedTabKey = string.IsNullOrWhiteSpace(tabKey) ? "All" : tabKey;
+        string normalized = string.IsNullOrWhiteSpace(tabKey) ? "All" : tabKey;
+        if (string.Equals(SelectedTabKey, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+        SelectedTabKey = normalized;
         RebuildVisibleRows();
     }
 
@@ -511,12 +587,11 @@ public partial class AiProposalReviewViewModel : ObservableObject
 
     private void RebuildVisibleRows()
     {
-        VisibleRows.Clear();
-
         string[] keywords = string.IsNullOrWhiteSpace(SearchKeyword)
             ? []
             : SearchKeyword.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+        var next = new List<AiProposalReviewRowItem>(_allRows.Count);
         foreach (AiProposalReviewRowItem row in _allRows)
         {
             if (!MatchesSelectedTab(row)) continue;
@@ -540,7 +615,26 @@ public partial class AiProposalReviewViewModel : ObservableObject
                 if (!allMatched) continue;
             }
 
-            VisibleRows.Add(row);
+            next.Add(row);
+        }
+
+        // 若筛选结果序列未变化，禁止无谓替换列表触发 WPF 视觉树重排
+        bool unchanged = next.Count == VisibleRows.Count;
+        if (unchanged)
+        {
+            for (int i = 0; i < next.Count; i++)
+            {
+                if (!ReferenceEquals(next[i], VisibleRows[i]))
+                {
+                    unchanged = false;
+                    break;
+                }
+            }
+        }
+
+        if (!unchanged)
+        {
+            VisibleRows = next.ToArray();
         }
 
         OnPropertyChanged(nameof(HasVisibleRows));

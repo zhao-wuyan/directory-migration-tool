@@ -143,6 +143,20 @@ public partial class AiProposalCardItem : ObservableObject
     private bool _isCleanupRuleSelected;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSelectCleanupRuleInModal))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(IsActionCompleted))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
+    private bool _isCleanupRuleCleaned;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    private string _cleanupRuleCleanedStatusText = "✓ 已清理";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AdoptButtonText))]
     [NotifyPropertyChangedFor(nameof(CanAdopt))]
     [NotifyPropertyChangedFor(nameof(CanAdoptResidual))]
@@ -161,13 +175,14 @@ public partial class AiProposalCardItem : ObservableObject
         && OriginalRuleTier != CleanupRecommendationTier.Caution
         && !string.IsNullOrWhiteSpace(RuleId)
         && !IsCleanupRuleSelected
+        && !IsCleanupRuleCleaned
         && !IsInvalidated;
 
     public bool CanBatchSelectInModal => CanAdopt || CanAdoptResidual || CanSelectCleanupRuleInModal;
     public bool IsActionableCategory => IsAdoptableToMigrationPlan
         || (!IsBlockedByPolicy && IsCleanupResidualProposal)
         || (!IsBlockedByPolicy && IsCleanupRuleAdvice && OriginalRuleTier != CleanupRecommendationTier.Caution && !string.IsNullOrWhiteSpace(RuleId));
-    public bool IsActionCompleted => IsAdopted || IsResidualAdopted || IsResidualQuarantined || IsCleanupRuleSelected;
+    public bool IsActionCompleted => IsAdopted || IsResidualAdopted || IsResidualQuarantined || IsCleanupRuleSelected || IsCleanupRuleCleaned;
 
     public string CardTitle => IsBlockedByPolicy
         ? $"已自动拦截高危建议 · {DisplayName}"
@@ -203,23 +218,25 @@ public partial class AiProposalCardItem : ObservableObject
         ? "永久拦截"
         : IsInvalidated
             ? "快照已失效"
-            : IsResidualQuarantined
-                ? "已同卷隔离"
-                : IsAdopted
-                    ? "✓ 已加迁移清单"
-                    : IsResidualAdopted
-                        ? "✓ 已加疑似残留"
-                        : IsCleanupRuleSelected
-                            ? "✓ 已勾清理规则"
-                            : CanAdopt
-                                ? "待加入迁移"
-                                : CanAdoptResidual
-                                    ? "待确认加入"
-                                    : CanSelectCleanupRuleInModal
-                                        ? "可勾选清理"
-                                        : (IsCleanupRuleAdvice && OriginalRuleTier == CleanupRecommendationTier.Caution)
-                                            ? "需至清理页核对"
-                                            : "仅作参考";
+            : IsCleanupRuleCleaned
+                ? (string.IsNullOrWhiteSpace(CleanupRuleCleanedStatusText) ? "✓ 已清理" : CleanupRuleCleanedStatusText)
+                : IsResidualQuarantined
+                    ? "已同卷隔离"
+                    : IsAdopted
+                        ? "✓ 已加迁移清单"
+                        : IsResidualAdopted
+                            ? "✓ 已加疑似残留"
+                            : IsCleanupRuleSelected
+                                ? "✓ 已勾清理规则"
+                                : CanAdopt
+                                    ? "待加入迁移"
+                                    : CanAdoptResidual
+                                        ? "待确认加入"
+                                        : CanSelectCleanupRuleInModal
+                                            ? "可勾选清理"
+                                            : (IsCleanupRuleAdvice && OriginalRuleTier == CleanupRecommendationTier.Caution)
+                                                ? "需至清理页核对"
+                                                : "仅作参考";
 
     public string CompactStatusBg => IsBlockedByPolicy ? "#FEF2F2"
         : IsInvalidated ? "#F1F5F9"
@@ -755,6 +772,8 @@ public partial class AiConversationTurnItem : ObservableObject
             or nameof(AiProposalCardItem.IsResidualAdopted)
             or nameof(AiProposalCardItem.IsResidualQuarantined)
             or nameof(AiProposalCardItem.IsCleanupRuleSelected)
+            or nameof(AiProposalCardItem.IsCleanupRuleCleaned)
+            or nameof(AiProposalCardItem.CleanupRuleCleanedStatusText)
             or nameof(AiProposalCardItem.IsInvalidated))
         {
             NotifyProposalSummaryChanged();

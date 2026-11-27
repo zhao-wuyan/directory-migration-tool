@@ -568,7 +568,8 @@
                                     </Border>
                                 </StackPanel>
 
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                <ScrollViewer x:Name="RulesListScrollViewer"
+                                              Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                               IsEnabled="{Binding IsNotExecuting}">
                                 <StackPanel>
                                     <!-- 多盘快捷筛选胶囊（仅当扫描结果涉及 2 个及以上磁盘时自动显示） -->
@@ -611,12 +612,27 @@
                                                    FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                     </DockPanel>
 
-                                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,6"
+                                    <Border Background="{Binding NoVisibleRulesHintBg}"
+                                            BorderBrush="{Binding NoVisibleRulesHintBorder}"
+                                            BorderThickness="1" CornerRadius="8" Padding="14,11" Margin="0,0,0,6"
                                             Visibility="{Binding ShowNoVisibleRulesHint, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock Text="当前分类下未检测到可清理缓存文件，系统或软件已经很干净。" FontSize="11.5" Foreground="#64748B" TextWrapping="Wrap"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Command="{Binding ResolveNoVisibleRulesHintCommand}"
+                                                    Visibility="{Binding HasNoVisibleRulesAction, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                    Height="26" MinWidth="0" Padding="10,0" FontSize="11" FontWeight="SemiBold"
+                                                    VerticalAlignment="Center" Margin="10,0,0,0"
+                                                    AutomationProperties.AutomationId="CleanupEmptyHintActionButton">
+                                                <TextBlock Text="{Binding NoVisibleRulesActionText}"/>
+                                            </Button>
+                                            <TextBlock Text="{Binding NoVisibleRulesHintText}"
+                                                       FontSize="11.5" Foreground="{Binding NoVisibleRulesHintFg}"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        </DockPanel>
                                     </Border>
 
-                                    <ItemsControl ItemsSource="{Binding VisibleEntries}">
+                                    <ItemsControl x:Name="RulesEntriesItemsControl" ItemsSource="{Binding VisibleEntries}">
                                         <ItemsControl.Resources>
                                             <!-- 模板 1：可展开软件分组卡片（默认收起，点击展开单选） -->
                                             <DataTemplate DataType="{x:Type vm:CleanupRuleGroupViewModel}">

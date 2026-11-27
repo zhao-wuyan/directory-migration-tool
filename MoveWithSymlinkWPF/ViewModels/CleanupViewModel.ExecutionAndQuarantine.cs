@@ -101,7 +101,7 @@ public partial class CleanupViewModel
                 ExecutionProgressPercent = 100;
                 ExecutionProgressBadgeText = "100%";
                 ApplyPostCleanupSnapshot(updatedSnapshot, executedRuleIds);
-                _aiAssistant?.SyncCleanupScanSnapshot(updatedSnapshot);
+                _aiAssistant?.SyncCleanupExecutionResult(updatedSnapshot, result);
                 StatusMessage = result.SummaryMessage;
                 ApplyExecutionReceipt(result);
                 _overviewDirty = true;

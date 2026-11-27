@@ -589,6 +589,26 @@ public partial class AiAssistantViewModel : ObservableObject
             GeneralSession.SyncExternalCleanupSnapshot(snapshot);
             DiskScanSession.SyncExternalCleanupSnapshot(snapshot);
             CleanupSession.SyncExternalCleanupSnapshot(snapshot);
+            RefreshProposalInboxSummary();
+        });
+    }
+
+    /// <summary>
+    /// 垃圾清理主界面执行完成后同步执行结果与最新局部复扫快照：
+    /// 将已清空/已隔离的内置规则建议卡片更新为「已清理 / 已同卷隔离」，避免审阅弹框残留旧状态与旧体积统计。
+    /// </summary>
+    public void SyncCleanupExecutionResult(CleanupScanSnapshot updatedSnapshot, CleanupExecutionResult executionResult)
+    {
+        ArgumentNullException.ThrowIfNull(updatedSnapshot);
+        ArgumentNullException.ThrowIfNull(executionResult);
+
+        SyncCleanupScanSnapshot(updatedSnapshot);
+        DispatchToUi(() =>
+        {
+            GeneralSession.SyncExternalCleanupExecution(updatedSnapshot, executionResult);
+            DiskScanSession.SyncExternalCleanupExecution(updatedSnapshot, executionResult);
+            CleanupSession.SyncExternalCleanupExecution(updatedSnapshot, executionResult);
+            RefreshProposalInboxSummary();
         });
     }
 

@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 using MoveWithSymlinkWPF.Helpers;
 using MoveWithSymlinkWPF.ViewModels;
 
@@ -16,6 +18,7 @@ public partial class CleanupPage : UserControl
     private const double DefaultDrawerWidth = 368d;
 
     private double _savedDrawerWidth = DefaultDrawerWidth;
+    private CleanupRuleItemViewModel? _pendingScrollToRule;
 
     public CleanupViewModel ViewModel { get; }
 
@@ -25,6 +28,75 @@ public partial class CleanupPage : UserControl
         ViewModel = new CleanupViewModel();
         DataContext = ViewModel;
         ViewModel.PropertyChanged += ViewModel_OnPropertyChanged;
+        ViewModel.RuleLocateRequested += ViewModel_OnRuleLocateRequested;
+        IsVisibleChanged += CleanupPage_OnIsVisibleChanged;
+    }
+
+    private void ViewModel_OnRuleLocateRequested(object? sender, CleanupRuleItemViewModel rule)
+    {
+        _pendingScrollToRule = rule;
+        if (IsVisible)
+        {
+            ScheduleScrollToPendingRule();
+        }
+    }
+
+    private void CleanupPage_OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible && _pendingScrollToRule is not null)
+        {
+            ScheduleScrollToPendingRule();
+        }
+    }
+
+    private void ScheduleScrollToPendingRule()
+    {
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            CleanupRuleItemViewModel? target = _pendingScrollToRule;
+            if (target is null || !IsVisible) return;
+
+            RulesEntriesItemsControl.UpdateLayout();
+            RulesListScrollViewer.UpdateLayout();
+            FrameworkElement? cardElement = FindRuleCardElement(RulesEntriesItemsControl, target);
+            if (cardElement is null) return;
+
+            _pendingScrollToRule = null;
+            try
+            {
+                GeneralTransform transform = cardElement.TransformToAncestor(RulesListScrollViewer);
+                Point relativeTop = transform.Transform(new Point(0, 0));
+                double absoluteY = RulesListScrollViewer.VerticalOffset + relativeTop.Y;
+                double viewportBias = Math.Max(24d, RulesListScrollViewer.ViewportHeight * 0.22);
+                double desiredOffset = Math.Clamp(absoluteY - viewportBias, 0d, RulesListScrollViewer.ScrollableHeight);
+                RulesListScrollViewer.ScrollToVerticalOffset(desiredOffset);
+            }
+            catch
+            {
+                cardElement.BringIntoView();
+            }
+        });
+    }
+
+    private static FrameworkElement? FindRuleCardElement(DependencyObject root, CleanupRuleItemViewModel target)
+    {
+        var stack = new Stack<DependencyObject>();
+        stack.Push(root);
+        while (stack.Count > 0)
+        {
+            DependencyObject current = stack.Pop();
+            if (current is Border border && ReferenceEquals(border.DataContext, target))
+            {
+                return border;
+            }
+
+            int count = VisualTreeHelper.GetChildrenCount(current);
+            for (int i = count - 1; i >= 0; i--)
+            {
+                stack.Push(VisualTreeHelper.GetChild(current, i));
+            }
+        }
+        return null;
     }
 
     private void ViewModel_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)

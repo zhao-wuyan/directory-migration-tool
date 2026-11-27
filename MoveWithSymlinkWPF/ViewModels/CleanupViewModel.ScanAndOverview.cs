@@ -868,21 +868,9 @@ public partial class CleanupViewModel
         var driveTotals = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         foreach (CleanupRuleItemViewModel item in AllRuleItems.Where(r => r.HasReclaimableContent))
         {
-            if (item.AffectedDrives.Length == 1)
+            foreach (KeyValuePair<string, long> kv in item.BytesByDrive)
             {
-                string d = item.AffectedDrives[0];
-                driveTotals[d] = driveTotals.GetValueOrDefault(d) + item.TotalBytes;
-            }
-            else if (item.AffectedDrives.Length > 1)
-            {
-                // 跨多盘规则按明细或均摊归属显示盘符存在（保证每个涉及盘符都出现在筛选胶囊里）
-                foreach (string d in item.AffectedDrives)
-                {
-                    long perDrive = item.ScanResult.PreviewItems
-                        .Where(p => p.FullPath.StartsWith(d, StringComparison.OrdinalIgnoreCase))
-                        .Sum(p => p.SizeBytes);
-                    driveTotals[d] = driveTotals.GetValueOrDefault(d) + perDrive;
-                }
+                driveTotals[kv.Key] = driveTotals.GetValueOrDefault(kv.Key) + kv.Value;
             }
         }
 

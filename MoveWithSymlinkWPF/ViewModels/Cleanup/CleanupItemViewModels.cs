@@ -194,6 +194,11 @@ public partial class CleanupRuleItemViewModel : ObservableObject
         : $"查看 / 搜索全部 {TotalDetailItemCount:N0} 项明细";
 
     public string[] AffectedDrives { get; }
+    public IReadOnlyDictionary<string, long> BytesByDrive { get; }
+    public long GetBytesForDrive(string? driveLabel) =>
+        string.IsNullOrWhiteSpace(driveLabel)
+            ? TotalBytes
+            : BytesByDrive.GetValueOrDefault(driveLabel);
     public bool HasDriveBadge => AffectedDrives.Length > 0 && HasReclaimableContent;
     public bool HasNonSystemDrive { get; }
     public string DriveBadgeText => AffectedDrives.Length == 0 ? string.Empty : string.Join(" · ", AffectedDrives);
@@ -206,7 +211,8 @@ public partial class CleanupRuleItemViewModel : ObservableObject
         ScanResult = scanResult;
         _selectionChangedCallback = selectionChangedCallback;
 
-        AffectedDrives = scanResult.GetAffectedDrives();
+        BytesByDrive = scanResult.GetBytesByDrive();
+        AffectedDrives = BytesByDrive.Keys.OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToArray();
         string sysDrive = (Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\")[..2];
         HasNonSystemDrive = AffectedDrives.Any(d => !d.Equals(sysDrive, StringComparison.OrdinalIgnoreCase));
 

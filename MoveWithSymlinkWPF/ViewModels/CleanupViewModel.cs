@@ -338,8 +338,37 @@ public partial class CleanupViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(EmptyRulesToggleText))]
     private int _emptyRuleCountInScope;
 
+    private enum NoVisibleRulesActionKind
+    {
+        None = 0,
+        ShowCautionItems = 1,
+        SwitchToAllCategories = 2,
+        SwitchToCautionCategory = 3,
+        ClearDriveFilter = 4
+    }
+
+    private NoVisibleRulesActionKind _noVisibleRulesActionKind;
+
     [ObservableProperty]
     private bool _showNoVisibleRulesHint;
+
+    [ObservableProperty]
+    private string _noVisibleRulesHintText = "当前分类下未检测到可清理缓存文件，系统或软件已经很干净。";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoVisibleRulesAction))]
+    private string _noVisibleRulesActionText = string.Empty;
+
+    [ObservableProperty]
+    private string _noVisibleRulesHintBg = "#F8FAFC";
+
+    [ObservableProperty]
+    private string _noVisibleRulesHintBorder = "#E2E8F0";
+
+    [ObservableProperty]
+    private string _noVisibleRulesHintFg = "#64748B";
+
+    public bool HasNoVisibleRulesAction => !string.IsNullOrWhiteSpace(NoVisibleRulesActionText);
 
     public bool HasEmptyRulesInScope => EmptyRuleCountInScope > 0;
 
@@ -784,6 +813,8 @@ public partial class CleanupViewModel : ObservableObject
         return (true, $"已勾选清理规则「{target.DisplayName}」（尚未执行清理）。");
     }
 
+    public event EventHandler<CleanupRuleItemViewModel>? RuleLocateRequested;
+
     /// <summary>
     /// 供「AI 建议统一审阅」弹框定位至指定内置清理规则（若为 3 档谨慎项仅展开聚焦、绝不自动勾选）。
     /// </summary>
@@ -809,6 +840,15 @@ public partial class CleanupViewModel : ObservableObject
             SelectedCategoryFilter = null;
             foreach (CleanupCategoryNavItem nav in CategoryNavItems) nav.IsSelected = false;
         }
+        if (!string.IsNullOrWhiteSpace(SelectedDriveFilter)
+            && !target.AffectedDrives.Any(d => d.Equals(SelectedDriveFilter, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedDriveFilter = null;
+            foreach (CleanupDriveFilterChip chip in DriveFilterChips)
+            {
+                chip.IsSelected = chip.DriveLabel is null;
+            }
+        }
 
         RebuildVisibleRules();
 
@@ -824,6 +864,7 @@ public partial class CleanupViewModel : ObservableObject
         }
 
         SelectRule(target);
+        RuleLocateRequested?.Invoke(this, target);
         return true;
     }
 
@@ -999,6 +1040,7 @@ public partial class CleanupViewModel : ObservableObject
 
         UpdateGroupExpansionSummary();
         ShowNoVisibleRulesHint = VisibleEntries.Count == 0;
+        UpdateNoVisibleRulesHint();
         UpdateSelectRecommendedButtonState();
 
         if (SelectedRule is null || !VisibleRuleItems.Contains(SelectedRule))
@@ -1006,6 +1048,139 @@ public partial class CleanupViewModel : ObservableObject
             CleanupRuleItemViewModel? first = VisibleRuleItems.FirstOrDefault();
             if (first is not null) SelectRule(first);
             else SelectedRule = null;
+        }
+    }
+
+    private void UpdateNoVisibleRulesHint()
+    {
+        if (!ShowNoVisibleRulesHint)
+        {
+            _noVisibleRulesActionKind = NoVisibleRulesActionKind.None;
+            NoVisibleRulesActionText = string.Empty;
+            return;
+        }
+
+        string? drive = SelectedDriveFilter;
+        CleanupCategory? cat = SelectedCategoryFilter;
+        string? catTitle = cat is CleanupCategory activeCat
+            ? CategoryNavItems.FirstOrDefault(c => c.Category == activeCat)?.Title
+            : null;
+
+        CleanupRuleItemViewModel[] driveHits = AllRuleItems
+            .Where(r => r.HasReclaimableContent
+                && (string.IsNullOrWhiteSpace(drive)
+                    || r.AffectedDrives.Any(d => d.Equals(drive, StringComparison.OrdinalIgnoreCase))))
+            .ToArray();
+
+        if (driveHits.Length > 0)
+        {
+            CleanupRuleItemViewModel[] cautionHits = driveHits.Where(r => r.IsCaution).ToArray();
+            CleanupRuleItemViewModel[] nonCautionOtherCatHits = cat is null
+                ? []
+                : driveHits.Where(r => r.Category != cat && (ShowCautionItems || !r.IsCaution)).ToArray();
+
+            // 1. 仅因「显示谨慎项」未展开导致列表为空（全部分类下选中了只含回收站等谨慎项的磁盘，例如 E:）
+            if (!ShowCautionItems && (cat is null || cat == CleanupCategory.CautionItems) && cautionHits.Length > 0)
+            {
+                long cautionBytes = cautionHits.Sum(r => r.GetBytesForDrive(drive));
+                string sizePart = cautionBytes > 0 ? FileStatsService.FormatBytes(cautionBytes) : $"{cautionHits.Length} 项";
+                NoVisibleRulesHintText = string.IsNullOrWhiteSpace(drive)
+                    ? $"检测到 {sizePart} 可清理内容，均属于默认折叠的「谨慎清理项」（如全盘回收站）。"
+                    : $"磁盘 {drive} 下检测到 {sizePart} 可清理内容（如回收站等），属于默认折叠的「谨慎清理项」。";
+                NoVisibleRulesActionText = "展开谨慎项查看";
+                NoVisibleRulesHintBg = "#FFFBEB";
+                NoVisibleRulesHintBorder = "#FDE68A";
+                NoVisibleRulesHintFg = "#B45309";
+                _noVisibleRulesActionKind = NoVisibleRulesActionKind.ShowCautionItems;
+                return;
+            }
+
+            // 2. 当前分类下为空，但该磁盘在其他可见分类有可清理项
+            if (cat is not null && nonCautionOtherCatHits.Length > 0)
+            {
+                long otherBytes = nonCautionOtherCatHits.Sum(r => r.GetBytesForDrive(drive));
+                string sizePart = otherBytes > 0 ? FileStatsService.FormatBytes(otherBytes) : $"{nonCautionOtherCatHits.Length} 项";
+                NoVisibleRulesHintText = string.IsNullOrWhiteSpace(drive)
+                    ? $"「{catTitle}」下暂无可清理项，其他分类下仍有 {sizePart} 可清理内容。"
+                    : $"「{catTitle}」在 {drive} 下暂无可清理项，但 {drive} 在其他分类下检测到 {sizePart} 可清理内容。";
+                NoVisibleRulesActionText = "切到全部分类查看";
+                NoVisibleRulesHintBg = "#F0F7FF";
+                NoVisibleRulesHintBorder = "#BFDBFE";
+                NoVisibleRulesHintFg = "#0078D4";
+                _noVisibleRulesActionKind = NoVisibleRulesActionKind.SwitchToAllCategories;
+                return;
+            }
+
+            // 3. 当前分类下为空，且该磁盘仅在默认折叠的「谨慎清理项」中有内容
+            if (cat is not null && cautionHits.Length > 0)
+            {
+                long cautionBytes = cautionHits.Sum(r => r.GetBytesForDrive(drive));
+                string sizePart = cautionBytes > 0 ? FileStatsService.FormatBytes(cautionBytes) : $"{cautionHits.Length} 项";
+                NoVisibleRulesHintText = string.IsNullOrWhiteSpace(drive)
+                    ? $"「{catTitle}」下暂无可清理项；检测到 {sizePart} 属于默认折叠的「谨慎清理项」。"
+                    : $"「{catTitle}」在 {drive} 下暂无可清理项；{drive} 的 {sizePart} 均属于默认折叠的「谨慎清理项」（如回收站）。";
+                NoVisibleRulesActionText = "切到谨慎清理项查看";
+                NoVisibleRulesHintBg = "#FFFBEB";
+                NoVisibleRulesHintBorder = "#FDE68A";
+                NoVisibleRulesHintFg = "#B45309";
+                _noVisibleRulesActionKind = NoVisibleRulesActionKind.SwitchToCautionCategory;
+                return;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(drive))
+        {
+            NoVisibleRulesHintText = $"磁盘 {drive} 下未检测到可清理缓存文件，空间已很干净。";
+            NoVisibleRulesActionText = "查看全部磁盘";
+            NoVisibleRulesHintBg = "#F8FAFC";
+            NoVisibleRulesHintBorder = "#E2E8F0";
+            NoVisibleRulesHintFg = "#64748B";
+            _noVisibleRulesActionKind = NoVisibleRulesActionKind.ClearDriveFilter;
+            return;
+        }
+
+        NoVisibleRulesHintText = "当前分类下未检测到可清理缓存文件，系统或软件已经很干净。";
+        NoVisibleRulesActionText = string.Empty;
+        NoVisibleRulesHintBg = "#F8FAFC";
+        NoVisibleRulesHintBorder = "#E2E8F0";
+        NoVisibleRulesHintFg = "#64748B";
+        _noVisibleRulesActionKind = NoVisibleRulesActionKind.None;
+    }
+
+    [RelayCommand]
+    private void ResolveNoVisibleRulesHint()
+    {
+        switch (_noVisibleRulesActionKind)
+        {
+            case NoVisibleRulesActionKind.ShowCautionItems:
+                ShowCautionItems = true;
+                RebuildVisibleRules();
+                break;
+
+            case NoVisibleRulesActionKind.SwitchToAllCategories:
+                SelectedCategoryFilter = null;
+                foreach (CleanupCategoryNavItem item in CategoryNavItems) item.IsSelected = false;
+                RebuildVisibleRules();
+                break;
+
+            case NoVisibleRulesActionKind.SwitchToCautionCategory:
+                SelectedCategoryFilter = CleanupCategory.CautionItems;
+                ShowCautionItems = true;
+                foreach (CleanupCategoryNavItem item in CategoryNavItems)
+                {
+                    item.IsSelected = item.Category == CleanupCategory.CautionItems;
+                }
+                RebuildVisibleRules();
+                break;
+
+            case NoVisibleRulesActionKind.ClearDriveFilter:
+                SelectedDriveFilter = null;
+                foreach (CleanupDriveFilterChip chip in DriveFilterChips)
+                {
+                    chip.IsSelected = chip.DriveLabel is null;
+                }
+                RebuildVisibleRules();
+                break;
         }
     }
 

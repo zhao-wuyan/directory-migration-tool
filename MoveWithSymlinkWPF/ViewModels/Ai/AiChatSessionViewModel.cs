@@ -1074,11 +1074,106 @@ public partial class AiChatSessionViewModel : ObservableObject
 
     internal void SyncExternalCleanupSnapshot(CleanupScanSnapshot snapshot)
     {
+        var ruleById = new Dictionary<string, CleanupRuleScanResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (CleanupRuleScanResult r in snapshot.Rules)
+        {
+            ruleById[r.Rule.RuleId] = r;
+        }
+
         foreach (AiConversationTurnItem turn in ConversationTurns)
         {
             foreach (AiScanActionCardItem card in turn.ScanActionCards)
             {
                 card.ApplyExternalCleanupSnapshot(snapshot);
+            }
+
+            foreach (AiProposalCardItem card in turn.ProposalCards)
+            {
+                if (!card.IsCleanupRuleAdvice || card.IsBlockedByPolicy || string.IsNullOrWhiteSpace(card.RuleId))
+                {
+                    continue;
+                }
+
+                if (!ruleById.TryGetValue(card.RuleId, out CleanupRuleScanResult? liveRule))
+                {
+                    continue;
+                }
+
+                bool hasRemaining = liveRule.IsAvailable || liveRule.TotalBytes > 0 || liveRule.MatchedCount > 0;
+                if (!hasRemaining)
+                {
+                    card.IsCleanupRuleSelected = false;
+                    if (!card.IsCleanupRuleCleaned)
+                    {
+                        card.CleanupRuleCleanedStatusText = "✓ 已清理";
+                    }
+                    card.IsCleanupRuleCleaned = true;
+                }
+                else if (liveRule.TotalBytes > 0 && card.IsCleanupRuleCleaned)
+                {
+                    card.IsCleanupRuleCleaned = false;
+                }
+            }
+        }
+    }
+
+    internal void SyncExternalCleanupExecution(CleanupScanSnapshot updatedSnapshot, CleanupExecutionResult executionResult)
+    {
+        var postRules = new Dictionary<string, CleanupRuleScanResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (CleanupRuleScanResult r in updatedSnapshot.Rules)
+        {
+            postRules[r.Rule.RuleId] = r;
+        }
+
+        var execByRuleId = new Dictionary<string, CleanupExecutionItemResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (CleanupExecutionItemResult item in executionResult.Items)
+        {
+            if (!string.IsNullOrWhiteSpace(item.TargetId))
+            {
+                execByRuleId[item.TargetId] = item;
+            }
+        }
+
+        foreach (AiConversationTurnItem turn in ConversationTurns)
+        {
+            foreach (AiProposalCardItem card in turn.ProposalCards)
+            {
+                if (!card.IsCleanupRuleAdvice || card.IsBlockedByPolicy || string.IsNullOrWhiteSpace(card.RuleId))
+                {
+                    continue;
+                }
+
+                if (!execByRuleId.TryGetValue(card.RuleId, out CleanupExecutionItemResult? execItem))
+                {
+                    continue;
+                }
+
+                bool executed = execItem.Status is CleanupItemExecutionStatus.Quarantined
+                    or CleanupItemExecutionStatus.Recycled
+                    or CleanupItemExecutionStatus.ReclaimedByOfficialApi;
+                if (!executed)
+                {
+                    continue;
+                }
+
+                card.IsCleanupRuleSelected = false;
+
+                postRules.TryGetValue(card.RuleId, out CleanupRuleScanResult? postRule);
+                bool postHasRemaining = postRule is not null
+                    && (postRule.IsAvailable || postRule.TotalBytes > 0 || postRule.MatchedCount > 0);
+                bool officialZeroSizeReclaimed = execItem.Status == CleanupItemExecutionStatus.ReclaimedByOfficialApi
+                    && (postRule is null || (postRule.Rule.Channel == CleanupExecutionChannel.OfficialSystemApi && postRule.TotalBytes == 0));
+
+                if (!postHasRemaining || officialZeroSizeReclaimed)
+                {
+                    card.CleanupRuleCleanedStatusText = execItem.Status switch
+                    {
+                        CleanupItemExecutionStatus.Quarantined => "✓ 已同卷隔离",
+                        CleanupItemExecutionStatus.Recycled => "✓ 已移入回收站",
+                        _ => "✓ 已清理"
+                    };
+                    card.IsCleanupRuleCleaned = true;
+                }
             }
         }
     }
