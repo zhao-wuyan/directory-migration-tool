@@ -1,0 +1,42 @@
+MigrationCore/Models/Cleanup/CleanupModels.cs
+  h_867dc18f6ff205 225,227,229,235-238,244-247,252-337
+MoveWithSymlinkWPF/MainWindow.xaml
+  h_867dc18f6ff205 2-20,22-29,31-35,37-41,43-64,66-71,73-163,166-224,226-400,402-403,406-504,506-511,513-530,532-534,536-543,545-551,553-569,571-632,634-652,654-668,670-688,690-711,713-720,722-732,734-739,741-815,817-835,837-851,853-871,873-891,893,895-897,899-945,947-1035,1037-1125,1127-1159,1161-1163,1165-1222,1224-1225,1227-1231,1233-1237,1239-1243,1245-1257,1259-1286
+MoveWithSymlinkWPF/ViewModels/Ai/AiChatSessionViewModel.cs
+  h_867dc18f6ff205 1077-1082,1089-1177
+MoveWithSymlinkWPF/ViewModels/Ai/AiProposalReviewViewModel.cs
+  h_867dc18f6ff205 1,4,12-27,33,97-101,106-108,124-137,142-146,151-152,166,168,174-182,200-202,208-210,213-215,235-236,336-338,340-345,420,437-442,594,618-637
+MoveWithSymlinkWPF/ViewModels/Ai/AiTimelineItemViewModels.cs
+  h_867dc18f6ff205 145-158,178,185,221-239,775-776
+MoveWithSymlinkWPF/ViewModels/AiAssistantViewModel.cs
+  h_867dc18f6ff205 592-611
+MoveWithSymlinkWPF/ViewModels/Cleanup/CleanupItemViewModels.cs
+  h_867dc18f6ff205 197-201,214-215
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.ExecutionAndQuarantine.cs
+  h_867dc18f6ff205 104
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.ScanAndOverview.cs
+  h_867dc18f6ff205 871,873
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.cs
+  h_867dc18f6ff205 341-351,355-372,816-817,843-851,867,1043,1054-1186
+MoveWithSymlinkWPF/Views/AiProposalReviewWindow.xaml
+  h_867dc18f6ff205 205-250,252-253,255-266,268-285,287,289-294,296-306,308-315,317-322,324-329,331-336
+MoveWithSymlinkWPF/Views/CleanupPage.xaml
+  h_867dc18f6ff205 571-572,615-617,619-632,635
+MoveWithSymlinkWPF/Views/CleanupPage.xaml.cs
+  h_867dc18f6ff205 6-7,21,31-99
+test/Phase1UnitTests/Phase3CleanupCases.cs
+  h_867dc18f6ff205 1540-1804
+wiki/entries/entry-81d3a87604.md
+  h_867dc18f6ff205 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a077531586a1b8cb6a2a268d613d0a632bcc8429",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
