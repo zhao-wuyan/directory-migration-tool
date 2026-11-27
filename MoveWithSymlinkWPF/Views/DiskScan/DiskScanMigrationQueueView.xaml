@@ -59,6 +59,8 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="8"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="6"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0" Text="{Binding UnifiedTargetRoot, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource FluentCompactTextBoxStyle}" Height="32"/>
@@ -68,6 +70,12 @@
                                     <Path Data="{StaticResource IconFolderOpen}" Width="13" Height="13" Stretch="Uniform" Stroke="#0F172A" StrokeThickness="1.8" Margin="0,0,5,0"/>
                                     <TextBlock Text="浏览"/>
                                 </StackPanel>
+                            </Button>
+                            <Button Grid.Column="4" Command="{Binding OpenUnifiedTargetInExplorerCommand}"
+                                    IsEnabled="{Binding HasUnifiedTargetRoot}"
+                                    Style="{StaticResource FluentIconButtonStyle}" Width="32" Height="32"
+                                    ToolTip="在资源管理器中打开目标根目录（尚未创建时打开已有上级目录）">
+                                <Path Data="{StaticResource IconExternalLink}" Width="14" Height="14" Stretch="Uniform" Stroke="#475569" StrokeThickness="1.8"/>
                             </Button>
                         </Grid>
                     </StackPanel>
@@ -104,7 +112,8 @@
 
             <!-- QueueList：卡片式待迁列表 -->
             <ListView Grid.Row="2" ItemsSource="{Binding PlanItems}" BorderThickness="0" Background="Transparent"
-                      VirtualizingPanel.IsVirtualizing="True" ScrollViewer.CanContentScroll="True"
+                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                      ScrollViewer.CanContentScroll="True"
                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,10">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
@@ -148,17 +157,40 @@
                                     </StackPanel>
                                 </DockPanel>
 
-                                <!-- 路径流 -->
-                                <Border Background="#F8FAFC" CornerRadius="6" Padding="10,6">
+                                <!-- 路径流（支持一键打开源目录与目标目录） -->
+                                <Border Background="#F8FAFC" CornerRadius="6" Padding="10,5">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding SourcePath}" FontSize="11.5" Foreground="#334155" TextTrimming="CharacterEllipsis" ToolTip="{Binding SourcePath}"/>
-                                        <Path Grid.Column="1" Data="{StaticResource IconArrowRight}" Width="13" Height="13" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8" Margin="8,0"/>
-                                        <TextBlock Grid.Column="2" Text="{Binding TargetPath}" FontSize="11.5" FontWeight="Medium" Foreground="#0078D4" TextTrimming="CharacterEllipsis" ToolTip="{Binding TargetPath}"/>
+                                        <DockPanel Grid.Column="0" LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Command="{Binding OpenSourceInExplorerCommand}"
+                                                    IsEnabled="{Binding HasSourcePath}"
+                                                    Style="{StaticResource FluentIconButtonStyle}"
+                                                    Width="22" Height="22" Margin="6,0,0,0"
+                                                    ToolTip="在资源管理器中打开源目录">
+                                                <Path Data="{StaticResource IconFolderOpen}" Width="13" Height="13" Stretch="Uniform" Stroke="#64748B" StrokeThickness="1.8"/>
+                                            </Button>
+                                            <TextBlock Text="{Binding SourcePath}" FontSize="11.5" Foreground="#334155"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding SourcePath}"/>
+                                        </DockPanel>
+                                        <Path Grid.Column="1" Data="{StaticResource IconArrowRight}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="#0078D4" StrokeThickness="1.8" Margin="8,0" VerticalAlignment="Center"/>
+                                        <DockPanel Grid.Column="2" LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Command="{Binding OpenTargetInExplorerCommand}"
+                                                    IsEnabled="{Binding HasTargetPath}"
+                                                    Style="{StaticResource FluentIconButtonStyle}"
+                                                    Width="22" Height="22" Margin="6,0,0,0"
+                                                    ToolTip="在资源管理器中打开目标目录（尚未创建时打开已有上级目录）">
+                                                <Path Data="{StaticResource IconFolderOpen}" Width="13" Height="13" Stretch="Uniform" Stroke="#0078D4" StrokeThickness="1.8"/>
+                                            </Button>
+                                            <TextBlock Text="{Binding TargetPath}" FontSize="11.5" FontWeight="Medium" Foreground="#0078D4"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding TargetPath}"/>
+                                        </DockPanel>
                                     </Grid>
                                 </Border>
 

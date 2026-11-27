@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
@@ -6,8 +7,20 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MigrationCore.Models;
 using MigrationCore.Models.Cleanup;
+using MigrationCore.Services.Scanning;
 
 namespace MigrationCore.Services.Cleanup;
+
+/// <summary>
+/// 隔离区移动单元（支持单文件、整目录原子移入及目录被占用时的逐文件降级回退清单）。
+/// </summary>
+internal sealed record QuarantineMoveUnit(
+    string FullPath,
+    long SizeBytes,
+    bool IsDirectory,
+    ulong FileId,
+    int LogicalFileCount = 1,
+    IReadOnlyList<(string FullPath, long SizeBytes, ulong FileId)>? FallbackFiles = null);
 
 /// <summary>
 /// 按卷受 ACL 保护的同卷隔离区管理器（&lt;Drive&gt;:\.MoveFolderQuarantine）。
@@ -181,6 +194,8 @@ public sealed class QuarantineStore
             IsQuarantineDirectoryMissing: batchMissing);
     }
 
+    private const int ShardBucketSize = 512;
+
     /// <summary>
     /// 将一组位于同一卷上的文件或目录原子移入同卷隔离区（支持 \\?\ 长路径与短 ID 映射）。
     /// 跨卷对象、重解析点或被占用文件将记录跳过/失败并保留原位置，绝不跨卷复制删源。
@@ -197,15 +212,50 @@ public sealed class QuarantineStore
         ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
         ArgumentNullException.ThrowIfNull(items);
 
+        var units = new QuarantineMoveUnit[items.Count];
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            units[i] = new QuarantineMoveUnit(item.FullPath, item.SizeBytes, item.IsDirectory, item.FileId, LogicalFileCount: 1);
+        }
+
+        return QuarantineMoveUnitsSameVolumeAsync(
+            displayTitle,
+            sourceDisplaySummary,
+            ruleId,
+            isFromAiSuspectedResidual,
+            units,
+            ct,
+            progress);
+    }
+
+    /// <summary>
+    /// 批量移入同卷隔离区核心引擎：
+    /// 1. 支持整棵干净子目录 O(1) 原子重命名，若目录内存在被占用文件则自动无感回退为逐文件隔离；
+    /// 2. 超过单桶上限或并发执行时自动分桶（data\b000\e000001），规避 NTFS/ReFS/exFAT 单目录数万项索引退化；
+    /// 3. 自动探测 SSD/HDD 与文件系统类型，在 SSD 上启用受控多线程并发 MoveFileExW 掩盖过滤驱动延迟，HDD 保持单线程。
+    /// </summary>
+    internal Task<(QuarantineBatchRecord? Batch, int MovedCount, int FailedCount, long MovedBytes, string[] Details)> QuarantineMoveUnitsSameVolumeAsync(
+        string displayTitle,
+        string sourceDisplaySummary,
+        string? ruleId,
+        bool isFromAiSuspectedResidual,
+        IReadOnlyList<QuarantineMoveUnit> units,
+        CancellationToken ct = default,
+        IProgress<(int Done, int Total, long MovedBytes)>? progress = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
+        ArgumentNullException.ThrowIfNull(units);
+
         return Task.Run(() =>
         {
-            var details = new List<string>();
-            if (items.Count == 0)
+            var details = new ConcurrentQueue<string>();
+            if (units.Count == 0)
             {
-                return ((QuarantineBatchRecord?)null, 0, 0, 0L, details.ToArray());
+                return ((QuarantineBatchRecord?)null, 0, 0, 0L, Array.Empty<string>());
             }
 
-            string firstNormalized = PathIdentityService.Normalize(items[0].FullPath);
+            string firstNormalized = PathIdentityService.Normalize(units[0].FullPath);
             string driveRoot = firstNormalized[..3];
             string quarantineRoot = ResolveQuarantineRootForPath(firstNormalized);
             EnsureProtectedQuarantineRoot(quarantineRoot);
@@ -222,96 +272,332 @@ public sealed class QuarantineStore
             string payloadDir = Path.Combine(batchDir, "data");
             Directory.CreateDirectory(ToExtendedPath(payloadDir));
 
-            var movedEntries = new List<QuarantineEntryRecord>(items.Count);
-            int failed = 0;
-            long movedBytes = 0;
-            int seq = 0;
-            int processed = 0;
-            int totalItems = items.Count;
-            long lastReportTick = Environment.TickCount64;
-
-            foreach (var item in items)
+            int workerCount = ResolveMoveWorkerCount(driveRoot, units.Count);
+            bool useSharding = units.Count > ShardBucketSize || workerCount > 1;
+            int totalLogicalFiles = 0;
+            for (int i = 0; i < units.Count; i++)
             {
-                ct.ThrowIfCancellationRequested();
-                processed++;
+                totalLogicalFiles += Math.Max(1, units[i].LogicalFileCount);
+            }
+
+            var movedEntries = new ConcurrentBag<QuarantineEntryRecord>();
+            var verifiedParentCache = new ConcurrentDictionary<string, (bool Exists, bool SafeSameVolume, string VolumeGuid)>(StringComparer.OrdinalIgnoreCase);
+            var createdBuckets = new ConcurrentDictionary<int, byte>();
+            object bucketCreateLock = new();
+            int seqCounter = 0;
+            int movedLogicalCount = 0;
+            int failedCount = 0;
+            long movedBytesAtomic = 0;
+            int processedLogicalCount = 0;
+            long lastReportTick = Environment.TickCount64;
+            object progressGate = new();
+
+            void ReportProgressIfDue(int logicalDelta)
+            {
+                int doneNow = Interlocked.Add(ref processedLogicalCount, logicalDelta);
+                if (progress is null) return;
+                long nowTick = Environment.TickCount64;
+                if (doneNow >= totalLogicalFiles || (doneNow % 64) == 0 || nowTick - Volatile.Read(ref lastReportTick) >= 80)
+                {
+                    lock (progressGate)
+                    {
+                        nowTick = Environment.TickCount64;
+                        if (doneNow >= totalLogicalFiles || nowTick - lastReportTick >= 80)
+                        {
+                            lastReportTick = nowTick;
+                            progress.Report((Math.Min(doneNow, totalLogicalFiles), totalLogicalFiles, Volatile.Read(ref movedBytesAtomic)));
+                        }
+                    }
+                }
+            }
+
+            (string ShortId, string RelativePayload, string DestPath) AllocatePayloadSlot()
+            {
+                int seq = Interlocked.Increment(ref seqCounter);
+                string shortId = $"e{seq:D6}";
+                if (!useSharding)
+                {
+                    string rel = Path.Combine("data", shortId);
+                    return (shortId, rel, Path.Combine(batchDir, rel));
+                }
+
+                int bucketId = (seq - 1) / ShardBucketSize;
+                string bucketName = $"b{bucketId:D3}";
+                if (!createdBuckets.ContainsKey(bucketId))
+                {
+                    lock (bucketCreateLock)
+                    {
+                        if (!createdBuckets.ContainsKey(bucketId))
+                        {
+                            Directory.CreateDirectory(ToExtendedPath(Path.Combine(payloadDir, bucketName)));
+                            createdBuckets[bucketId] = 1;
+                        }
+                    }
+                }
+                string relative = Path.Combine("data", bucketName, shortId);
+                return (shortId, relative, Path.Combine(batchDir, relative));
+            }
+
+            (bool Exists, bool SafeSameVolume, string VolumeGuid) GetParentState(string parentDir)
+            {
+                return verifiedParentCache.GetOrAdd(parentDir, dir =>
+                {
+                    DirectoryIdentity? parentId;
+                    try
+                    {
+                        parentId = _identity.ReadIfExists(dir);
+                    }
+                    catch
+                    {
+                        parentId = null;
+                    }
+
+                    if (parentId is null)
+                    {
+                        return (Exists: false, SafeSameVolume: false, VolumeGuid: string.Empty);
+                    }
+
+                    bool safeSameVol = parentId.IsDirectory
+                        && !parentId.IsReparsePoint
+                        && string.Equals(parentId.VolumeGuid, quarantineRootId.VolumeGuid, StringComparison.OrdinalIgnoreCase);
+                    return (Exists: true, SafeSameVolume: safeSameVol, VolumeGuid: parentId.VolumeGuid);
+                });
+            }
+
+            bool TryMoveSingleEntry(
+                string fullPath,
+                long sizeBytes,
+                bool isDirectoryHint,
+                ulong fileIdHint,
+                int logicalCount,
+                bool allowSilentFallbackOnError)
+            {
                 string src;
                 try
                 {
-                    src = PathIdentityService.Normalize(item.FullPath);
+                    src = PathIdentityService.Normalize(fullPath);
                 }
                 catch (Exception ex)
                 {
-                    failed++;
-                    details.Add($"路径无效跳过：{item.FullPath}（{ex.Message}）");
-                    continue;
+                    if (!allowSilentFallbackOnError)
+                    {
+                        Interlocked.Increment(ref failedCount);
+                        details.Enqueue($"路径无效跳过：{fullPath}（{ex.Message}）");
+                    }
+                    return false;
                 }
 
-                DirectoryIdentity? srcId = _identity.ReadIfExists(src);
-                if (srcId is null)
+                string extendedSrc = ToExtendedPath(src);
+                bool entryIsDirectory;
+                ulong entryFileId;
+                string entryVolumeGuid;
+
+                string? parentDir = Path.GetDirectoryName(src);
+                if (!string.IsNullOrEmpty(parentDir))
                 {
-                    details.Add($"已消失安全跳过：{src}");
-                    continue;
-                }
+                    var parentState = GetParentState(parentDir);
+                    if (!parentState.Exists)
+                    {
+                        if (!allowSilentFallbackOnError)
+                        {
+                            details.Enqueue($"已消失安全跳过：{src}");
+                        }
+                        return false;
+                    }
 
-                if (srcId.IsReparsePoint)
+                    if (!parentState.SafeSameVolume)
+                    {
+                        if (!allowSilentFallbackOnError)
+                        {
+                            Interlocked.Increment(ref failedCount);
+                            details.Enqueue($"安全拦截（父目录重解析点或非同卷对象，不执行跨卷复制删源）：{src}");
+                        }
+                        return false;
+                    }
+
+                    if (!isDirectoryHint && fileIdHint != 0)
+                    {
+                        // 已核验父目录非重解析点且同卷、且调用方已绑定实时 FileId：单次 GetFileAttributesW 快速拦截重解析点与已消失文件，
+                        // 内核 MoveFileExW(flags=0) 亦硬性保证同卷原子移动（NTFS/ReFS/exFAT 均适用）
+                        uint attrs = GetFileAttributesW(extendedSrc);
+                        if (attrs == InvalidFileAttributes)
+                        {
+                            if (!allowSilentFallbackOnError)
+                            {
+                                details.Enqueue($"已消失安全跳过：{src}");
+                            }
+                            return false;
+                        }
+
+                        if ((attrs & FileAttributeReparsePoint) != 0)
+                        {
+                            if (!allowSilentFallbackOnError)
+                            {
+                                Interlocked.Increment(ref failedCount);
+                                details.Enqueue($"安全拦截（重解析点）：{src}");
+                            }
+                            return false;
+                        }
+
+                        entryIsDirectory = (attrs & FileAttributeDirectory) != 0;
+                        entryFileId = fileIdHint;
+                        entryVolumeGuid = parentState.VolumeGuid;
+                    }
+                    else
+                    {
+                        DirectoryIdentity? srcId = _identity.ReadDirectIfExists(src);
+                        if (srcId is null)
+                        {
+                            if (!allowSilentFallbackOnError)
+                            {
+                                details.Enqueue($"已消失安全跳过：{src}");
+                            }
+                            return false;
+                        }
+
+                        if (srcId.IsReparsePoint)
+                        {
+                            if (!allowSilentFallbackOnError)
+                            {
+                                Interlocked.Increment(ref failedCount);
+                                details.Enqueue($"安全拦截（重解析点）：{src}");
+                            }
+                            return false;
+                        }
+
+                        if (!string.Equals(srcId.VolumeGuid, quarantineRootId.VolumeGuid, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!allowSilentFallbackOnError)
+                            {
+                                Interlocked.Increment(ref failedCount);
+                                details.Enqueue($"安全拦截（非同卷对象，不执行跨卷复制删源）：{src}");
+                            }
+                            return false;
+                        }
+
+                        entryIsDirectory = srcId.IsDirectory;
+                        entryFileId = fileIdHint != 0 ? fileIdHint : srcId.FileId;
+                        entryVolumeGuid = srcId.VolumeGuid;
+                    }
+                }
+                else
                 {
-                    failed++;
-                    details.Add($"安全拦截（重解析点）：{src}");
-                    continue;
+                    DirectoryIdentity? srcId = _identity.ReadIfExists(src);
+                    if (srcId is null)
+                    {
+                        if (!allowSilentFallbackOnError)
+                        {
+                            details.Enqueue($"已消失安全跳过：{src}");
+                        }
+                        return false;
+                    }
+
+                    if (srcId.IsReparsePoint)
+                    {
+                        if (!allowSilentFallbackOnError)
+                        {
+                            Interlocked.Increment(ref failedCount);
+                            details.Enqueue($"安全拦截（重解析点）：{src}");
+                        }
+                        return false;
+                    }
+
+                    if (!string.Equals(srcId.VolumeGuid, quarantineRootId.VolumeGuid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!allowSilentFallbackOnError)
+                        {
+                            Interlocked.Increment(ref failedCount);
+                            details.Enqueue($"安全拦截（非同卷对象，不执行跨卷复制删源）：{src}");
+                        }
+                        return false;
+                    }
+
+                    entryIsDirectory = srcId.IsDirectory;
+                    entryFileId = fileIdHint != 0 ? fileIdHint : srcId.FileId;
+                    entryVolumeGuid = srcId.VolumeGuid;
                 }
 
-                // 强制同卷检查（VolumeGuid 必须一致，绝不跨卷复制删源）
-                if (!string.Equals(srcId.VolumeGuid, quarantineRootId.VolumeGuid, StringComparison.OrdinalIgnoreCase))
-                {
-                    failed++;
-                    details.Add($"安全拦截（非同卷对象，不执行跨卷复制删源）：{src}");
-                    continue;
-                }
-
-                seq++;
-                string shortId = $"e{seq:D6}";
-                string relativePayload = Path.Combine("data", shortId);
-                string destPath = Path.Combine(batchDir, relativePayload);
+                var (shortId, relativePayload, destPath) = AllocatePayloadSlot();
 
                 // 使用 Win32 MoveFileExW（flags = 0，不设 MOVEFILE_COPY_ALLOWED）确保内核级同卷原子重命名
-                if (!MoveFileExW(ToExtendedPath(src), ToExtendedPath(destPath), 0))
+                if (!MoveFileExW(extendedSrc, ToExtendedPath(destPath), 0))
                 {
-                    int win32Err = Marshal.GetLastWin32Error();
-                    failed++;
-                    string reason = win32Err is 32 or 33
-                        ? "文件正被其他程序占用"
-                        : new Win32Exception(win32Err).Message;
-                    details.Add($"保留原文件（未能移入隔离区）：{src}（{reason}）");
-                    continue;
+                    if (!allowSilentFallbackOnError)
+                    {
+                        int win32Err = Marshal.GetLastWin32Error();
+                        Interlocked.Increment(ref failedCount);
+                        string reason = win32Err is 32 or 33
+                            ? "文件正被其他程序占用"
+                            : new Win32Exception(win32Err).Message;
+                        details.Enqueue($"保留原文件（未能移入隔离区）：{src}（{reason}）");
+                    }
+                    return false;
                 }
 
                 movedEntries.Add(new QuarantineEntryRecord(
                     ShortId: shortId,
                     OriginalFullPath: src,
                     QuarantinedRelativePath: relativePayload,
-                    SizeBytes: item.SizeBytes,
-                    IsDirectory: srcId.IsDirectory,
-                    OriginalFileId: item.FileId != 0 ? item.FileId : srcId.FileId,
-                    OriginalVolumeGuid: srcId.VolumeGuid));
-                movedBytes += item.SizeBytes;
+                    SizeBytes: sizeBytes,
+                    IsDirectory: entryIsDirectory,
+                    OriginalFileId: entryFileId,
+                    OriginalVolumeGuid: entryVolumeGuid));
+                Interlocked.Add(ref movedLogicalCount, Math.Max(1, logicalCount));
+                Interlocked.Add(ref movedBytesAtomic, sizeBytes);
+                return true;
+            }
 
-                if (progress is not null)
+            void ProcessUnit(QuarantineMoveUnit unit)
+            {
+                ct.ThrowIfCancellationRequested();
+                bool hasFallback = unit.IsDirectory && unit.FallbackFiles is { Count: > 0 };
+                if (TryMoveSingleEntry(unit.FullPath, unit.SizeBytes, unit.IsDirectory, unit.FileId, unit.LogicalFileCount, allowSilentFallbackOnError: hasFallback))
                 {
-                    long nowTick = Environment.TickCount64;
-                    if (processed == totalItems || processed % 40 == 0 || nowTick - lastReportTick >= 80)
-                    {
-                        lastReportTick = nowTick;
-                        progress.Report((processed, totalItems, movedBytes));
-                    }
+                    ReportProgressIfDue(Math.Max(1, unit.LogicalFileCount));
+                    return;
+                }
+
+                if (!hasFallback)
+                {
+                    ReportProgressIfDue(Math.Max(1, unit.LogicalFileCount));
+                    return;
+                }
+
+                // 整目录移动失败（常见于目录内个别文件被进程占用）：无缝降级回退为逐文件移入隔离区，避免漏清未占用文件
+                foreach (var fallback in unit.FallbackFiles!)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    TryMoveSingleEntry(fallback.FullPath, fallback.SizeBytes, isDirectoryHint: false, fallback.FileId, logicalCount: 1, allowSilentFallbackOnError: false);
+                    ReportProgressIfDue(1);
                 }
             }
 
-            if (movedEntries.Count == 0)
+            if (workerCount <= 1)
             {
-                TryDeleteEmptyBatchDir(batchDir);
-                return ((QuarantineBatchRecord?)null, 0, failed, 0L, details.ToArray());
+                for (int i = 0; i < units.Count; i++)
+                {
+                    ProcessUnit(units[i]);
+                }
+            }
+            else
+            {
+                Parallel.ForEach(
+                    units,
+                    new ParallelOptions { MaxDegreeOfParallelism = workerCount, CancellationToken = ct },
+                    ProcessUnit);
             }
 
+            QuarantineEntryRecord[] finalEntries = movedEntries
+                .OrderBy(e => e.ShortId, StringComparer.Ordinal)
+                .ToArray();
+
+            if (finalEntries.Length == 0)
+            {
+                TryDeleteEmptyBatchDir(batchDir);
+                return ((QuarantineBatchRecord?)null, 0, failedCount, 0L, details.ToArray());
+            }
+
+            long finalMovedBytes = Volatile.Read(ref movedBytesAtomic);
             var batch = new QuarantineBatchRecord(
                 SchemaVersion: 1,
                 BatchId: batchId,
@@ -322,13 +608,46 @@ public sealed class QuarantineStore
                 RuleId: ruleId,
                 IsFromAiSuspectedResidual: isFromAiSuspectedResidual,
                 CreatedAtUtc: DateTimeOffset.UtcNow,
-                TotalBytes: movedBytes,
-                ItemCount: movedEntries.Count,
-                Entries: movedEntries.ToArray());
+                TotalBytes: finalMovedBytes,
+                ItemCount: finalEntries.Length,
+                Entries: finalEntries);
 
             WriteManifestAtomically(batchDir, batch);
-            return (batch, movedEntries.Count, failed, movedBytes, details.ToArray());
+            return (batch, Volatile.Read(ref movedLogicalCount), failedCount, finalMovedBytes, details.ToArray());
         }, ct);
+    }
+
+    private static int ResolveMoveWorkerCount(string driveRoot, int unitCount)
+    {
+        if (unitCount < 16)
+        {
+            return 1;
+        }
+
+        StorageMediaKind media = StorageMediaDetector.Detect(driveRoot);
+        if (media != StorageMediaKind.Ssd)
+        {
+            return 1;
+        }
+
+        bool isNtfs = true;
+        try
+        {
+            var di = new DriveInfo(driveRoot);
+            if (di.IsReady)
+            {
+                isNtfs = string.Equals(di.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch
+        {
+        }
+
+        int cpu = Environment.ProcessorCount;
+        // NTFS SSD 启用 2~6 线程；ReFS/其他文件系统 SSD 采用更温和的 2~4 线程以契合写时复制元数据锁特性
+        return isNtfs
+            ? Math.Clamp(cpu / 2, 2, 6)
+            : Math.Clamp(cpu / 4, 2, 4);
     }
 
     /// <summary>
@@ -535,6 +854,9 @@ public sealed class QuarantineStore
             var remainingEntries = new List<QuarantineEntryRecord>();
             var details = new List<string>();
 
+            const int MaxColdPathLockProbesPerBatch = 20;
+            int lockProbeCount = 0;
+
             foreach (QuarantineEntryRecord entry in batch.Entries)
             {
                 ct.ThrowIfCancellationRequested();
@@ -555,7 +877,21 @@ public sealed class QuarantineStore
                 {
                     failedCount++;
                     remainingEntries.Add(entry);
-                    details.Add($"删除失败（已保留）：{entry.OriginalFullPath}（{ex.Message}）");
+
+                    string lockNote = string.Empty;
+                    if (!entry.IsDirectory
+                        && lockProbeCount < MaxColdPathLockProbesPerBatch
+                        && (ex is UnauthorizedAccessException or IOException))
+                    {
+                        lockProbeCount++;
+                        LockingProcessInfo[] lockers = FileLockInspector.FindLockingProcesses(itemPath, maxResults: 3);
+                        if (lockers.Length > 0)
+                        {
+                            lockNote = $"正被进程占用：{string.Join("、", lockers.Select(l => l.DisplayLabel))}；";
+                        }
+                    }
+
+                    details.Add($"删除失败（已保留）：{entry.OriginalFullPath}（{lockNote}{ex.Message}）");
                 }
             }
 
@@ -770,9 +1106,21 @@ public sealed class QuarantineStore
             string ext = ToExtendedPath(batchDir);
             if (!Directory.Exists(ext)) return;
             string dataDir = ToExtendedPath(Path.Combine(batchDir, "data"));
-            if (Directory.Exists(dataDir) && !Directory.EnumerateFileSystemEntries(dataDir).Any())
+            if (Directory.Exists(dataDir))
             {
-                Directory.Delete(dataDir, recursive: false);
+                // 清理空的分桶子目录（如 data\b000\），保证完整恢复后批次目录不残留空壳
+                foreach (string bucketDir in Directory.EnumerateDirectories(dataDir))
+                {
+                    if (!Directory.EnumerateFileSystemEntries(bucketDir).Any())
+                    {
+                        Directory.Delete(bucketDir, recursive: false);
+                    }
+                }
+
+                if (!Directory.EnumerateFileSystemEntries(dataDir).Any())
+                {
+                    Directory.Delete(dataDir, recursive: false);
+                }
             }
             string manifest = ToExtendedPath(Path.Combine(batchDir, ManifestFileName));
             if (File.Exists(manifest)) File.Delete(manifest);
@@ -855,6 +1203,13 @@ public sealed class QuarantineStore
         return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
     }
 
+    private const uint InvalidFileAttributes = 0xFFFFFFFF;
+    private const uint FileAttributeDirectory = 0x00000010;
+    private const uint FileAttributeReparsePoint = 0x00000400;
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool MoveFileExW(string lpExistingFileName, string lpNewFileName, uint dwFlags);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFileAttributesW(string lpFileName);
 }

@@ -121,12 +121,15 @@ public partial class DiskScanViewModel
     [RelayCommand]
     private void OpenSelectedInExplorer()
     {
-        if (SelectedRow is null || !Directory.Exists(SelectedRow.FullPath)) return;
-        try
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{SelectedRow.FullPath}\"") { UseShellExecute = true });
-        }
-        catch { }
+        if (SelectedRow is null || !SelectedRow.CanOpenInExplorer) return;
+        ExplorerHelper.OpenInExplorer(SelectedRow.FullPath);
+    }
+
+    [RelayCommand]
+    private void OpenUnifiedTargetInExplorer()
+    {
+        if (string.IsNullOrWhiteSpace(UnifiedTargetRoot)) return;
+        ExplorerHelper.OpenInExplorer(UnifiedTargetRoot, fallbackToExistingAncestor: true);
     }
 
     [RelayCommand]
@@ -199,6 +202,11 @@ public partial class DiskScanViewModel
     private async Task ExecuteBatchAsync()
     {
         if (IsBatchExecuting || _frozenPlan is null || !CanStartBatch) return;
+        if (OperationExecutionGate.Shared.IsBusy)
+        {
+            CustomMessageBox.ShowWarning("当前有其他清理、迁移或备份操作正在执行，请等待完成后再启动批量迁移。", "操作互斥");
+            return;
+        }
 
         bool confirmed = CustomMessageBox.ShowQuestion(
             $"确认按冻结计划 #{_frozenPlan.PlanRevision} 串行迁移 {_frozenPlan.Items.Length} 个目录吗？\n\n" +

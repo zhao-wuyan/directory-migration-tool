@@ -86,6 +86,12 @@ public partial class CleanupRuleItemViewModel : ObservableObject
     public bool HasBlockingProcesses => ScanResult.HasBlockingProcesses;
     public bool IsAvailable => ScanResult.IsAvailable;
     public bool CanCheck => ScanResult.CanSelect;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCheckNow))]
+    private bool _isSelectionLocked;
+
+    public bool CanCheckNow => CanCheck && !IsSelectionLocked;
     public long TotalBytes => ScanResult.TotalBytes;
     public int MatchedCount => ScanResult.MatchedCount;
 
@@ -152,6 +158,12 @@ public partial class CleanupRuleItemViewModel : ObservableObject
 
     partial void OnIsCheckedChanged(bool value)
     {
+        if (IsSelectionLocked)
+        {
+            _isChecked = !value;
+            OnPropertyChanged(nameof(IsChecked));
+            return;
+        }
         if (value && !CanCheck)
         {
             _isChecked = false;
@@ -262,6 +274,12 @@ public partial class CleanupRuleGroupViewModel : ObservableObject
     public int CheckedCount { get; private set; }
     public int BlockedCount { get; private set; }
     public bool CanCheckGroup => SelectableCount > 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCheckGroupNow))]
+    private bool _isSelectionLocked;
+
+    public bool CanCheckGroupNow => CanCheckGroup && !IsSelectionLocked;
     public bool HasReclaimableContent => HitCount > 0 || TotalBytes > 0;
     public double CardOpacity => HasReclaimableContent ? 1.0 : 0.65;
 
@@ -285,11 +303,17 @@ public partial class CleanupRuleGroupViewModel : ObservableObject
     public string GroupDriveBadgeBorder => HasGroupNonSystemDrive ? "#BFDBFE" : "#E2E8F0";
     public string GroupDriveBadgeFg => HasGroupNonSystemDrive ? "#0078D4" : "#475569";
 
-    public CleanupRuleGroupViewModel(string groupId, string groupTitle, IEnumerable<CleanupRuleItemViewModel> items, bool isExpanded)
+    public CleanupRuleGroupViewModel(
+        string groupId,
+        string groupTitle,
+        IEnumerable<CleanupRuleItemViewModel> items,
+        bool isExpanded,
+        bool isSelectionLocked = false)
     {
         GroupId = groupId;
         GroupTitle = groupTitle;
         _isExpanded = isExpanded;
+        _isSelectionLocked = isSelectionLocked;
 
         foreach (CleanupRuleItemViewModel item in items)
         {
@@ -656,6 +680,12 @@ public partial class AiResidualCandidateRowViewModel : ObservableObject
     public bool IsQuarantined => Record.Status == AiCleanupCandidateStatus.Quarantined;
     public bool IsInvalidated => Record.Status == AiCleanupCandidateStatus.Invalidated;
     public bool CanCheck => Record.Status == AiCleanupCandidateStatus.PendingManualReview;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCheckNow))]
+    private bool _isSelectionLocked;
+
+    public bool CanCheckNow => CanCheck && !IsSelectionLocked;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CardBg))]

@@ -1,16 +1,20 @@
 using System.Windows;
-using System.Windows.Controls;
 using MigrationCore.Models.Cleanup;
 using MigrationCore.Services;
 using MigrationCore.Services.Cleanup;
+using MoveWithSymlinkWPF.Helpers;
 
 namespace MoveWithSymlinkWPF.Views;
 
 public partial class QuarantineDeleteConfirmWindow : Window
 {
     private readonly string _expectedPhrase = QuarantineStore.DeleteConfirmationPhrase;
+    private readonly QuarantineConfirmationPlan _plan;
+    private bool _confirmed;
 
-    public string EnteredPhrase => PhraseInputBox.Text.Trim();
+    public QuarantineConfirmationPlan ConfirmationPlan => _plan;
+
+    public string EnteredPhrase => _confirmed ? _expectedPhrase : string.Empty;
 
     private sealed record BatchPreviewRow(
         string DisplayTitle,
@@ -32,7 +36,8 @@ public partial class QuarantineDeleteConfirmWindow : Window
         }
 
         InitializeComponent();
-        ExpectedPhraseText.Text = _expectedPhrase;
+
+        _plan = ConfirmationPolicy.EvaluateQuarantineDelete(batches);
 
         int aiCount = batches.Count(b => b.IsFromAiSuspectedResidual);
         if (aiCount > 0)
@@ -66,24 +71,51 @@ public partial class QuarantineDeleteConfirmWindow : Window
                 MetaText: $"卷 {b.DriveRoot.TrimEnd('\\')} · {b.ItemCount:N0} 项 · {b.SourceDisplaySummary}",
                 SizeText: FileStatsService.FormatBytes(b.TotalBytes),
                 AiBadgeVisibility: b.IsFromAiSuspectedResidual ? Visibility.Visible : Visibility.Collapsed)).ToArray();
-            DeleteButton.Content = $"确认永久删除（{batches.Count} 批）";
+        }
+
+        DeleteHoldButton.HoldDurationSeconds = _plan.HoldSeconds;
+        DeleteHoldButton.IsHoldRequired = true;
+
+        if (_plan.RequiresCheckbox)
+        {
+            HighRiskConfirmCard.Visibility = Visibility.Visible;
+            StandardHoldHintText.Visibility = Visibility.Collapsed;
+            HighRiskReasonText.Text = $"高危确认（{string.Join(" · ", _plan.HighRiskReasons)}）：勾选下方确认后，按住右侧按钮 {_plan.HoldSeconds:0.0} 秒执行。";
+            HighRiskAckCheckBox.Content = batches.Count == 1
+                ? "我已核对以上隔离批次信息，确认永久删除且无法恢复"
+                : $"我已核对以上 {batches.Count} 个待删批次，确认永久删除且均无法恢复";
+            DeleteHoldButton.Label = batches.Count == 1
+                ? $"按住 {_plan.HoldSeconds:0.0} 秒永久删除"
+                : $"按住 {_plan.HoldSeconds:0.0} 秒删除（{batches.Count} 批）";
+            DeleteHoldButton.IsEnabled = false;
+        }
+        else
+        {
+            HighRiskConfirmCard.Visibility = Visibility.Collapsed;
+            StandardHoldHintText.Visibility = Visibility.Visible;
+            StandardHoldHintText.Text = $"防误触确认：按住右侧红色按钮 {_plan.HoldSeconds:0.0} 秒即可永久删除，中途松手随时取消。";
+            DeleteHoldButton.Label = $"按住 {_plan.HoldSeconds:0.0} 秒永久删除";
+            DeleteHoldButton.IsEnabled = true;
         }
     }
 
-    private void PhraseInputBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    private void HighRiskAckCheckBox_OnChanged(object sender, RoutedEventArgs e)
     {
-        DeleteButton.IsEnabled = string.Equals(PhraseInputBox.Text.Trim(), _expectedPhrase, StringComparison.Ordinal);
+        if (!_plan.RequiresCheckbox) return;
+        DeleteHoldButton.IsEnabled = HighRiskAckCheckBox.IsChecked == true;
     }
 
     private void CancelButton_OnClick(object sender, RoutedEventArgs e)
     {
+        _confirmed = false;
         DialogResult = false;
         Close();
     }
 
-    private void DeleteButton_OnClick(object sender, RoutedEventArgs e)
+    private void DeleteHoldButton_OnConfirmed(object? sender, EventArgs e)
     {
-        if (!string.Equals(PhraseInputBox.Text.Trim(), _expectedPhrase, StringComparison.Ordinal)) return;
+        if (_plan.RequiresCheckbox && HighRiskAckCheckBox.IsChecked != true) return;
+        _confirmed = true;
         DialogResult = true;
         Close();
     }

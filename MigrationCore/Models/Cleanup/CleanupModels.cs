@@ -42,7 +42,8 @@ public enum CleanupExecutionChannel
 }
 
 /// <summary>
-/// 通道 A 文件级清理的用户确认动作。绝不提供直接永久删除，绝不因回收站失败自动退化为永久删除。
+/// 通道 A 文件级清理的用户确认动作。
+/// 默认推荐同卷隔离区；移入回收站失败绝不自动降级永久删除；仅 1 档可重建推荐清理项支持用户显式选择直接永久删除。
 /// </summary>
 public enum CleanupFileAction
 {
@@ -50,7 +51,10 @@ public enum CleanupFileAction
     QuarantineSameVolume = 0,
 
     /// <summary>用户主动切换：通过 Windows Shell IFileOperation 移入回收站（不可回收时中止，绝不降级永久删除）。</summary>
-    RecycleBin = 1
+    RecycleBin = 1,
+
+    /// <summary>用户显式切换：仅对 1 档可重建推荐缓存直接永久删除以立即释放空间（2/3 档及 AI 残留硬拦截自动回退同卷隔离区）。</summary>
+    DirectPermanentDelete = 2
 }
 
 /// <summary>
@@ -142,7 +146,18 @@ public sealed record CleanupRuleDefinition(
     CleanupCautionReason? CautionReason = null,
     bool IsBrowserCacheRule = false,
     string? GroupId = null,
-    string? GroupDisplayName = null);
+    string? GroupDisplayName = null)
+{
+    /// <summary>
+    /// 单一事实源：仅 1 档「建议清理」且可重建、走通道 A、未强制锁定隔离区的内置规则允许用户显式选择「直接永久删除」。
+    /// 2 档按需项、3 档谨慎项与通道 B 规则均返回 false。
+    /// </summary>
+    public bool SupportsDirectPermanentDelete =>
+        Channel == CleanupExecutionChannel.FileQuarantine
+        && Tier == CleanupRecommendationTier.Recommended
+        && IsRebuildable
+        && !ForceSameVolumeQuarantineOnly;
+}
 
 /// <summary>
 /// 扫描进行中的单条规则实时命中摘要（用于驱动扫描中动态累计体积与实时大项榜单）。
@@ -352,7 +367,7 @@ public sealed record CleanupScanSnapshot(
     long CautionBytes);
 
 /// <summary>
-/// 清理执行单项结果状态：明确区分「已隔离（未释放空间）」「已移入回收站」「官方接口已回收」「跳过」「拦截」「失败」。
+/// 清理执行单项结果状态：明确区分「已隔离（未释放空间）」「已移入回收站」「官方接口已回收」「已直接删除释放」「跳过」「拦截」「失败」。
 /// </summary>
 public enum CleanupItemExecutionStatus
 {
@@ -361,7 +376,8 @@ public enum CleanupItemExecutionStatus
     ReclaimedByOfficialApi = 2,
     Skipped = 3,
     Blocked = 4,
-    Failed = 5
+    Failed = 5,
+    PermanentlyDeleted = 6
 }
 
 /// <summary>
@@ -409,7 +425,8 @@ public sealed record CleanupExecutionResult(
     long OfficialApiReclaimedBytes,
     int TotalSkippedCount,
     int TotalFailedCount,
-    string SummaryMessage);
+    string SummaryMessage,
+    long PermanentlyDeletedBytes = 0);
 
 /// <summary>
 /// 同卷隔离区内的单个文件/目录映射记录（采用短 ID 落盘防止 260 字符 MAX_PATH 溢出）。

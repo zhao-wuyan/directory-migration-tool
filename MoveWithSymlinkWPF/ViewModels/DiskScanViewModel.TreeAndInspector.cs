@@ -336,6 +336,8 @@ public partial class DiskScanViewModel
         bool isToolSelfProtected = false;
         DirectoryHintLevel hintLevel = DirectoryHintLevel.None;
         string hintToolTip = string.Empty;
+        string inlineSummary = string.Empty;
+        string summaryToolTip = string.Empty;
         string attrLabel = string.Empty;
         if (node.IsDirectory)
         {
@@ -356,10 +358,21 @@ public partial class DiskScanViewModel
                 isToolSelfProtected = preview.ReasonCodes.Contains(SafetyReasonCodes.L0SelfOrActiveTransaction, StringComparer.OrdinalIgnoreCase);
 
                 DirectoryExplanation? explanation = KnownDirectoryExplainer.Explain(fullPath, _catalog, preview);
-                if (explanation is { HintLevel: not DirectoryHintLevel.None })
+                if (explanation is not null)
                 {
-                    hintLevel = explanation.HintLevel;
-                    hintToolTip = KnownDirectoryExplainer.FormatHoverToolTip(explanation);
+                    if (!string.IsNullOrWhiteSpace(explanation.ShortSummary))
+                    {
+                        inlineSummary = explanation.ShortSummary;
+                        summaryToolTip = KnownDirectoryExplainer.FormatHoverToolTip(explanation);
+                    }
+
+                    if (explanation.HintLevel != DirectoryHintLevel.None)
+                    {
+                        hintLevel = explanation.HintLevel;
+                        hintToolTip = string.IsNullOrEmpty(summaryToolTip)
+                            ? KnownDirectoryExplainer.FormatHoverToolTip(explanation)
+                            : summaryToolTip;
+                    }
                 }
 
                 // O(1) 预聚合子树硬链接与不完整风险警示：在左侧目录树直接标出感叹号（不可迁外部硬链接/损坏）或信息图标（可无损重建内部硬链接）
@@ -454,6 +467,8 @@ public partial class DiskScanViewModel
             DirectoryCount = node.DirectoryCount,
             ParentSharePercent = share,
             AttributionLabel = attrLabel,
+            InlineSummary = inlineSummary,
+            SummaryToolTip = summaryToolTip,
             AdmissionLevel = level,
             IsToolSelfProtected = isToolSelfProtected,
             HintLevel = hintLevel,

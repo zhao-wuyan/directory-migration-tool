@@ -357,6 +357,83 @@ internal static class Program
             Require(foundDir is not null && foundDir.RoleTitle.Contains("chkdsk"), "FOUND.000 explanation mismatch");
             Require(storeApps is not null && storeApps.RoleTitle.Contains("Microsoft Store") && storeApps.HintLevel == DirectoryHintLevel.Warning, "WindowsApps explanation mismatch");
         });
+
+        test("known-directory-explainer-family-subdirectories-and-responsive-summary-column", () =>
+        {
+            var catalog = new ApplicationCatalog(BuiltInApplicationRules.All, []);
+
+            // 1. JetBrains Roaming 全家桶版本根目录与截图内全部常见子目录
+            var ideaRoaming = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Roaming\JetBrains\IntelliJIdea2026.2", catalog);
+            var pycharmLocal = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Local\JetBrains\PyCharm2025.3", catalog);
+            Require(ideaRoaming is not null && ideaRoaming.ShortSummary == "IntelliJ IDEA 配置与已装插件" && ideaRoaming.RoleTitle.Contains("IntelliJ IDEA"),
+                $"IntelliJIdea Roaming product root mismatch: {ideaRoaming?.ShortSummary}");
+            Require(pycharmLocal is not null && pycharmLocal.ShortSummary == "PyCharm 项目索引与本地缓存",
+                $"PyCharm Local product root mismatch: {pycharmLocal?.ShortSummary}");
+
+            foreach (string sub in new[]
+            {
+                "plugins", "tasks", "jdbc-drivers", "javascript", "event-log-metadata",
+                "grazie", "workspace", "options", "settingsSync", "consoles",
+                "extensions", "dataSourcesHistory", "aia-task-history"
+            })
+            {
+                var exp = KnownDirectoryExplainer.Explain($@"C:\Users\Alice\AppData\Roaming\JetBrains\IntelliJIdea2026.2\{sub}", catalog);
+                Require(exp is not null && !string.IsNullOrWhiteSpace(exp.ShortSummary) && exp.ShortSummary.Length <= 20 && exp.HintLevel == DirectoryHintLevel.None,
+                    $"JetBrains Roaming subdir '{sub}' should resolve concise ShortSummary without noisy row icon, got '{exp?.ShortSummary}'");
+            }
+
+            var jbLocalCaches = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Local\JetBrains\IntelliJIdea2026.2\caches", catalog);
+            var jbToolboxCache = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Local\JetBrains\Toolbox\cache", catalog);
+            Require(jbLocalCaches is not null && jbLocalCaches.ShortSummary is not null && jbLocalCaches.ShortSummary.Contains("缓存"), "JetBrains Local caches mismatch");
+            Require(jbToolboxCache is not null && jbToolboxCache.ShortSummary is not null && jbToolboxCache.ShortSummary.Contains("Toolbox"), "JetBrains Toolbox cache mismatch");
+
+            // 2. 深度护栏与非误判防线：插件内部嵌套同名目录或普通代码仓库同名目录绝不误命中
+            var nestedPluginOptions = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Roaming\JetBrains\IntelliJIdea2026.2\plugins\my-plugin\options", catalog);
+            var userProjectPlugins = KnownDirectoryExplainer.Explain(@"D:\Projects\my-app\plugins", catalog);
+            Require(nestedPluginOptions is not null && nestedPluginOptions.RoleTitle.Contains("普通本地目录") && nestedPluginOptions.ShortSummary is null,
+                $"Deeply nested plugin subdir should not false-match JetBrains options: {nestedPluginOptions?.RoleTitle}");
+            Require(userProjectPlugins is not null && userProjectPlugins.RoleTitle.Contains("普通本地目录") && userProjectPlugins.ShortSummary is null,
+                $"User project 'plugins' folder should not false-match IDE rules: {userProjectPlugins?.RoleTitle}");
+
+            // 3. VS Code / AI IDE（Cursor / Windsurf / Trae / Antigravity）与开发工具链 / 本地 AI 模型家族
+            var cursorGlobal = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Roaming\Cursor\User\globalStorage", catalog);
+            var vscodeExt = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.vscode\extensions", catalog);
+            var androidSysImg = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Local\Android\Sdk\system-images", catalog);
+            var gradleCaches = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.gradle\caches", catalog);
+            var mavenRepo = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.m2\repository", catalog);
+            var cargoRegistry = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.cargo\registry", catalog);
+            var condaEnvs = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.conda\envs", catalog);
+            var ollamaBlobs = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.ollama\models\blobs", catalog);
+            var hfHub = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\.cache\huggingface\hub", catalog);
+
+            Require(cursorGlobal?.ShortSummary is not null && cursorGlobal.ShortSummary.Contains("AI 对话"), "Cursor User\\globalStorage mismatch");
+            Require(vscodeExt?.ShortSummary is not null && vscodeExt.ShortSummary.Contains("扩展插件"), ".vscode\\extensions mismatch");
+            Require(androidSysImg?.ShortSummary is not null && androidSysImg.ShortSummary.Contains("镜像"), "Android Sdk\\system-images mismatch");
+            Require(gradleCaches?.ShortSummary is not null && gradleCaches.ShortSummary.Contains("Gradle"), ".gradle\\caches mismatch");
+            Require(mavenRepo?.ShortSummary is not null && mavenRepo.ShortSummary.Contains("Maven"), ".m2\\repository mismatch");
+            Require(cargoRegistry?.ShortSummary is not null && cargoRegistry.ShortSummary.Contains("Cargo"), ".cargo\\registry mismatch");
+            Require(condaEnvs?.ShortSummary is not null && condaEnvs.ShortSummary.Contains("Conda"), ".conda\\envs mismatch");
+            Require(ollamaBlobs?.ShortSummary is not null && ollamaBlobs.ShortSummary.Contains("Ollama"), ".ollama\\models\\blobs mismatch");
+            Require(hfHub?.ShortSummary is not null && hfHub.ShortSummary.Contains("HuggingFace"), "huggingface\\hub mismatch");
+
+            // 4. AppData Electron 通用子目录兜底（如 LarkShell / Discord）
+            var larkRoot = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Roaming\LarkShell", catalog);
+            var larkCache = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Roaming\LarkShell\Cache", catalog);
+            var discordAppVer = KnownDirectoryExplainer.Explain(@"C:\Users\Alice\AppData\Local\Discord\app-1.0.9160", catalog);
+            Require(larkRoot?.ShortSummary is not null && larkRoot.ShortSummary.Contains("飞书"), "LarkShell root mismatch");
+            Require(larkCache?.ShortSummary is not null && larkCache.ShortSummary.Contains("缓存"), "LarkShell Cache generic fallback mismatch");
+            Require(discordAppVer?.ShortSummary is not null && discordAppVer.ShortSummary.Contains("程序本体"), "Discord app-* prefix fallback mismatch");
+
+            // 5. 响应式「用途说明」列宽计算边界验证（窄屏隐藏、宽屏 160–320px 对齐）
+            Require(MoveWithSymlinkWPF.Helpers.TreeTableColumnLayoutState.CalculateSummaryColumnWidth(580) == 0, "Summary column must collapse when table width < 700");
+            Require(MoveWithSymlinkWPF.Helpers.TreeTableColumnLayoutState.CalculateSummaryColumnWidth(699) == 0, "Summary column must stay collapsed below 700px threshold");
+            double w700 = MoveWithSymlinkWPF.Helpers.TreeTableColumnLayoutState.CalculateSummaryColumnWidth(700);
+            double w950 = MoveWithSymlinkWPF.Helpers.TreeTableColumnLayoutState.CalculateSummaryColumnWidth(950);
+            double w1400 = MoveWithSymlinkWPF.Helpers.TreeTableColumnLayoutState.CalculateSummaryColumnWidth(1400);
+            Require(w700 >= 160 && w700 <= 200, $"Expected 160-200 at 700px, got {w700}");
+            Require(w950 > w700 && w950 <= 300, $"Expected smooth growth at 950px, got {w950}");
+            Require(w1400 == 320, $"Expected cap at 320px for ultra-wide table, got {w1400}");
+        });
     }
 
     // ==================== 2. MftParserCases ====================
@@ -1328,6 +1405,47 @@ internal static class Program
                     Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 18), "TryLocateNodeInTree must refuse hidden Recovery");
                     Require(!scanVm.TryLocateNodeInTree(nestedSnap.ScanId, 19), "TryLocateNodeInTree must refuse hidden FOUND.000");
 
+                    // 验证行内/详情/迁移清单打开资源管理器状态与单文件定位支持
+                    Require(!scanVm.CanOpenSelectedInExplorer, "Unselected state should disable OpenSelectedInExplorer");
+                    ScanTreeRowItem dirRow = scanVm.VisibleTreeRows.First(r => r.IsDirectory);
+                    scanVm.SelectedRow = dirRow;
+                    Require(scanVm.CanOpenSelectedInExplorer, "Directory selection should enable OpenSelectedInExplorer");
+                    Require(scanVm.OpenSelectedInExplorerToolTip == "在资源管理器中打开目录", "Directory tooltip mismatch");
+                    var sampleFileRow = new ScanTreeRowItem
+                    {
+                        IsDirectory = false,
+                        Name = "archive.bin",
+                        DisplayName = "archive.bin",
+                        FullPath = Path.Combine(tempRoot, "archive.bin")
+                    };
+                    Require(sampleFileRow.CanOpenInExplorer, "File row should allow locating in Explorer");
+                    Require(sampleFileRow.OpenInExplorerToolTip == "在资源管理器中定位文件", "File row tooltip mismatch");
+                    scanVm.SelectedRow = sampleFileRow;
+                    Require(scanVm.CanOpenSelectedInExplorer && scanVm.OpenSelectedInExplorerToolTip == "在资源管理器中定位文件",
+                        "Selecting a file row should update detail panel Explorer button to file-locate mode");
+
+                    var orphanRow = new ScanTreeRowItem
+                    {
+                        IsDirectory = true,
+                        Name = "<未解析>",
+                        FullPath = string.Empty,
+                        Flags = ScanNodeFlags.IsOrphaned
+                    };
+                    Require(!orphanRow.CanOpenInExplorer, "Orphan row must disable Explorer button");
+
+                    var queueItem = new BatchPlanRowItem
+                    {
+                        SourcePath = tempRoot,
+                        TargetPath = Path.Combine(tempRoot, "NewTarget", "SubDir"),
+                        Level = MigrationAdmissionLevel.VerifiedEligible
+                    };
+                    Require(queueItem.HasSourcePath && queueItem.HasTargetPath, "Queue row should report source/target availability");
+                    Require(queueItem.OpenSourceInExplorerCommand is not null && queueItem.OpenTargetInExplorerCommand is not null,
+                        "Queue row must expose OpenSource/OpenTarget commands directly");
+                    scanVm.PlanItems.Add(queueItem);
+                    Require(scanVm.HasUnifiedTargetRoot && scanVm.OpenUnifiedTargetInExplorerCommand is not null,
+                        "DiskScanViewModel should expose unified target open command");
+
                     foreach (DiskScanSubView sub in Enum.GetValues<DiskScanSubView>())
                     {
                         scanVm.ActiveSubView = sub;
@@ -1336,6 +1454,7 @@ internal static class Program
                         scanPage.UpdateLayout();
                         AssertAllButtonsSafeForRenderTransform(scanPage);
                     }
+                    scanVm.PlanItems.Clear();
 
                     // 5. 二期内置 AI 助手页面、磁盘扫描 AI 抽屉、建议采纳与目录定位联合烟测
                     Phase2AiCases.VerifyWpfUiInCurrentSta(AssertAllButtonsSafeForRenderTransform);
@@ -1379,6 +1498,65 @@ internal static class Program
             staThread.Start();
             Require(staThread.Join(TimeSpan.FromSeconds(30)), "WPF STA smoke test timed out");
             if (captured is not null) throw new InvalidOperationException("WPF STA smoke test failed: " + captured, captured);
+        });
+
+        test("explorer-helper-file-select-directory-and-ancestor-fallback", () =>
+        {
+            var existingFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                @"C:\Users\Alice\My Data\big file.bin"
+            };
+            var existingDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                @"C:\",
+                @"C:\Users\Alice\My Data",
+                @"C:\Users\Alice\My Data\",
+                @"D:\",
+                @"D:\MigratedData"
+            };
+
+            ExplorerLaunchPlan filePlan = ExplorerHelper.ResolveLaunchPlan(
+                @"C:\Users\Alice\My Data\big file.bin",
+                fileExists: existingFiles.Contains,
+                directoryExists: existingDirs.Contains);
+            Require(filePlan.CanLaunch && filePlan.Kind == ExplorerLaunchKind.SelectFile,
+                $"Expected SelectFile plan, got {filePlan}");
+            Require(filePlan.Arguments == "/select,\"C:\\Users\\Alice\\My Data\\big file.bin\"",
+                $"Unexpected file select args: {filePlan.Arguments}");
+
+            ExplorerLaunchPlan dirPlan = ExplorerHelper.ResolveLaunchPlan(
+                @"C:\Users\Alice\My Data\",
+                fileExists: existingFiles.Contains,
+                directoryExists: existingDirs.Contains);
+            Require(dirPlan.CanLaunch && dirPlan.Kind == ExplorerLaunchKind.OpenDirectory,
+                $"Expected OpenDirectory plan, got {dirPlan}");
+            Require(dirPlan.Arguments == "\"C:\\Users\\Alice\\My Data\"",
+                $"Trailing backslash must be trimmed for quoted dir args, got: {dirPlan.Arguments}");
+
+            ExplorerLaunchPlan rootPlan = ExplorerHelper.ResolveLaunchPlan(
+                @"C:\",
+                fileExists: existingFiles.Contains,
+                directoryExists: existingDirs.Contains);
+            Require(rootPlan.CanLaunch && rootPlan.Kind == ExplorerLaunchKind.OpenDirectory && rootPlan.Arguments == @"C:\",
+                $"Drive root should avoid trailing-backslash quote escape, got: {rootPlan.Arguments}");
+
+            ExplorerLaunchPlan missingNoFallback = ExplorerHelper.ResolveLaunchPlan(
+                @"D:\MigratedData\WeChat\WeChat Files",
+                fallbackToExistingAncestor: false,
+                fileExists: existingFiles.Contains,
+                directoryExists: existingDirs.Contains);
+            Require(!missingNoFallback.CanLaunch && !string.IsNullOrWhiteSpace(missingNoFallback.ErrorMessage),
+                "Missing path without fallback should report error");
+
+            ExplorerLaunchPlan ancestorPlan = ExplorerHelper.ResolveLaunchPlan(
+                @"D:\MigratedData\WeChat\WeChat Files",
+                fallbackToExistingAncestor: true,
+                fileExists: existingFiles.Contains,
+                directoryExists: existingDirs.Contains);
+            Require(ancestorPlan.CanLaunch && ancestorPlan.Kind == ExplorerLaunchKind.OpenExistingAncestor,
+                $"Expected OpenExistingAncestor plan, got {ancestorPlan}");
+            Require(ancestorPlan.ResolvedPath == @"D:\MigratedData" && ancestorPlan.Arguments == "\"D:\\MigratedData\"",
+                $"Expected fallback to D:\\MigratedData, got {ancestorPlan}");
         });
     }
 

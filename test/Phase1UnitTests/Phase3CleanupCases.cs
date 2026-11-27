@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using MigrationCore.Models;
 using MigrationCore.Models.Ai;
 using MigrationCore.Models.Cleanup;
 using MigrationCore.Models.Safety;
@@ -10,6 +11,8 @@ using MigrationCore.Services.Cleanup;
 using MigrationCore.Services.Safety;
 using MigrationCore.Services.Scanning;
 using MoveWithSymlinkWPF;
+using MoveWithSymlinkWPF.Controls;
+using MoveWithSymlinkWPF.Helpers;
 using MoveWithSymlinkWPF.ViewModels;
 using MoveWithSymlinkWPF.Views;
 
@@ -1801,6 +1804,945 @@ internal static class Phase3CleanupCases
 
             reviewVm.CleanupSubscriptions();
             return Task.CompletedTask;
+        });
+
+        await test("CleanupExecutionReceiptWindow-structured-kpi-filter-search-and-virtualized-smoke", () =>
+        {
+            const long mb = 1024L * 1024L;
+            DateTimeOffset started = DateTimeOffset.UtcNow.AddSeconds(-12);
+            DateTimeOffset completed = DateTimeOffset.UtcNow;
+
+            string[] twentyFourFailures = Enumerable.Range(1, 24)
+                .Select(i => $"保留原文件（未能移入隔离区）：C:\\Users\\Demo\\AppData\\Local\\Temp\\locked_{i:D2}.tmp（文件正被其他程序占用）")
+                .ToArray();
+
+            var execResult = new CleanupExecutionResult(
+                ExecutionId: Guid.NewGuid(),
+                StartedAtUtc: started,
+                CompletedAtUtc: completed,
+                WasCancelled: true,
+                Items:
+                [
+                    new CleanupExecutionItemResult("sys-temp-24h", "用户与系统临时文件（>24 小时）", CleanupExecutionChannel.FileQuarantine, CleanupItemExecutionStatus.Quarantined, 18 * 1024 * mb, 49976, 12, 24, "q-01", "已移入同卷隔离区 49,976 个文件", twentyFourFailures),
+                    new CleanupExecutionItemResult("win-do", "传递优化缓存（Delivery Optimization）", CleanupExecutionChannel.OfficialSystemApi, CleanupItemExecutionStatus.ReclaimedByOfficialApi, 1840 * mb, 0, 0, 0, null, "已通过 Windows 官方传递优化接口完成清理。", []),
+                    new CleanupExecutionItemResult("app-feishu", "飞书 / Lark 网页缓存与旧日志", CleanupExecutionChannel.FileQuarantine, CleanupItemExecutionStatus.Skipped, 0, 0, 5, 0, null, "关联进程正在运行，已安全跳过。", ["Feishu.exe 占用中"]),
+                    new CleanupExecutionItemResult("app-obsidian", "Obsidian 网页与 GPU 缓存", CleanupExecutionChannel.FileQuarantine, CleanupItemExecutionStatus.Failed, 0, 0, 0, 2, null, "2 个文件被独占锁定，已保持原状。", ["Cache_Data/data_0 被占用", "Cache_Data/data_1 被占用"])
+                ],
+                QuarantinedBytes: 18 * 1024 * mb,
+                RecycledBytes: 0,
+                OfficialApiReclaimedBytes: 1840 * mb,
+                TotalSkippedCount: 17,
+                TotalFailedCount: 26,
+                SummaryMessage: "清理已由用户取消：已同卷隔离 18.00 GB；官方接口已回收 1.80 GB；安全跳过 17 项；失败/保留 26 项。");
+
+            bool openedQuarantine = false;
+            Exception? staError = null;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    if (Application.Current is null)
+                    {
+                        var app = new Application();
+                        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+                        {
+                            Source = new Uri("pack://application:,,,/MoveWithSymlinkWPF;component/Resources/FluentTheme.xaml")
+                        });
+                    }
+
+                    var win = new CleanupExecutionReceiptWindow(
+                        result: execResult,
+                        windowTitle: "清理执行完整回执",
+                        openQuarantineCallback: () => openedQuarantine = true);
+                    var vm = win.ViewModel;
+
+                    Require(vm.IsWarningHeader && vm.StatusChipText == "已中止",
+                        $"Cancelled receipt should show warning header, got isWarning={vm.IsWarningHeader}, chip='{vm.StatusChipText}'");
+                    Require(vm.HasQuarantinedSpace && vm.CanOpenQuarantine && vm.QuarantinedSizeText.Contains("GB"),
+                        $"Expected quarantined KPI in GB, got '{vm.QuarantinedSizeText}'");
+                    Require(vm.ReclaimedSizeText.Contains("GB") && vm.SkippedCountText == "17 项" && vm.FailedCountText == "26 项",
+                        $"Unexpected KPIs: reclaimed='{vm.ReclaimedSizeText}', skipped='{vm.SkippedCountText}', failed='{vm.FailedCountText}'");
+
+                    // 完整明细默认全部展开（4 条规则 + 24 + 1 + 2 = 27 条明细 = 31 个虚拟化行，零 3 条截断！）
+                    Require(vm.VisibleRuleCount == 4 && vm.VisibleDetailCount == 27 && vm.VisibleEntries.Count == 31,
+                        $"Expected all 27 details expanded (31 rows), got rules={vm.VisibleRuleCount}, details={vm.VisibleDetailCount}, total={vm.VisibleEntries.Count}");
+
+                    // 含失败/阻断筛选应同时包含 Quarantined+FailedCount>0 的 sys-temp-24h 以及 Failed 的 app-obsidian
+                    vm.SetFilterCommand.Execute("Issues");
+                    Require(vm.VisibleRuleCount == 2 && vm.VisibleDetailCount == 26,
+                        $"Issues filter must include partial-failure rule (sys-temp-24h) + failed rule (app-obsidian), got rules={vm.VisibleRuleCount}, details={vm.VisibleDetailCount}");
+
+                    vm.SetFilterCommand.Execute("Succeeded");
+                    Require(vm.VisibleRuleCount == 2, $"Expected 2 succeeded rules, got {vm.VisibleRuleCount}");
+                    vm.SetFilterCommand.Execute("Skipped");
+                    Require(vm.VisibleRuleCount == 2, $"Expected 2 rules with skipped files (sys-temp-24h & app-feishu), got {vm.VisibleRuleCount}");
+                    vm.SetFilterCommand.Execute("All");
+
+                    // 收起全部明细 / 展开全部明细切换
+                    vm.ToggleAllDetailsCommand.Execute(null);
+                    Require(vm.VisibleDetailCount == 0 && vm.VisibleEntries.Count == 4,
+                        $"Collapse all must leave 4 rule rows, got entries={vm.VisibleEntries.Count}");
+
+                    // 即使处于收起态，搜索某条具体文件名也能自动命中并展开该条明细
+                    vm.SearchQuery = "locked_19.tmp";
+                    Require(vm.VisibleRuleCount == 1 && vm.VisibleDetailCount == 1
+                        && vm.VisibleEntries.OfType<CleanupReceiptDetailEntry>().Single().DetailText.Contains("locked_19.tmp"),
+                        $"Search 'locked_19.tmp' must surface exact detail line, got rules={vm.VisibleRuleCount}, details={vm.VisibleDetailCount}");
+                    vm.ClearSearchCommand.Execute(null);
+
+                    // 布局测量冒烟（无资源/绑定异常）
+                    win.Measure(new Size(900, 660));
+                    win.Arrange(new Rect(0, 0, 900, 660));
+                    win.UpdateLayout();
+
+                    // 大数据量（5,000 条明细）扁平虚拟化压测：打开、全展开与布局测量均须快速零崩溃
+                    string[] fiveThousandDetails = Enumerable.Range(1, 5000)
+                        .Select(i => $"保留原文件（未能移入隔离区）：C:\\Users\\Demo\\Temp\\big_{i:D5}.tmp（占用）")
+                        .ToArray();
+                    var largeResult = new CleanupExecutionResult(
+                        ExecutionId: Guid.NewGuid(),
+                        StartedAtUtc: started,
+                        CompletedAtUtc: completed,
+                        WasCancelled: false,
+                        Items:
+                        [
+                            new CleanupExecutionItemResult("sys-temp-big", "大体积临时文件", CleanupExecutionChannel.FileQuarantine, CleanupItemExecutionStatus.Quarantined, 2048 * mb, 50000, 0, 5000, "q-big", "已移入同卷隔离区 50,000 个文件", fiveThousandDetails)
+                        ],
+                        QuarantinedBytes: 2048 * mb,
+                        RecycledBytes: 0,
+                        OfficialApiReclaimedBytes: 0,
+                        TotalSkippedCount: 0,
+                        TotalFailedCount: 5000,
+                        SummaryMessage: "已完成");
+
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var largeWin = new CleanupExecutionReceiptWindow(largeResult);
+                    Require(largeWin.ViewModel.VisibleDetailCount == 5000 && largeWin.ViewModel.VisibleEntries.Count == 5001,
+                        $"Single-rule large receipt must keep all 5000 details accessible, got {largeWin.ViewModel.VisibleEntries.Count}");
+                    largeWin.Measure(new Size(900, 660));
+                    largeWin.Arrange(new Rect(0, 0, 900, 660));
+                    largeWin.UpdateLayout();
+                    sw.Stop();
+                    Require(sw.ElapsedMilliseconds < 4000,
+                        $"Virtualized 5000-detail receipt layout took too long: {sw.ElapsedMilliseconds}ms");
+
+                    // 点击前往隔离区触发回调
+                    vm.OpenQuarantineCommand.Execute(null);
+                    Require(openedQuarantine, "OpenQuarantineCommand must invoke openQuarantineCallback");
+                }
+                catch (Exception ex)
+                {
+                    staError = ex;
+                }
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            if (staError is not null)
+            {
+                throw new InvalidOperationException($"CleanupExecutionReceiptWindow smoke failed: {staError.Message}", staError);
+            }
+
+            return Task.CompletedTask;
+        });
+
+        await test("QuarantineOperationResultWindow-delete-batch-restore-and-friendly-diagnostics", () =>
+        {
+            const long gb = 1024L * 1024L * 1024L;
+            var partialDelete = new QuarantineDeleteResult(
+                BatchId: "q-20261127-ae4bf4",
+                FullyDeleted: false,
+                PartiallyDeleted: true,
+                FreedBytesEstimate: 18 * gb,
+                DeletedEntryCount: 49975,
+                FailedEntryCount: 1,
+                Message: "部分删除：已删除 49975 项，仍有 1 项未能删除并保留在隔离区。",
+                Details: [@"删除失败（已保留）：C:\Users\Demo\Temp\.mise.exe（Access to the path '\\?\C:\.MoveFolderQuarantine\q-20261127-ae4bf4\data\e003863' is denied.）"]);
+
+            var fullRestore = new QuarantineRestoreResult(
+                BatchId: "q-20261127-ok",
+                Succeeded: true,
+                RestoredCount: 120,
+                RestoredWithSuffixCount: 2,
+                SkippedOrFailedCount: 0,
+                BatchRemovedAfterFullRestore: true,
+                Message: "已完整恢复全部 120 项。",
+                Details: []);
+
+            Exception? staError = null;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    if (Application.Current is null)
+                    {
+                        var app = new Application();
+                        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+                        {
+                            Source = new Uri("pack://application:,,,/MoveWithSymlinkWPF;component/Resources/FluentTheme.xaml")
+                        });
+                    }
+
+                    // 1. 单批部分永久删除：自动剥离 \\?\ 前缀、识别权限受限并给出排查建议
+                    var vmDel = QuarantineOperationResultViewModel.FromSingleDelete(partialDelete, "用户与系统临时文件（>24 小时）");
+                    Require(vmDel.IsWarningHeader && vmDel.StatusChipText == "部分删除",
+                        $"Expected warning partial delete header, got chip='{vmDel.StatusChipText}'");
+                    Require(vmDel.HasDetails && vmDel.VisibleDetails.Count == 1,
+                        $"Expected 1 detail item, got {vmDel.VisibleDetails.Count}");
+                    QuarantineResultDetailItem d0 = vmDel.VisibleDetails[0];
+                    Require(!d0.PrimaryPathOrTitle.Contains(@"\\?\") && d0.ReasonTagText == "权限/镜像受限" && d0.HasFriendlyHint,
+                        $"Expected friendly denied diagnostics without \\\\?\\ prefix, got tag='{d0.ReasonTagText}', text='{d0.PrimaryPathOrTitle}'");
+
+                    // 1b. 带 Restart Manager 点名进程信息的失败行 -> 提取进程名与 PID 到友善提示
+                    var lockedDelete = partialDelete with
+                    {
+                        Details = [@"删除失败（已保留）：C:\Users\Demo\Temp\.mise.exe（正被进程占用：mise.exe (PID 40540)；Access is denied.）"]
+                    };
+                    var vmLocked = QuarantineOperationResultViewModel.FromSingleDelete(lockedDelete, "临时文件");
+                    QuarantineResultDetailItem dLock = vmLocked.VisibleDetails[0];
+                    Require(dLock.ReasonTagText == "进程占用中"
+                        && dLock.HasProcessHighlight && dLock.ProcessHighlightText.Contains("mise.exe (PID 40540)")
+                        && dLock.FriendlyHint.Contains("mise.exe (PID 40540)"),
+                        $"Expected Restart Manager process attribution in highlight & hint, got tag='{dLock.ReasonTagText}', highlight='{dLock.ProcessHighlightText}', hint='{dLock.FriendlyHint}'");
+
+                    // 1c. 真机 Restart Manager 探测验证：独占打开临时文件时能查出当前进程 PID，释放后返回空
+                    string probeFile = Path.Combine(Path.GetTempPath(), $"MoveFolder_RmProbe_{Guid.NewGuid():N}.tmp");
+                    try
+                    {
+                        File.WriteAllText(probeFile, "lock-probe");
+                        using (var fs = new FileStream(probeFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                        {
+                            LockingProcessInfo[] lockers = FileLockInspector.FindLockingProcesses(probeFile);
+                            Require(lockers.Any(l => l.ProcessId == Environment.ProcessId),
+                                $"FileLockInspector must identify current PID {Environment.ProcessId} holding exclusive lock, got: {string.Join(", ", lockers.Select(x => x.DisplayLabel))}");
+                        }
+                        LockingProcessInfo[] afterRelease = FileLockInspector.FindLockingProcesses(probeFile);
+                        Require(afterRelease.Length == 0,
+                            $"Unlocked temp file should report 0 lockers, got {afterRelease.Length}");
+                    }
+                    finally
+                    {
+                        try { if (File.Exists(probeFile)) File.Delete(probeFile); } catch { }
+                    }
+
+                    var winDel = new QuarantineOperationResultWindow(vmDel);
+                    winDel.Measure(new Size(860, 640));
+                    winDel.Arrange(new Rect(0, 0, 860, 640));
+                    winDel.UpdateLayout();
+
+                    // 搜索与清空
+                    vmDel.SearchQuery = ".mise.exe";
+                    Require(vmDel.VisibleDetails.Count == 1, "Search '.mise.exe' should match detail");
+                    vmDel.SearchQuery = "non-existent-keyword";
+                    Require(vmDel.ShowSearchEmptyState && vmDel.VisibleDetails.Count == 0, "Unmatched search should show empty state");
+                    vmDel.ClearSearchCommand.Execute(null);
+                    Require(vmDel.VisibleDetails.Count == 1, "Clearing search must restore detail");
+
+                    // 2. 完整恢复无异常：显示清爽成功卡
+                    var vmRes = QuarantineOperationResultViewModel.FromRestore(fullRestore, "测试批次");
+                    Require(vmRes.IsSuccessHeader && vmRes.ShowAllCleanBanner && !vmRes.HasDetails,
+                        "Full restore with no issues must display all-clean banner");
+                    var winRes = new QuarantineOperationResultWindow(vmRes);
+                    winRes.Measure(new Size(780, 540));
+                    winRes.Arrange(new Rect(0, 0, 780, 540));
+                    winRes.UpdateLayout();
+
+                    // 3. 批量永久删除结果
+                    var vmBatch = QuarantineOperationResultViewModel.FromBatchDelete(
+                        allSucceeded: false,
+                        wasCancelled: false,
+                        totalSelectedBatches: 3,
+                        fullyDeletedBatches: 2,
+                        partialOrFailedBatches: 1,
+                        freedBytes: 5 * gb,
+                        summaryMessage: "批量永久删除部分完成",
+                        details: ["• 临时文件：仍有 1 项未能删除", "  - 拒绝访问：C:\\Temp\\lock.exe"]);
+                    Require(vmBatch.IsWarningHeader && vmBatch.VisibleDetails.Count == 2
+                        && vmBatch.VisibleDetails[0].IsGroupSummaryLine && !vmBatch.VisibleDetails[0].HasFriendlyHint,
+                        $"Expected 2 batch delete details with compact group summary line, got {vmBatch.VisibleDetails.Count}");
+                }
+                catch (Exception ex)
+                {
+                    staError = ex;
+                }
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+            thread.Join();
+
+            if (staError is not null)
+            {
+                throw new InvalidOperationException($"QuarantineOperationResultWindow smoke failed: {staError.Message}", staError);
+            }
+
+            return Task.CompletedTask;
+        });
+
+        await test("CleanupChannelAExecutor-batch-directory-verify-nested-drift-missing-and-quarantine", async () =>
+        {
+            string tempRoot = Path.Combine(Path.GetTempPath(), "MoveFolder_P3BatchVerify_" + Guid.NewGuid().ToString("N"));
+            string scanDir = Path.Combine(tempRoot, "TempTree");
+            string quarantineRoot = Path.Combine(tempRoot, ".MoveFolderQuarantine");
+            Directory.CreateDirectory(scanDir);
+
+            try
+            {
+                DateTime oldTime = DateTime.UtcNow.AddHours(-48);
+                var expectedQuarantined = new List<string>();
+                string[] modifiedPaths = new string[2];
+                string[] missingPaths = new string[2];
+
+                // 6 个批量目录（每目录 60 文件 -> 走 FileIdBothDirectoryInfo 批量枚举路径）
+                for (int d = 0; d < 6; d++)
+                {
+                    string sub = Path.Combine(scanDir, $"lvl1_{d}", "lvl2_nested");
+                    Directory.CreateDirectory(sub);
+                    for (int f = 0; f < 60; f++)
+                    {
+                        string path = Path.Combine(sub, $"cache_{f:D3}.tmp");
+                        File.WriteAllBytes(path, new byte[128 + (f % 17)]);
+                        File.SetLastWriteTimeUtc(path, oldTime);
+
+                        if (d == 0 && f == 0) modifiedPaths[0] = path;
+                        else if (d == 0 && f == 1) missingPaths[0] = path;
+                        else expectedQuarantined.Add(path);
+                    }
+                }
+
+                // 2 个极小目录（每目录 2 文件 -> 走单句柄直查路径）
+                for (int d = 0; d < 2; d++)
+                {
+                    string tiny = Path.Combine(scanDir, $"tiny_{d}");
+                    Directory.CreateDirectory(tiny);
+                    for (int f = 0; f < 2; f++)
+                    {
+                        string path = Path.Combine(tiny, $"small_{f}.tmp");
+                        File.WriteAllBytes(path, new byte[256]);
+                        File.SetLastWriteTimeUtc(path, oldTime);
+
+                        if (d == 0 && f == 0) modifiedPaths[1] = path;
+                        else if (d == 1 && f == 0) missingPaths[1] = path;
+                        else expectedQuarantined.Add(path);
+                    }
+                }
+
+                var testRule = new CleanupRuleDefinition(
+                    RuleId: "test-batch-verify",
+                    Version: BuiltInCleanupRules.CurrentRuleVersion,
+                    DisplayName: "批量目录复核回归测试",
+                    ShortDescription: "测试嵌套目录批量核验",
+                    Category: CleanupCategory.SystemTempAndShader,
+                    Tier: CleanupRecommendationTier.Recommended,
+                    Channel: CleanupExecutionChannel.FileQuarantine,
+                    OfficialApiKind: CleanupOfficialApiKind.None,
+                    TargetSpecs: [new CleanupPathRuleSpec(CleanupKnownRootKind.CustomTestRoot, string.Empty, ["*.tmp"], true, CustomRootOverride: scanDir)],
+                    RequiredStoppedProcesses: [],
+                    MinAgeHours: 24,
+                    CostAndReclaimNote: "可重建",
+                    ChannelBadgeText: "同卷隔离可恢复",
+                    IsRebuildable: true);
+
+                var qStore = new QuarantineStore(customQuarantineRootOverride: quarantineRoot);
+                var service = new CleanupService(qStore);
+
+                CleanupScanSnapshot snap = await service.ScanAsync([testRule]);
+                Require(snap.Rules.Length == 1 && snap.Rules[0].MatchedCount == 364,
+                    $"Expected 364 matched files, got {snap.Rules[0].MatchedCount}");
+
+                // 扫描后制造变更漂移、消失文件与新增文件
+                File.WriteAllBytes(modifiedPaths[0], new byte[999]);
+                File.WriteAllBytes(modifiedPaths[1], new byte[888]);
+                File.Delete(missingPaths[0]);
+                File.Delete(missingPaths[1]);
+                string newFileAfterScan = Path.Combine(scanDir, "lvl1_0", "lvl2_nested", "brand_new.tmp");
+                File.WriteAllBytes(newFileAfterScan, new byte[512]);
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                CleanupExecutionResult exec = await service.ExecuteRuleCleanupAsync(snap, ["test-batch-verify"], CleanupFileAction.QuarantineSameVolume);
+                sw.Stop();
+
+                Require(exec.Items.Length == 1 && exec.Items[0].Status == CleanupItemExecutionStatus.Quarantined,
+                    $"Expected Quarantined status, got {exec.Items.FirstOrDefault()?.Status}: {exec.SummaryMessage}");
+                Require(exec.Items[0].ProcessedCount == expectedQuarantined.Count,
+                    $"Expected {expectedQuarantined.Count} quarantined files, got {exec.Items[0].ProcessedCount}");
+                Require(exec.Items[0].SkippedCount == 4,
+                    $"Expected 4 skipped files (2 modified + 2 missing), got {exec.Items[0].SkippedCount}");
+
+                foreach (string qPath in expectedQuarantined)
+                {
+                    Require(!File.Exists(qPath), $"Unchanged expired file should have been moved to quarantine: {qPath}");
+                }
+                Require(File.Exists(modifiedPaths[0]) && File.Exists(modifiedPaths[1]), "Modified files must NOT be removed");
+                Require(File.Exists(newFileAfterScan), "Newly added file after scan must NOT be removed");
+
+                // 5 个完全干净的嵌套子树（lvl1_1..lvl1_5，共 300 文件）应自底向上折叠为 5 条整目录原子隔离项，
+                // 而含修改/新增文件的 lvl1_0 绝不可折叠，仅移走未变化的 58 个散落文件
+                var batches = qStore.ListAllInspections();
+                Require(batches.Count == 1, $"Expected 1 quarantine batch, got {batches.Count}");
+                int dirEntryCount = batches[0].Batch.Entries.Count(e => e.IsDirectory);
+                Require(dirEntryCount == 5 && batches[0].Batch.Entries.Length == 5 + 58 + 2,
+                    $"Expected 5 folded directory entries + 60 loose file entries = 65, got dirs={dirEntryCount}, total={batches[0].Batch.Entries.Length}");
+                Require(!Directory.Exists(Path.Combine(scanDir, "lvl1_1")), "Clean subtree lvl1_1 should have been folded & moved atomically");
+                Require(Directory.Exists(Path.Combine(scanDir, "lvl1_0", "lvl2_nested")), "Dirty subtree lvl1_0 must NOT be folded");
+
+                // 一键恢复应完整还原全部 360 个文件（含 5 棵整目录子树），且恢复后清理空批次目录
+                QuarantineRestoreResult restored = await qStore.RestoreBatchAsync(batches[0].Batch, allowConflictSuffix: false);
+                Require(restored.Succeeded && restored.RestoredCount == batches[0].Batch.Entries.Length && restored.BatchRemovedAfterFullRestore,
+                    $"Expected full restore of {batches[0].Batch.Entries.Length} entries, got {restored.RestoredCount} (removed={restored.BatchRemovedAfterFullRestore}): {restored.Message}");
+                foreach (string qPath in expectedQuarantined)
+                {
+                    Require(File.Exists(qPath), $"Expected file to exist after restore: {qPath}");
+                }
+                Require(qStore.ListAllInspections().Count == 0, "Quarantine list must be empty after full restore");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
+            }
+        });
+
+        await test("QuarantineStore-folded-dir-locked-fallback-and-sharded-parallel-restore-delete", async () =>
+        {
+            string tempRoot = Path.Combine(Path.GetTempPath(), "MoveFolder_P3ShardFold_" + Guid.NewGuid().ToString("N"));
+            string lockedRuleDir = Path.Combine(tempRoot, "LockedSubtreeRoot");
+            string lockedSubDir = Path.Combine(lockedRuleDir, "pkg_cache");
+            string shardRootDir = Path.Combine(tempRoot, "ShardLooseRoot");
+            string quarantineRoot = Path.Combine(tempRoot, ".MoveFolderQuarantine");
+            Directory.CreateDirectory(lockedSubDir);
+            Directory.CreateDirectory(shardRootDir);
+
+            try
+            {
+                DateTime oldTime = DateTime.UtcNow.AddHours(-48);
+                var qStore = new QuarantineStore(customQuarantineRootOverride: quarantineRoot);
+                var service = new CleanupService(qStore);
+
+                // 1. 干净子目录内有 1 个文件在移动瞬间被独占占用：整目录移动失败后必须无缝回退为逐文件隔离，其余 9 个文件成功移入隔离区
+                string[] pkgFiles = new string[10];
+                for (int i = 0; i < pkgFiles.Length; i++)
+                {
+                    pkgFiles[i] = Path.Combine(lockedSubDir, $"item_{i:D2}.tmp");
+                    File.WriteAllBytes(pkgFiles[i], new byte[512]);
+                    File.SetLastWriteTimeUtc(pkgFiles[i], oldTime);
+                }
+
+                var lockedRule = new CleanupRuleDefinition(
+                    RuleId: "test-fold-fallback",
+                    Version: BuiltInCleanupRules.CurrentRuleVersion,
+                    DisplayName: "折叠目录占用回退测试",
+                    ShortDescription: "测试目录锁定时降级逐文件隔离",
+                    Category: CleanupCategory.SystemTempAndShader,
+                    Tier: CleanupRecommendationTier.Recommended,
+                    Channel: CleanupExecutionChannel.FileQuarantine,
+                    OfficialApiKind: CleanupOfficialApiKind.None,
+                    TargetSpecs: [new CleanupPathRuleSpec(CleanupKnownRootKind.CustomTestRoot, string.Empty, ["*.tmp"], true, CustomRootOverride: lockedRuleDir)],
+                    RequiredStoppedProcesses: [],
+                    MinAgeHours: 24,
+                    CostAndReclaimNote: "可重建",
+                    ChannelBadgeText: "同卷隔离可恢复",
+                    IsRebuildable: true);
+
+                CleanupScanSnapshot lockedSnap = await service.ScanAsync([lockedRule]);
+                Require(lockedSnap.Rules[0].MatchedCount == 10, "Expected 10 matched files in locked subtree test");
+
+                using (var exclusiveLock = new FileStream(pkgFiles[0], FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    CleanupExecutionResult exec = await service.ExecuteRuleCleanupAsync(lockedSnap, ["test-fold-fallback"], CleanupFileAction.QuarantineSameVolume);
+                    Require(exec.Items[0].Status == CleanupItemExecutionStatus.Quarantined,
+                        $"Expected partial Quarantined after fallback, got {exec.Items[0].Status}: {exec.SummaryMessage}");
+                    Require(exec.Items[0].ProcessedCount == 9 && exec.Items[0].FailedCount == 1,
+                        $"Expected 9 moved + 1 locked failed on fallback, got moved={exec.Items[0].ProcessedCount}, failed={exec.Items[0].FailedCount}");
+                    Require(File.Exists(pkgFiles[0]), "Locked file must remain untouched on disk");
+                    for (int i = 1; i < pkgFiles.Length; i++)
+                    {
+                        Require(!File.Exists(pkgFiles[i]), $"Unlocked sibling {pkgFiles[i]} must be quarantined via fallback");
+                    }
+                }
+
+                // 清空第一次测试批次以便继续验证分桶测试
+                foreach (var b in qStore.ListAllInspections())
+                {
+                    await qStore.PermanentlyDeleteBatchAsync(b.Batch, QuarantineStore.DeleteConfirmationPhrase);
+                }
+
+                // 2. 620 个根目录散落文件（不可折叠根本身）：触发 >512 分桶（b000/b001）+ SSD 并发 MoveFileExW，完整恢复与永久删除均须清空全部桶目录
+                string[] looseFiles = new string[620];
+                for (int i = 0; i < looseFiles.Length; i++)
+                {
+                    looseFiles[i] = Path.Combine(shardRootDir, $"loose_{i:D4}.tmp");
+                    File.WriteAllBytes(looseFiles[i], new byte[128]);
+                    File.SetLastWriteTimeUtc(looseFiles[i], oldTime);
+                }
+
+                var shardRule = lockedRule with
+                {
+                    RuleId = "test-sharded-parallel",
+                    DisplayName = "分桶与并发隔离测试",
+                    TargetSpecs = [new CleanupPathRuleSpec(CleanupKnownRootKind.CustomTestRoot, string.Empty, ["*.tmp"], false, CustomRootOverride: shardRootDir)]
+                };
+
+                CleanupScanSnapshot shardSnap = await service.ScanAsync([shardRule]);
+                Require(shardSnap.Rules[0].MatchedCount == 620, $"Expected 620 loose files, got {shardSnap.Rules[0].MatchedCount}");
+
+                CleanupExecutionResult shardExec = await service.ExecuteRuleCleanupAsync(shardSnap, ["test-sharded-parallel"], CleanupFileAction.QuarantineSameVolume);
+                Require(shardExec.Items[0].Status == CleanupItemExecutionStatus.Quarantined && shardExec.Items[0].ProcessedCount == 620,
+                    $"Expected 620 files quarantined, got {shardExec.Items[0].Status} / {shardExec.Items[0].ProcessedCount}");
+
+                var shardBatches = qStore.ListAllInspections();
+                Require(shardBatches.Count == 1 && shardBatches[0].Batch.Entries.Length == 620, "Expected 1 sharded batch with 620 entries");
+                Require(shardBatches[0].Batch.Entries.Any(e => e.QuarantinedRelativePath.Contains("b000", StringComparison.OrdinalIgnoreCase))
+                    && shardBatches[0].Batch.Entries.Any(e => e.QuarantinedRelativePath.Contains("b001", StringComparison.OrdinalIgnoreCase)),
+                    "Batch > 512 items must shard across data\\b000 and data\\b001");
+
+                // 完整恢复应将 620 个文件全部归位并清空所有 b000/b001 分桶与批次目录
+                QuarantineRestoreResult shardRestored = await qStore.RestoreBatchAsync(shardBatches[0].Batch, allowConflictSuffix: false);
+                Require(shardRestored.Succeeded && shardRestored.RestoredCount == 620 && shardRestored.BatchRemovedAfterFullRestore,
+                    $"Sharded restore failed: {shardRestored.Message}");
+                Require(qStore.ListAllInspections().Count == 0, "Sharded batch dir must be fully cleaned up after restore");
+                Require(File.Exists(looseFiles[0]) && File.Exists(looseFiles[^1]), "Restored sharded files must exist on disk");
+
+                // 再次隔离并验证分桶批次永久删除
+                foreach (string f in looseFiles) File.SetLastWriteTimeUtc(f, oldTime);
+                CleanupScanSnapshot shardSnap2 = await service.ScanAsync([shardRule]);
+                await service.ExecuteRuleCleanupAsync(shardSnap2, ["test-sharded-parallel"], CleanupFileAction.QuarantineSameVolume);
+                var delBatches = qStore.ListAllInspections();
+                Require(delBatches.Count == 1, "Expected 1 batch before permanent delete");
+                QuarantineDeleteResult delRes = await qStore.PermanentlyDeleteBatchAsync(delBatches[0].Batch, QuarantineStore.DeleteConfirmationPhrase);
+                Require(delRes.FullyDeleted && delRes.DeletedEntryCount == 620 && qStore.ListAllInspections().Count == 0,
+                    $"Sharded permanent delete failed: {delRes.Message}");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); } catch { }
+            }
+        });
+
+        await test("CleanupViewModel-execution-locks-only-selection-while-allowing-readonly-browsing", () =>
+        {
+            CleanupRuleDefinition tempRule = BuiltInCleanupRules.FindById("sys-temp-24h")!;
+            CleanupRuleDefinition npmRule = BuiltInCleanupRules.FindById("dev-npm-cache")!;
+            CleanupRuleDefinition secondDevRule = BuiltInCleanupRules.All.First(r =>
+                r.Category == CleanupCategory.SoftwareAndDeveloperCache
+                && string.Equals(r.GroupId, npmRule.GroupId, StringComparison.OrdinalIgnoreCase)
+                && !r.RuleId.Equals(npmRule.RuleId, StringComparison.OrdinalIgnoreCase));
+            CleanupRuleDefinition cautionRule = BuiltInCleanupRules.FindById("caution-recycle-bin-all-drives")!;
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var snap = new CleanupScanSnapshot(
+                Guid.NewGuid(), now, MigrationSafetyPolicy.CurrentPolicyVersion, BuiltInCleanupRules.CurrentRuleVersion,
+                [
+                    new CleanupRuleScanResult(tempRule, [], [], 10 * 1024 * 1024, 5, 0, 0, [], true, "就绪", now),
+                    new CleanupRuleScanResult(npmRule, [], [], 20 * 1024 * 1024, 3, 0, 0, [], true, "就绪", now),
+                    new CleanupRuleScanResult(secondDevRule, [], [], 15 * 1024 * 1024, 2, 0, 0, [], true, "就绪", now),
+                    new CleanupRuleScanResult(cautionRule, [], [], 5 * 1024 * 1024, 1, 0, 0, [], true, "就绪", now)
+                ],
+                TotalReclaimableBytes: 50 * 1024 * 1024,
+                RecommendedBytes: 10 * 1024 * 1024,
+                OnDemandBytes: 35 * 1024 * 1024,
+                CautionBytes: 5 * 1024 * 1024);
+
+            var vm = new CleanupViewModel();
+            vm.ApplyPostCleanupSnapshot(snap, []);
+
+            CleanupRuleItemViewModel tempItem = vm.AllRuleItems.First(r => r.RuleId == tempRule.RuleId);
+            CleanupRuleItemViewModel npmItem = vm.AllRuleItems.First(r => r.RuleId == npmRule.RuleId);
+            tempItem.IsChecked = true;
+            Require(tempItem.IsChecked && vm.CheckedRuleCount == 1, "Initial selection before execution must work");
+            Require(tempItem.CanCheckNow && vm.CanSelectRecommendedInScope, "Selection controls must be enabled when idle");
+
+            // 模拟进入执行清理态：勾选锁死，但左侧分类切换、谨慎项显示切换、规则选中与分组展开均保持只读可用
+            vm.IsExecuting = true;
+            Require(!tempItem.CanCheckNow && !npmItem.CanCheckNow, "Rule checkboxes must be locked during execution");
+            Require(!vm.CanSelectRecommendedInScope, "Select-recommended button must be locked during execution");
+
+            // 尝试修改勾选必须被拦截
+            npmItem.IsChecked = true;
+            Require(!npmItem.IsChecked, "Direct item check mutation must be rejected during execution");
+            tempItem.IsChecked = false;
+            Require(tempItem.IsChecked, "Unchecking existing selected item must be rejected during execution");
+            vm.SelectRecommendedOnlyCommand.Execute(null);
+            vm.ClearAllSelectionsCommand.Execute(null);
+            var aiTry = vm.TryCheckRuleFromAiAdvice(npmRule.RuleId);
+            Require(!aiTry.Checked && tempItem.IsChecked && !npmItem.IsChecked,
+                "Batch and AI selection mutations must be rejected during execution");
+
+            // 只读浏览：切换左侧分类到「软件与开发者缓存」、展开分组、切换谨慎项、选中规则详情全部应正常生效
+            CleanupCategoryNavItem devCat = vm.CategoryNavItems.First(c => c.Category == CleanupCategory.SoftwareAndDeveloperCache);
+            vm.SelectCategoryCommand.Execute(devCat);
+            Require(vm.SelectedCategoryFilter == CleanupCategory.SoftwareAndDeveloperCache,
+                "Category switching must remain allowed during execution");
+
+            CleanupRuleGroupViewModel? group = vm.VisibleEntries.OfType<CleanupRuleGroupViewModel>().FirstOrDefault();
+            Require(group is not null && !group.CanCheckGroupNow,
+                "Rebuilt software group during execution must keep its group checkbox locked");
+            vm.ToggleExpandGroupCommand.Execute(group);
+            Require(group!.IsExpanded, "Expanding software group for read-only inspection must remain allowed during execution");
+            vm.ToggleGroupCheckCommand.Execute(group);
+            Require(!npmItem.IsChecked, "Group check mutation must be rejected during execution");
+
+            vm.SelectRuleCommand.Execute(npmItem);
+            Require(ReferenceEquals(vm.SelectedRule, npmItem), "Selecting rule to view details must remain allowed during execution");
+
+            vm.ToggleShowCautionItemsCommand.Execute(null);
+            Require(vm.ShowCautionItems, "Toggling caution visibility must remain allowed during execution");
+
+            // 执行结束后应自动恢复可勾选
+            vm.IsExecuting = false;
+            CleanupRuleGroupViewModel? liveGroup = vm.VisibleEntries.OfType<CleanupRuleGroupViewModel>().FirstOrDefault();
+            Require(tempItem.CanCheckNow && npmItem.CanCheckNow && liveGroup is not null && liveGroup.CanCheckGroupNow,
+                "Selection controls must unlock after execution completes");
+
+            return Task.CompletedTask;
+        });
+
+        await test("ConfirmationPolicy-tiered-rules-10gb-threshold-and-channel-b", () =>
+        {
+            const long gb = 1024L * 1024L * 1024L;
+            static QuarantineBatchRecord MakeBatch(string id, long bytes, bool isAi = false) => new(
+                1, id, @"C:\", $@"C:\.MoveFolderQuarantine\{id}",
+                $"批次 {id}", @"C:\Temp", isAi ? "ai-suspected-residual" : "sys-temp-24h",
+                isAi, DateTimeOffset.UtcNow, bytes, 10, []);
+
+            // 1. 隔离区删除：单批非 AI 且 < 10 GB -> L1 直接长按 1.2s
+            var qSmall = ConfirmationPolicy.EvaluateQuarantineDelete([MakeBatch("q-small", 10L * gb - 1)]);
+            Require(qSmall.Tier == ConfirmationTier.StandardHold && !qSmall.RequiresCheckbox && Math.Abs(qSmall.HoldSeconds - 1.2) < 0.001,
+                $"Expected L1 1.2s hold for <10GB single batch, got {qSmall}");
+
+            // 2. 隔离区删除：单批达到 10 GB 阈值 -> L2 勾选 + 长按 1.5s
+            var qLarge = ConfirmationPolicy.EvaluateQuarantineDelete([MakeBatch("q-10g", 10L * gb)]);
+            Require(qLarge.Tier == ConfirmationTier.HighRiskCheckboxAndHold && qLarge.RequiresCheckbox && Math.Abs(qLarge.HoldSeconds - 1.5) < 0.001 && qLarge.HighRiskReasons.Count == 1,
+                $"Expected L2 1.5s checkbox+hold for >=10GB batch, got {qLarge}");
+
+            // 3. 隔离区删除：AI 疑似残留（即便体积很小）-> L2 勾选 + 长按 1.5s
+            var qAi = ConfirmationPolicy.EvaluateQuarantineDelete([MakeBatch("q-ai", 1024, isAi: true)]);
+            Require(qAi.Tier == ConfirmationTier.HighRiskCheckboxAndHold && qAi.RequiresCheckbox && Math.Abs(qAi.HoldSeconds - 1.5) < 0.001,
+                $"Expected L2 for AI residual batch, got {qAi}");
+
+            // 4. 隔离区删除：多批（>= 2 批）-> L2 勾选 + 长按 1.5s
+            var qMulti = ConfirmationPolicy.EvaluateQuarantineDelete([MakeBatch("q-1", 1024), MakeBatch("q-2", 2048)]);
+            Require(qMulti.Tier == ConfirmationTier.HighRiskCheckboxAndHold && qMulti.RequiresCheckbox && Math.Abs(qMulti.HoldSeconds - 1.5) < 0.001,
+                $"Expected L2 for multi-batch delete, got {qMulti}");
+
+            // 5. 清理确认：普通 1 档 -> Direct；3 档仅通道 A -> L1 1.2s；3 档含通道 B -> L2 1.5s
+            CleanupRuleDefinition tempRule = BuiltInCleanupRules.FindById("sys-temp-24h")!;
+            CleanupRuleDefinition installerRule = BuiltInCleanupRules.All.First(r => r.Tier == CleanupRecommendationTier.Caution && r.Channel == CleanupExecutionChannel.FileQuarantine && r.CautionReason is { RequiresPhraseConfirmation: true });
+            CleanupRuleDefinition winSxSRule = BuiltInCleanupRules.FindById("caution-winsxs-resetbase")!;
+
+            static CleanupRuleItemViewModel MakeRuleVm(CleanupRuleDefinition rule, long bytes = 4096) =>
+                new(new CleanupRuleScanResult(rule, [], [], bytes, 1, 0, 0, [], true, "ok", DateTimeOffset.UtcNow), () => { });
+
+            var cDirect = ConfirmationPolicy.EvaluateCleanupConfirm([MakeRuleVm(tempRule)]);
+            Require(cDirect.Tier == ConfirmationTier.Direct && !cDirect.HasCautionItems && !cDirect.RequiresCheckbox,
+                $"Expected Direct tier for normal cleanup rule, got {cDirect}");
+
+            var cL1 = ConfirmationPolicy.EvaluateCleanupConfirm([MakeRuleVm(installerRule)]);
+            Require(cL1.Tier == ConfirmationTier.StandardHold && cL1.HasCautionItems && !cL1.RequiresCheckbox && Math.Abs(cL1.HoldSeconds - 1.2) < 0.001,
+                $"Expected L1 1.2s for Channel A caution rule, got {cL1}");
+
+            var cL2 = ConfirmationPolicy.EvaluateCleanupConfirm([MakeRuleVm(winSxSRule)]);
+            Require(cL2.Tier == ConfirmationTier.HighRiskCheckboxAndHold && cL2.HasCautionItems && cL2.RequiresCheckbox && Math.Abs(cL2.HoldSeconds - 1.5) < 0.001,
+                $"Expected L2 1.5s checkbox+hold for Channel B caution rule, got {cL2}");
+
+            // 6. 原始备份处理：仅第二步永久删除为 L2，其余均为 Direct
+            var bStep1 = ConfirmationPolicy.EvaluateBackupConfirm(BackupDeletionMode.Permanent, ConfirmationStep.First);
+            var bRecycle2 = ConfirmationPolicy.EvaluateBackupConfirm(BackupDeletionMode.Recycle, ConfirmationStep.Second);
+            var bPerm2 = ConfirmationPolicy.EvaluateBackupConfirm(BackupDeletionMode.Permanent, ConfirmationStep.Second);
+            Require(bStep1.Tier == ConfirmationTier.Direct && bRecycle2.Tier == ConfirmationTier.Direct,
+                "Step 1 and RecycleBin must remain Direct");
+            Require(bPerm2.Tier == ConfirmationTier.HighRiskCheckboxAndHold && bPerm2.RequiresCheckbox && Math.Abs(bPerm2.HoldSeconds - 1.5) < 0.001,
+                $"Expected L2 1.5s for Step 2 Permanent backup deletion, got {bPerm2}");
+
+            return Task.CompletedTask;
+        });
+
+        await test("HoldConfirmButton-and-three-dialogs-no-typing-sta-smoke", () =>
+        {
+            Exception? staError = null;
+            var sta = new Thread(() =>
+            {
+                try
+                {
+                    // 1. HoldConfirmButton 状态机（禁用拦截、未按满不触发、按满触发、单击直通）
+                    int confirmedCount = 0;
+                    var btn = new HoldConfirmButton
+                    {
+                        HoldDurationSeconds = 1.2,
+                        IsHoldRequired = true,
+                        IsEnabled = false
+                    };
+                    btn.Confirmed += (_, _) => confirmedCount++;
+
+                    Require(!btn.AdvanceHoldByElapsedSeconds(2.0) && confirmedCount == 0,
+                        "Disabled HoldConfirmButton must never trigger confirmation");
+
+                    btn.IsEnabled = true;
+                    Require(!btn.AdvanceHoldByElapsedSeconds(0.6) && confirmedCount == 0 && btn.IsHolding && Math.Abs(btn.HoldProgress - 0.5) < 0.01,
+                        "Partial hold (0.6s / 1.2s) must not trigger and must track 50% progress");
+                    btn.CancelHold();
+                    Require(!btn.IsHolding && btn.HoldProgress == 0, "CancelHold must reset progress to 0");
+
+                    Require(btn.AdvanceHoldByElapsedSeconds(1.2) && confirmedCount == 1 && !btn.IsHolding,
+                        "Reaching full hold duration must fire Confirmed once");
+
+                    btn.IsHoldRequired = false;
+                    Require(btn.AdvanceHoldByElapsedSeconds(0.0) && confirmedCount == 2,
+                        "Direct mode (IsHoldRequired=false) must fire immediately");
+
+                    // 2. QuarantineDeleteConfirmWindow L1 (<10GB) vs L2 (>=10GB / AI)
+                    var smallBatch = new QuarantineBatchRecord(
+                        1, "q-l1", @"C:\", @"C:\.MoveFolderQuarantine\q-l1",
+                        "临时文件", @"C:\Temp", "sys-temp-24h", false, DateTimeOffset.UtcNow, 512L * 1024 * 1024, 5, []);
+                    var largeBatch = new QuarantineBatchRecord(
+                        1, "q-l2", @"C:\", @"C:\.MoveFolderQuarantine\q-l2",
+                        "超大缓存", @"C:\Cache", "sys-temp-24h", false, DateTimeOffset.UtcNow, 11L * 1024 * 1024 * 1024, 50, []);
+
+                    var qWinL1 = new QuarantineDeleteConfirmWindow(smallBatch);
+                    qWinL1.Measure(new Size(560, 480));
+                    Require(qWinL1.ConfirmationPlan.Tier == ConfirmationTier.StandardHold && string.IsNullOrEmpty(qWinL1.EnteredPhrase),
+                        "Quarantine L1 window must stay unconfirmed with empty phrase until hold finishes");
+
+                    var qWinL2 = new QuarantineDeleteConfirmWindow(largeBatch);
+                    qWinL2.Measure(new Size(560, 480));
+                    Require(qWinL2.ConfirmationPlan.Tier == ConfirmationTier.HighRiskCheckboxAndHold && string.IsNullOrEmpty(qWinL2.EnteredPhrase),
+                        "Quarantine >=10GB window must use L2 HighRiskCheckboxAndHold");
+
+                    // 3. CleanupConfirmWindow L1 (Channel A caution) vs L2 (Channel B caution)
+                    CleanupRuleDefinition installerRule = BuiltInCleanupRules.All.First(r => r.Tier == CleanupRecommendationTier.Caution && r.Channel == CleanupExecutionChannel.FileQuarantine && r.CautionReason is { RequiresPhraseConfirmation: true });
+                    CleanupRuleDefinition winSxSRule = BuiltInCleanupRules.FindById("caution-winsxs-resetbase")!;
+                    var cWinL1 = new CleanupConfirmWindow([new CleanupRuleItemViewModel(new CleanupRuleScanResult(installerRule, [], [], 4096, 1, 0, 0, [], true, "ok", DateTimeOffset.UtcNow), () => { })]);
+                    cWinL1.Measure(new Size(620, 520));
+                    Require(cWinL1.ConfirmationPlan.Tier == ConfirmationTier.StandardHold && cWinL1.EnteredCautionPhrase is null,
+                        "Cleanup Channel A caution window must use L1 and return null phrase before confirm");
+
+                    var cWinL2 = new CleanupConfirmWindow([new CleanupRuleItemViewModel(new CleanupRuleScanResult(winSxSRule, [], [], 4096, 1, 0, 0, [], true, "ok", DateTimeOffset.UtcNow), () => { })]);
+                    cWinL2.Measure(new Size(620, 520));
+                    Require(cWinL2.ConfirmationPlan.Tier == ConfirmationTier.HighRiskCheckboxAndHold && cWinL2.EnteredCautionPhrase is null,
+                        "Cleanup Channel B caution window must use L2 and return null phrase before confirm");
+
+                    // 4. BackupConfirmationWindow + ViewModel Step 2 Permanent (L2 checkbox + 1.5s hold)
+                    var txRecord = new MigrationTransactionRecord
+                    {
+                        TransactionId = Guid.NewGuid(),
+                        SourcePath = @"C:\Demo\AppData",
+                        TargetPath = @"D:\Migrated\AppData",
+                        BackupPath = @"C:\Demo\AppData_backup_20261127"
+                    };
+                    var delReq = new BackupDeletionRequest
+                    {
+                        RequestId = Guid.NewGuid(),
+                        TransactionId = txRecord.TransactionId,
+                        Mode = BackupDeletionMode.Permanent
+                    };
+                    var bVm = new BackupConfirmationViewModel(txRecord, delReq, ConfirmationStep.Second);
+                    var bWin = new BackupConfirmationWindow(bVm);
+                    bWin.Measure(new Size(640, 520));
+
+                    Require(bVm.NeedsName && bVm.ConfirmRequiresHold && Math.Abs(bVm.ConfirmHoldSeconds - 1.5) < 0.001,
+                        "Backup Step 2 Permanent must use L2 1.5s hold");
+                    Require(!bVm.CanTriggerConfirm && !bVm.ConfirmCommand.CanExecute(null) && string.IsNullOrEmpty(bVm.ConfirmationText),
+                        "Backup Step 2 Permanent must stay disabled until checkbox acknowledged");
+
+                    bVm.IsAcknowledged = true;
+                    Require(bVm.CanTriggerConfirm && bVm.ConfirmCommand.CanExecute(null),
+                        "Checking acknowledgement box must unlock Backup Step 2 confirm command");
+
+                    // 无 ShowDialog 的测试窗口不设置 DialogResult，直接另建独立 VM 验证自动签发 ExpectedName
+                    var bVmExec = new BackupConfirmationViewModel(txRecord, delReq, ConfirmationStep.Second)
+                    {
+                        IsAcknowledged = true
+                    };
+                    bVmExec.ConfirmCommand.Execute(null);
+                    Require(bVmExec.ConfirmationText == bVmExec.ExpectedName && bVmExec.ExpectedName == "AppData",
+                        $"Confirmed Backup Step 2 VM must automatically issue ExpectedName ('AppData'), got '{bVmExec.ConfirmationText}'");
+                }
+                catch (Exception ex)
+                {
+                    staError = ex;
+                }
+            });
+            sta.SetApartmentState(ApartmentState.STA);
+            sta.Start();
+            sta.Join();
+
+            if (staError is not null)
+            {
+                throw new InvalidOperationException($"No-typing confirmation STA test failed: {staError.Message} ({staError.InnerException?.Message})", staError);
+            }
+            return Task.CompletedTask;
+        });
+
+        await test("recommended-direct-delete-option-A-tier-routing-and-1.2s-hold-confirm", async () =>
+        {
+            string tempRoot = Path.Combine(Path.GetTempPath(), "MoveFolderDirectDel_" + Guid.NewGuid().ToString("N")[..8]);
+            string recDir = Path.Combine(tempRoot, "rec_cache");
+            string onDemandDir = Path.Combine(tempRoot, "ondemand_cache");
+            string quarantineRoot = Path.Combine(tempRoot, "quarantine");
+            Directory.CreateDirectory(recDir);
+            Directory.CreateDirectory(onDemandDir);
+
+            try
+            {
+                string recExpired = Path.Combine(recDir, "old_cache.tmp");
+                string recReadOnly = Path.Combine(recDir, "old_ro.tmp");
+                string recFresh = Path.Combine(recDir, "fresh.tmp");
+                string recLocked = Path.Combine(recDir, "locked.tmp");
+                string onDemandFile = Path.Combine(onDemandDir, "pkg_archive.bin");
+
+                File.WriteAllBytes(recExpired, new byte[4096]);
+                File.WriteAllBytes(recReadOnly, new byte[2048]);
+                File.WriteAllBytes(recFresh, new byte[1024]);
+                File.WriteAllBytes(recLocked, new byte[1536]);
+                File.WriteAllBytes(onDemandFile, new byte[8192]);
+
+                DateTime oldTime = DateTime.UtcNow.AddHours(-48);
+                File.SetLastWriteTimeUtc(recExpired, oldTime);
+                File.SetLastWriteTimeUtc(recReadOnly, oldTime);
+                File.SetLastWriteTimeUtc(recLocked, oldTime);
+                File.SetLastWriteTimeUtc(onDemandFile, oldTime);
+                File.SetAttributes(recReadOnly, FileAttributes.ReadOnly);
+
+                var recRule = new CleanupRuleDefinition(
+                    RuleId: "test-rec-direct-del",
+                    Version: BuiltInCleanupRules.CurrentRuleVersion,
+                    DisplayName: "测试 1 档可重建缓存",
+                    ShortDescription: "测试规则",
+                    Category: CleanupCategory.SystemTempAndShader,
+                    Tier: CleanupRecommendationTier.Recommended,
+                    Channel: CleanupExecutionChannel.FileQuarantine,
+                    OfficialApiKind: CleanupOfficialApiKind.None,
+                    TargetSpecs: [new CleanupPathRuleSpec(CleanupKnownRootKind.CustomTestRoot, string.Empty, ["*"], true, CustomRootOverride: recDir)],
+                    RequiredStoppedProcesses: [],
+                    MinAgeHours: 24,
+                    CostAndReclaimNote: "可重建",
+                    ChannelBadgeText: "同卷隔离可恢复",
+                    IsRebuildable: true);
+
+                var onDemandRule = new CleanupRuleDefinition(
+                    RuleId: "test-ondemand-quarantine-only",
+                    Version: BuiltInCleanupRules.CurrentRuleVersion,
+                    DisplayName: "测试 2 档按需缓存",
+                    ShortDescription: "测试规则",
+                    Category: CleanupCategory.SoftwareAndDeveloperCache,
+                    Tier: CleanupRecommendationTier.OnDemand,
+                    Channel: CleanupExecutionChannel.FileQuarantine,
+                    OfficialApiKind: CleanupOfficialApiKind.None,
+                    TargetSpecs: [new CleanupPathRuleSpec(CleanupKnownRootKind.CustomTestRoot, string.Empty, ["*"], true, CustomRootOverride: onDemandDir)],
+                    RequiredStoppedProcesses: [],
+                    MinAgeHours: 0,
+                    CostAndReclaimNote: "需重新下载",
+                    ChannelBadgeText: "同卷隔离可恢复",
+                    IsRebuildable: true);
+
+                Require(recRule.SupportsDirectPermanentDelete, "1-tier rebuildable Channel A rule must support DirectPermanentDelete");
+                Require(!onDemandRule.SupportsDirectPermanentDelete, "2-tier OnDemand rule must NOT support DirectPermanentDelete");
+
+                var qStore = new QuarantineStore(customQuarantineRootOverride: quarantineRoot);
+                var service = new CleanupService(qStore);
+                CleanupScanSnapshot snap = await service.ScanAsync([recRule, onDemandRule]);
+
+                // 锁定 recLocked 模拟文件占用，同时发起方式 A 混合 DirectPermanentDelete
+                CleanupExecutionResult exec;
+                using (var lockStream = new FileStream(recLocked, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    exec = await service.ExecuteRuleCleanupAsync(
+                        snap,
+                        [recRule.RuleId, onDemandRule.RuleId],
+                        CleanupFileAction.DirectPermanentDelete);
+                }
+
+                CleanupExecutionItemResult recItem = exec.Items.Single(i => i.TargetId == recRule.RuleId);
+                CleanupExecutionItemResult onDemandItem = exec.Items.Single(i => i.TargetId == onDemandRule.RuleId);
+
+                // 1 档推荐项直接永久删除释放物理空间；近期文件与被占文件保留；绝不落入隔离区
+                Require(recItem.Status == CleanupItemExecutionStatus.PermanentlyDeleted
+                    && recItem.ProcessedCount == 2
+                    && recItem.ProcessedBytes == 6144
+                    && recItem.FailedCount == 1
+                    && recItem.QuarantineBatchId is null,
+                    $"1-tier direct delete result mismatch: status={recItem.Status}, count={recItem.ProcessedCount}, bytes={recItem.ProcessedBytes}, failed={recItem.FailedCount}");
+                Require(!File.Exists(recExpired) && !File.Exists(recReadOnly), "Expired & read-only 1-tier files must be permanently deleted");
+                Require(File.Exists(recFresh) && File.Exists(recLocked), "Fresh (<24h) and locked files must stay untouched");
+
+                // 2 档按需项即使请求 DirectPermanentDelete 也必须硬分流至同卷隔离区（方式 A）
+                Require(onDemandItem.Status == CleanupItemExecutionStatus.Quarantined
+                    && onDemandItem.ProcessedCount == 1
+                    && onDemandItem.ProcessedBytes == 8192
+                    && !string.IsNullOrWhiteSpace(onDemandItem.QuarantineBatchId),
+                    $"2-tier rule must auto-route to QuarantineSameVolume under Option A: status={onDemandItem.Status}");
+                Require(!File.Exists(onDemandFile), "2-tier file should be moved to quarantine");
+                Require(exec.PermanentlyDeletedBytes == 6144 && exec.QuarantinedBytes == 8192,
+                    $"Execution totals mismatch: perm={exec.PermanentlyDeletedBytes}, quar={exec.QuarantinedBytes}");
+
+                // 回执 ViewModel 同步验证：直接删除字节计入直接释放 KPI，2 档计入隔离区 KPI
+                var receiptVm = new CleanupExecutionReceiptViewModel(exec);
+                Require(receiptVm.HasQuarantinedSpace && receiptVm.ReclaimedSubText.Contains("直接删除"),
+                    $"Receipt VM should reflect both direct-deleted and quarantined bytes: reclaimedSub='{receiptVm.ReclaimedSubText}'");
+
+                // ConfirmationPolicy + CleanupConfirmWindow STA 交互验证（1.2s 长按升级 & 混合分流提示）
+                static CleanupRuleItemViewModel MakeVm(CleanupRuleDefinition rule, long bytes = 4096) =>
+                    new(new CleanupRuleScanResult(rule, [], [], bytes, 1, 0, 0, [], true, "ok", DateTimeOffset.UtcNow), () => { });
+
+                var planDefault = ConfirmationPolicy.EvaluateCleanupConfirm([MakeVm(recRule)], CleanupFileAction.QuarantineSameVolume);
+                var planDirect = ConfirmationPolicy.EvaluateCleanupConfirm([MakeVm(recRule)], CleanupFileAction.DirectPermanentDelete);
+                var planOnDemandOnly = ConfirmationPolicy.EvaluateCleanupConfirm([MakeVm(onDemandRule)], CleanupFileAction.DirectPermanentDelete);
+                Require(planDefault.Tier == ConfirmationTier.Direct && !planDefault.HasDirectDeleteTargets, "Default quarantine must remain Direct click");
+                Require(planDirect.Tier == ConfirmationTier.StandardHold && planDirect.HasDirectDeleteTargets && !planDirect.RequiresCheckbox && Math.Abs(planDirect.HoldSeconds - 1.2) < 0.001,
+                    $"DirectPermanentDelete on 1-tier must require L1 1.2s hold, got {planDirect}");
+                Require(planOnDemandOnly.Tier == ConfirmationTier.Direct && !planOnDemandOnly.HasDirectDeleteTargets,
+                    "2-tier only must never activate direct-delete targets");
+
+                Exception? staErr = null;
+                var sta = new Thread(() =>
+                {
+                    try
+                    {
+                        var mixedWin = new CleanupConfirmWindow([MakeVm(recRule), MakeVm(onDemandRule)]);
+                        mixedWin.Measure(new Size(620, 560));
+                        Require(mixedWin.SelectedFileAction == CleanupFileAction.QuarantineSameVolume
+                            && mixedWin.ConfirmationPlan.Tier == ConfirmationTier.Direct,
+                            "Mixed confirm window must default to QuarantineSameVolume + Direct");
+
+                        // 切换到直接永久删除后动态升级为 L1 1.2s 长按
+                        var radio = (System.Windows.Controls.RadioButton)mixedWin.FindName("DirectDeleteRadio");
+                        Require(radio.IsEnabled && radio.Content.ToString()!.Contains("2/3 档"), "Mixed window must enable Option A split direct delete radio");
+                        radio.IsChecked = true;
+                        Require(mixedWin.SelectedFileAction == CleanupFileAction.DirectPermanentDelete
+                            && mixedWin.ConfirmationPlan.Tier == ConfirmationTier.StandardHold
+                            && Math.Abs(mixedWin.ConfirmationPlan.HoldSeconds - 1.2) < 0.001,
+                            "Switching to DirectDeleteRadio must upgrade confirmation plan to 1.2s hold");
+
+                        // 纯 2 档窗口：直接永久删除单选项必须禁用
+                        var onDemandOnlyWin = new CleanupConfirmWindow([MakeVm(onDemandRule)]);
+                        onDemandOnlyWin.Measure(new Size(620, 560));
+                        var disabledRadio = (System.Windows.Controls.RadioButton)onDemandOnlyWin.FindName("DirectDeleteRadio");
+                        Require(!disabledRadio.IsEnabled, "DirectDeleteRadio must be disabled when no 1-tier recommended rule is selected");
+                    }
+                    catch (Exception ex)
+                    {
+                        staErr = ex;
+                    }
+                });
+                sta.SetApartmentState(ApartmentState.STA);
+                sta.Start();
+                sta.Join();
+                if (staErr is not null) throw staErr;
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(tempRoot))
+                    {
+                        foreach (string f in Directory.EnumerateFiles(tempRoot, "*", SearchOption.AllDirectories))
+                        {
+                            try { File.SetAttributes(f, FileAttributes.Normal); } catch { }
+                        }
+                        Directory.Delete(tempRoot, recursive: true);
+                    }
+                }
+                catch { }
+            }
         });
     }
 

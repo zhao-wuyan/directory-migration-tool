@@ -1,9 +1,10 @@
 {
-  "version": "2026.11-explanations-v1",
+  "version": "2026.11-explanations-v2",
   "rules": [
     {
       "matchKind": "VolumeRoot",
       "names": ["Windows"],
+      "shortSummary": "Windows 操作系统核心目录",
       "roleTitle": "Windows 操作系统核心",
       "purpose": "存放操作系统内核、驱动、系统库（System32/WinSxS）及系统服务。",
       "migrationAdvice": "严禁迁移；若需释放空间，请前往「垃圾清理」使用官方 DISM 组件清理或 Windows 磁盘清理。"
@@ -11,6 +12,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Windows.old"],
+      "shortSummary": "旧版系统升级备份，可清理",
       "roleTitle": "旧版 Windows 系统备份目录（Windows.old）",
       "purpose": "大版本升级后由 Windows 保留的旧系统备份（通常 10 天后系统自动清理），常占用 15–30 GB。",
       "migrationAdvice": "严禁迁移；确认无需回退旧版系统后，可在「垃圾清理 → 谨慎清理项」中通过官方接口或 Windows 磁盘清理安全释放。",
@@ -19,6 +21,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["$WinREAgent"],
+      "shortSummary": "系统恢复环境更新缓存",
       "roleTitle": "Windows 恢复环境更新缓存（$WinREAgent）",
       "purpose": "Windows 专属隐藏系统目录，由系统更新与 WinRE 恢复环境维护服务创建，用于存放更新暂存与回滚备份文件。",
       "migrationAdvice": "严禁通过符号链接迁移（会导致系统更新或恢复环境异常）；待 Windows 更新完成且系统稳定重启后，可通过「垃圾清理」或 Windows「磁盘清理（清理系统文件）」安全释放。"
@@ -26,6 +29,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["$WINDOWS.~BT", "$Windows.~WS", "$Windows.~LS", "$WINDOWS.~Q", "$GetCurrent", "$INPLACE.~TR"],
+      "shortSummary": "Windows 系统升级临时缓存",
       "roleTitle": "Windows 系统升级与更新临时目录",
       "purpose": "Windows 专属隐藏系统目录，用于存放大版本升级或功能更新期间的安装包、临时解压文件与回滚数据。",
       "migrationAdvice": "严禁迁移；升级完成且确认无需回退旧版本后，请使用 Windows「磁盘清理（清理系统文件 → 以前的 Windows 安装 / 临时 Windows 安装文件）」释放。"
@@ -33,6 +37,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["$SysReset"],
+      "shortSummary": "系统重置暂存与诊断日志",
       "roleTitle": "Windows 重置此电脑暂存与日志目录（$SysReset）",
       "purpose": "Windows 专属隐藏系统目录，记录“重置此电脑”流程的配置、回滚数据与诊断日志。",
       "migrationAdvice": "严禁迁移；确认系统已稳定运行且无需排查重置问题后，可通过 Windows 系统清理处理。"
@@ -40,6 +45,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["System Volume Information"],
+      "shortSummary": "卷影副本与还原点系统目录",
       "roleTitle": "Windows 卷系统信息目录",
       "purpose": "Windows 专属隐藏保护目录，存放卷影副本、系统还原点、BitLocker 及索引元数据。",
       "migrationAdvice": "严禁迁移或手动删除；如需减少还原点占用，请在 Windows「系统保护」设置中调整最大磁盘使用量。"
@@ -47,6 +53,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["$Recycle.Bin", "RECYCLER", "Recycled"],
+      "shortSummary": "磁盘回收站数据目录",
       "roleTitle": "Windows 回收站元数据目录",
       "purpose": "Windows 专属隐藏系统目录，存放当前磁盘分区中已删除但尚未清空的回收站文件。",
       "migrationAdvice": "严禁迁移；如需释放空间，可在桌面「回收站」或在「垃圾清理 → 谨慎清理项」中确认后清空。"
@@ -54,6 +61,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Recovery", "Boot", "EFI"],
+      "shortSummary": "系统启动与恢复引导目录",
       "roleTitle": "Windows 启动与系统恢复目录",
       "purpose": "Windows 专属隐藏系统目录，存放操作系统引导配置（BCD）或 WinRE 恢复镜像。",
       "migrationAdvice": "严禁迁移或删除，否则将导致系统无法启动或无法进入恢复环境。"
@@ -61,6 +69,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Config.Msi"],
+      "shortSummary": "MSI 安装程序回滚目录",
       "roleTitle": "Windows Installer 事务回滚目录（Config.Msi）",
       "purpose": "Windows 专属隐藏系统目录，由 MSI 安装服务在软件安装/卸载期间用于记录回滚脚本与备份文件。",
       "migrationAdvice": "严禁迁移；正常安装完成后由系统自动清理，请勿手动删除正在运行的安装事务文件。"
@@ -68,6 +77,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["MSOCache"],
+      "shortSummary": "Office 本地安装源缓存",
       "roleTitle": "Microsoft Office 本地安装源缓存（MSOCache）",
       "purpose": "Office 安装程序留在卷根的隐藏本地安装源缓存，用于修复或增量安装组件。",
       "migrationAdvice": "不建议符号链接迁移；若无需离线修复 Office，可通过 Windows「磁盘清理」安全释放。"
@@ -75,6 +85,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Documents and Settings"],
+      "shortSummary": "旧版路径兼容系统联接点",
       "roleTitle": "Windows 旧版路径兼容联接点",
       "purpose": "Windows 专属隐藏系统联接点（指向 Users），仅为兼容旧版软件而保留。",
       "migrationAdvice": "严禁迁移或删除，实际不包含独立文件占用。"
@@ -82,6 +93,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["OneDriveTemp"],
+      "shortSummary": "OneDrive 同步临时缓存",
       "roleTitle": "OneDrive 卷根隐藏临时缓存（OneDriveTemp）",
       "purpose": "Windows 内置 OneDrive 同步客户端在卷根创建的隐藏系统临时目录，用于暂存同步与校验文件。",
       "migrationAdvice": "严禁迁移；退出 OneDrive 后若仍有残留可按需清理。"
@@ -89,6 +101,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["WUDownloadCache", "DeliveryOptimization"],
+      "shortSummary": "Windows 更新下载缓存",
       "roleTitle": "Windows 更新与传递优化缓存目录",
       "purpose": "Windows 更新服务或传递优化功能在卷根创建的隐藏系统下载缓存目录。",
       "migrationAdvice": "严禁迁移；可在「垃圾清理 → 系统更新与组件回收」或 Windows「设置 → 系统 → 存储 → 临时文件」中安全释放。"
@@ -96,6 +109,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["WindowsApps", "ModifiableWindowsApps", "WpSystem"],
+      "shortSummary": "应用商店与 Xbox 受保护容器",
       "roleTitle": "Microsoft Store / UWP 应用系统容器",
       "purpose": "Windows 应用商店与 Xbox 游戏在该磁盘创建的受保护安装与数据容器，绑定 AppX 系统权限。",
       "migrationAdvice": "严禁使用符号链接迁移；如需更换盘符，请前往 Windows「设置 → 应用 → 已安装的应用」中使用系统自带的「移动」功能。",
@@ -104,6 +118,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["PerfLogs"],
+      "shortSummary": "系统性能监视器日志目录",
       "roleTitle": "Windows 性能日志目录（PerfLogs）",
       "purpose": "Windows 性能监视器默认日志存放目录，通常为空。",
       "migrationAdvice": "属于系统默认目录，无需迁移。"
@@ -111,6 +126,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Users"],
+      "shortSummary": "本地用户个人与软件数据总目录",
       "roleTitle": "Windows 用户账户总目录",
       "purpose": "包含所有本地用户的个人文件、桌面、文档以及 AppData 软件配置。",
       "migrationAdvice": "不可整体迁移，请展开进入具体用户目录后再挑选大体积数据子目录。"
@@ -118,6 +134,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Program Files", "Program Files (x86)"],
+      "shortSummary": "系统级桌面程序安装根目录",
       "roleTitle": "系统级软件安装根目录",
       "purpose": "Windows 默认的 64 位 / 32 位桌面程序安装根目录，关联大量系统服务与快捷方式。",
       "migrationAdvice": "不可整体迁移；请展开进入具体软件目录，优先只迁移模型、素材或游戏库等纯数据子目录。"
@@ -125,6 +142,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["ProgramData"],
+      "shortSummary": "全机共享程序配置与服务数据",
       "roleTitle": "全机共享程序数据目录",
       "purpose": "存放所有用户共用的软件配置、授权信息、系统更新与后台服务数据。",
       "migrationAdvice": "不可整体迁移；其中 Microsoft / Package Cache 等属系统保护区。"
@@ -132,6 +150,7 @@
     {
       "matchKind": "VolumeRoot",
       "names": ["Games", "WeGameApps"],
+      "shortSummary": "大型游戏客户端与资源库",
       "roleTitle": "游戏安装与资源库目录",
       "purpose": "通常用于存放大型客户端游戏本体、资源包与更新文件，往往占据数十至数百 GB。",
       "migrationAdvice": "完全退出游戏及对应启动器后，通常适合迁移到空间充足的磁盘。",
@@ -140,6 +159,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Desktop"],
+      "shortSummary": "桌面文件与快捷方式",
       "roleTitle": "Windows 桌面目录",
       "purpose": "存放电脑桌面上显示的所有文件、文件夹与快捷方式。",
       "migrationAdvice": "影响范围较广，且可能绑定 OneDrive 同步。更建议右键桌面文件夹「属性 → 位置」使用 Windows 原生移动；若确需迁移，请先确认未开启云同步。",
@@ -148,6 +168,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Documents"],
+      "shortSummary": "个人文档与部分软件存档",
       "roleTitle": "Windows 我的文档",
       "purpose": "存放个人文档，同时大量软件和游戏会把配置文件、存档、聊天文件（如微信/QQ）默认存在这里。",
       "migrationAdvice": "建议优先使用 Windows 右键「属性 → 位置」原生移动，或展开本目录，仅迁移其中占空间最大的单个子目录（如大项目、游戏素材），降低影响面。",
@@ -156,6 +177,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Downloads"],
+      "shortSummary": "浏览器默认下载与安装包",
       "roleTitle": "Windows 下载目录",
       "purpose": "浏览器、网盘和下载工具默认保存安装包与下载文件的位置，最容易日积月累占满 C 盘。",
       "migrationAdvice": "对程序路径依赖低，非常适合先手动清理旧安装包，或迁移到空间充足的磁盘（也支持右键「属性 → 位置」原生移动）。",
@@ -164,6 +186,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Videos"],
+      "shortSummary": "录屏、剪辑工程与视频素材",
       "roleTitle": "Windows 视频目录",
       "purpose": "存放录屏、剪辑工程、电影与个人视频素材。",
       "migrationAdvice": "属于典型的大体积个人媒体数据，对系统无强依赖，非常适合迁移释放空间（也支持 Windows「属性 → 位置」原生移动）。",
@@ -172,6 +195,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Pictures"],
+      "shortSummary": "截图、照片与相册素材",
       "roleTitle": "Windows 图片目录",
       "purpose": "存放截图、照片、设计素材及相册缓存。",
       "migrationAdvice": "纯个人媒体文件，未开启 OneDrive 同步时适合迁移释放空间（也支持 Windows「属性 → 位置」原生移动）。",
@@ -180,6 +204,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Music"],
+      "shortSummary": "本地音频与音乐媒体库",
       "roleTitle": "Windows 音乐目录",
       "purpose": "存放本地音频文件与音乐软件默认媒体库。",
       "migrationAdvice": "纯个人媒体文件，退出音乐播放器后适合迁移（也支持 Windows「属性 → 位置」原生移动）。",
@@ -188,6 +213,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Saved Games"],
+      "shortSummary": "单机游戏存档，建议谨慎保留",
       "roleTitle": "Windows 游戏存档目录",
       "purpose": "存放单机游戏进度存档与配置文件。",
       "migrationAdvice": "通常体积不大但极其珍贵，非必要不建议迁移；如需迁移请先退出游戏并确认备份。",
@@ -196,6 +222,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["Favorites", "Contacts", "Links", "Searches"],
+      "shortSummary": "资源管理器个人辅助配置",
       "roleTitle": "Windows 个人系统辅助目录",
       "purpose": "存放资源管理器快速访问链接、收藏夹或搜索配置。",
       "migrationAdvice": "体积通常极小且与系统壳层集成，不建议迁移。"
@@ -203,6 +230,7 @@
     {
       "matchKind": "UserProfileChild",
       "names": ["AppData"],
+      "shortSummary": "软件配置、缓存与本地数据总容器",
       "roleTitle": "用户软件数据总容器（AppData）",
       "purpose": "Windows 隐藏目录，存放当前用户所有软件的本地配置、缓存、数据库、登录态与用户级安装程序。",
       "migrationAdvice": "不可整体迁移；请展开 Local / Roaming 选择具体占空间的大软件数据目录。"
@@ -210,6 +238,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local"],
+      "shortSummary": "本机软件缓存、索引与用户级程序",
       "roleTitle": "本地应用数据容器（AppData\\Local）",
       "purpose": "存放仅限本机使用的软件缓存、索引、模型、虚拟磁盘与用户级安装程序，通常体积最大。",
       "migrationAdvice": "不可整体迁移，请展开挑选具体占空间的应用目录。"
@@ -217,6 +246,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Roaming"],
+      "shortSummary": "软件核心配置、插件与登录态",
       "roleTitle": "漫游应用配置容器（AppData\\Roaming）",
       "purpose": "存放软件核心用户配置、插件、快捷键与账密会话，通常体积较小但非常关键。",
       "migrationAdvice": "不可整体迁移；一般无需迁移，仅在个别软件（如大体积聊天/插件数据）占用过高时单独处理。"
@@ -224,6 +254,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["LocalLow"],
+      "shortSummary": "低权限沙箱与 Unity 游戏数据",
       "roleTitle": "低权限应用数据容器（AppData\\LocalLow）",
       "purpose": "存放低完整性进程（如浏览器沙箱、Unity 游戏存档/日志）的本地数据。",
       "migrationAdvice": "不可整体迁移；展开后可按需处理具体大体积游戏数据目录。"
@@ -231,6 +262,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\Programs"],
+      "shortSummary": "用户级软件安装根目录",
       "roleTitle": "用户级软件安装根目录（AppData\\Local\\Programs）",
       "purpose": "Windows 官方用户级程序安装目录（等价于个人版 Program Files），存放 VS Code、Python、IDE、NovaStudio 等程序本体。",
       "migrationAdvice": "影响全部用户级已装软件，禁止整体迁移；请展开进入具体软件目录，仅迁移模型/素材/输出等业务数据子目录。",
@@ -239,6 +271,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\Temp"],
+      "shortSummary": "当前用户临时文件，可直接清理",
       "roleTitle": "当前用户临时文件目录（AppData\\Local\\Temp）",
       "purpose": "安装程序解压包、运行中软件产生的临时缓存文件，长期未清理可能占用数 GB。",
       "migrationAdvice": "无需迁移；建议前往「垃圾清理 → 系统临时与着色器缓存」安全清理超过 24 小时的临时文件。",
@@ -247,6 +280,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\Packages"],
+      "shortSummary": "应用商店 UWP 沙箱数据",
       "roleTitle": "Microsoft Store / UWP 应用数据目录",
       "purpose": "存放 Windows 应用商店程序（如终端、照片、微信 UWP、Xbox 应用）的沙箱数据与配置。",
       "migrationAdvice": "与 Windows AppX 权限深度绑定，严禁迁移。"
@@ -254,6 +288,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\Microsoft"],
+      "shortSummary": "Edge 与系统组件本地数据",
       "roleTitle": "Microsoft 本地系统与应用数据目录",
       "purpose": "存放 Edge 浏览器、Windows 通知、凭据缓存、输入法及 Office 本地数据。",
       "migrationAdvice": "与系统组件耦合紧密，严禁整体迁移。"
@@ -261,6 +296,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\CrashDumps", "Local\\D3DSCache"],
+      "shortSummary": "崩溃转储或显卡着色器缓存",
       "roleTitle": "系统转储 / 显卡着色器缓存目录",
       "purpose": "存放程序崩溃日志（CrashDumps）或 DirectX 着色器编译缓存（D3DSCache），均属于可重建系统缓存。",
       "migrationAdvice": "属于系统保护区且无需迁移；如需释放空间，可在「垃圾清理 → 系统临时与着色器缓存」中安全清理。"
@@ -268,6 +304,7 @@
     {
       "matchKind": "AppDataRelative",
       "names": ["Local\\Programs\\Common"],
+      "shortSummary": "用户级软件共享运行库",
       "roleTitle": "用户级软件共享运行库目录",
       "purpose": "多个用户级安装程序共用的组件与运行库目录。",
       "migrationAdvice": "影响范围跨多个软件，禁止迁移。",
@@ -276,6 +313,7 @@
     {
       "matchKind": "PathContains",
       "names": ["\\appdata\\local\\docker", "\\programdata\\docker"],
+      "shortSummary": "Docker / WSL2 虚拟磁盘（宜原生迁）",
       "roleTitle": "Docker / WSL2 虚拟磁盘目录",
       "purpose": "存放 Docker 容器镜像、卷数据或 WSL2 Linux 发行版的虚拟硬盘（ext4.vhdx），常占数十至数百 GB。",
       "migrationAdvice": "不建议强建符号链接；请使用 Docker Desktop 设置中的 Disk image location 或 `wsl --export / --import` 原生迁移。",
@@ -285,6 +323,7 @@
       "matchKind": "LeafWithPathContains",
       "names": ["wsl"],
       "requiredPathContains": "\\appdata\\local\\",
+      "shortSummary": "Docker / WSL2 虚拟磁盘（宜原生迁）",
       "roleTitle": "Docker / WSL2 虚拟磁盘目录",
       "purpose": "存放 Docker 容器镜像、卷数据或 WSL2 Linux 发行版的虚拟硬盘（ext4.vhdx），常占数十至数百 GB。",
       "migrationAdvice": "不建议强建符号链接；请使用 Docker Desktop 设置中的 Disk image location 或 `wsl --export / --import` 原生迁移。",
@@ -294,6 +333,7 @@
       "matchKind": "LeafOrPrefix",
       "names": ["OneDrive", "iCloudDrive", "Dropbox"],
       "prefixes": ["OneDrive -"],
+      "shortSummary": "云盘本地同步目录（宜客户端改路径）",
       "roleTitle": "云盘同步目录",
       "purpose": "云端网盘本地同步文件夹，通常包含按需下载的云端占位文件与后台同步守护进程。",
       "migrationAdvice": "直接建符号链接可能引发同步死循环或云端误删；请在对应网盘客户端设置中修改本地同步路径。",
@@ -303,6 +343,7 @@
       "matchKind": "LeafWithPathContains",
       "names": ["Google", "BraveSoftware"],
       "requiredPathContains": "\\appdata\\local\\",
+      "shortSummary": "浏览器配置、扩展与网页缓存",
       "roleTitle": "浏览器用户配置与缓存目录",
       "purpose": "存放 Chrome / Firefox / Brave 等浏览器的书签、扩展、登录态及网页缓存。",
       "migrationAdvice": "含加密登录态且浏览器常驻后台进程，一般不建议整体迁移；若体积过大建议先在「垃圾清理」中清理网页缓存。",
@@ -312,6 +353,7 @@
       "matchKind": "LeafWithPathContains",
       "names": ["Mozilla"],
       "requiredPathContains": "\\appdata\\",
+      "shortSummary": "Firefox 浏览器配置与缓存",
       "roleTitle": "浏览器用户配置与缓存目录",
       "purpose": "存放 Chrome / Firefox / Brave 等浏览器的书签、扩展、登录态及网页缓存。",
       "migrationAdvice": "含加密登录态且浏览器常驻后台进程，一般不建议整体迁移；若体积过大建议先在「垃圾清理」中清理网页缓存。",
@@ -321,6 +363,7 @@
       "matchKind": "LeafWithPathContains",
       "names": ["Android"],
       "requiredPathContains": "\\appdata\\local\\",
+      "shortSummary": "Android SDK 与模拟器镜像",
       "roleTitle": "Android SDK / 模拟器镜像目录",
       "purpose": "存放 Android 开发 SDK、系统镜像及 AVD 虚拟设备磁盘文件，常占用数十 GB。",
       "migrationAdvice": "退出 Android Studio 与全部模拟器后可迁移；更推荐直接修改 `ANDROID_HOME` / `ANDROID_AVD_HOME` 环境变量原生转移。",
@@ -329,6 +372,7 @@
     {
       "matchKind": "Leaf",
       "names": [".android"],
+      "shortSummary": "Android 模拟器 AVD 与调试配置",
       "roleTitle": "Android SDK / 模拟器镜像目录",
       "purpose": "存放 Android 开发 SDK、系统镜像及 AVD 虚拟设备磁盘文件，常占用数十 GB。",
       "migrationAdvice": "退出 Android Studio 与全部模拟器后可迁移；更推荐直接修改 `ANDROID_HOME` / `ANDROID_AVD_HOME` 环境变量原生转移。",
@@ -337,6 +381,7 @@
     {
       "matchKind": "Leaf",
       "names": [".conda", "anaconda3", "miniconda3"],
+      "shortSummary": "Conda Python 虚拟环境与包缓存",
       "roleTitle": "Python / Conda 虚拟环境目录",
       "purpose": "存放 Conda 虚拟环境、Python 解释器及已下载的科学计算包缓存（pkgs），常占数十 GB。",
       "migrationAdvice": "建议先执行 `conda clean --all` 或在「垃圾清理」中释放包缓存；彻底退出终端与 IDE 后也可迁移整个目录，或在 `.condarc` 中更改 `envs_dirs` / `pkgs_dirs`。",
@@ -346,6 +391,7 @@
       "matchKind": "LeafWithPathContains",
       "names": ["JetBrains"],
       "requiredPathContains": "\\appdata\\local\\",
+      "shortSummary": "JetBrains IDE 本地索引与缓存",
       "roleTitle": "JetBrains IDE 本地索引与缓存",
       "purpose": "存放 IDEA / PyCharm / WebStorm / Rider 等 IDE 的项目索引、编译缓存与下载的运行时。",
       "migrationAdvice": "完全关闭所有 JetBrains IDE 后，可迁移到空间充足的磁盘（也可先在「垃圾清理」或 IDE 中清理旧版本缓存）。",
@@ -354,14 +400,61 @@
     {
       "matchKind": "Leaf",
       "names": ["JetBrains"],
+      "shortSummary": "JetBrains IDE 全局配置与插件",
       "roleTitle": "JetBrains IDE 用户配置与插件",
       "purpose": "存放 JetBrains IDE 的全局设置、代码风格、已装插件与登录配置。",
       "migrationAdvice": "含核心配置，若体积不大建议保留原位；若因插件体积过大需迁移，请先关闭全部 IDE。",
       "hintLevel": "Warning"
     },
     {
+      "matchKind": "LeafWithPathContains",
+      "names": ["Code", "Code - Insiders"],
+      "requiredPathContains": "\\appdata\\roaming\\",
+      "shortSummary": "VS Code 用户配置、工作区与缓存",
+      "roleTitle": "VS Code 用户数据与缓存目录",
+      "purpose": "存放 Visual Studio Code 的设置、快捷键、扩展全局存储、工作区索引与 Electron 渲染缓存。",
+      "migrationAdvice": "退出所有 VS Code 窗口后，可先清理 Cache/CachedData；若 User\\globalStorage 等占用过高可谨慎迁移。"
+    },
+    {
+      "matchKind": "LeafWithPathContains",
+      "names": ["Cursor"],
+      "requiredPathContains": "\\appdata\\roaming\\",
+      "shortSummary": "Cursor AI IDE 配置、对话库与缓存",
+      "roleTitle": "Cursor IDE 用户数据与缓存目录",
+      "purpose": "存放 Cursor 的编辑器配置、AI 对话状态（globalStorage）、工作区索引与内置浏览器缓存。",
+      "migrationAdvice": "彻底退出 Cursor 后可清理缓存目录；若因对话历史与插件存储过大，可关闭软件后谨慎迁移。"
+    },
+    {
+      "matchKind": "LeafWithPathContains",
+      "names": ["Windsurf", "Trae", "Trae CN", "Antigravity", "Kiro"],
+      "requiredPathContains": "\\appdata\\roaming\\",
+      "shortSummary": "AI IDE 配置、插件存储与缓存",
+      "roleTitle": "AI IDE 用户数据与缓存目录",
+      "purpose": "存放该 AI 代码编辑器的用户设置、扩展全局存储、工作区索引与 Electron 渲染缓存。",
+      "migrationAdvice": "彻底关闭对应编辑器后，可优先清理缓存子目录或在确认无后台进程后按需迁移。"
+    },
+    {
+      "matchKind": "LeafWithPathContains",
+      "names": ["LarkShell", "Feishu"],
+      "requiredPathContains": "\\appdata\\",
+      "shortSummary": "飞书客户端本地数据、文件与缓存",
+      "roleTitle": "飞书（LarkShell）本地数据目录",
+      "purpose": "存放飞书桌面端的聊天媒体缓存、离线数据库、内嵌网页缓存与登录会话数据。",
+      "migrationAdvice": "优先在飞书「设置 → 文件管理」中修改本地缓存/文件存储路径；若需迁移请先彻底退出飞书。"
+    },
+    {
+      "matchKind": "LeafWithPathContains",
+      "names": ["Postman", "Notion", "Obsidian", "Discord", "Slack", "Figma", "Spotify"],
+      "requiredPathContains": "\\appdata\\",
+      "shortSummary": "Electron 桌面应用配置与缓存",
+      "roleTitle": "常见桌面应用本地配置与缓存",
+      "purpose": "存放该桌面应用的离线缓存、界面数据库（IndexedDB/Local Storage）与本地设置。",
+      "migrationAdvice": "可展开先清理 Cache / Code Cache / GPUCache 等可重建缓存；彻底退出应用后再按需迁移。"
+    },
+    {
       "matchKind": "Leaf",
       "names": [".lmstudio", ".ollama", "huggingface", "modelscope"],
+      "shortSummary": "本地 AI 模型权重与缓存（常占大头）",
       "roleTitle": "本地 AI 模型权重与缓存目录",
       "purpose": "存放本地大语言模型（GGUF / Safetensors）或开源模型缓存，往往占用数十至数百 GB。",
       "migrationAdvice": "非常适合迁移到空间充足的大容量磁盘；迁移前请完全退出对应 AI 客户端（部分软件也支持在设置里直接更改模型存储路径）。",
@@ -369,15 +462,17 @@
     },
     {
       "matchKind": "Leaf",
-      "names": ["npm-cache", "pnpm-store", "Yarn", "pip", "uv", ".nuget", ".gradle", ".m2", ".cargo"],
+      "names": ["npm-cache", "pnpm-store", "pnpm", "Yarn", "pip", "uv", ".nuget", ".gradle", ".m2", ".cargo", ".rustup", "go-build"],
+      "shortSummary": "开发者包管理器与工具链缓存",
       "roleTitle": "开发者包管理器缓存目录",
-      "purpose": "存放 Node.js / Python / .NET / Java / Rust 等开发依赖包的下载缓存，属于可重建数据。",
+      "purpose": "存放 Node.js / Python / .NET / Java / Rust / Go 等开发依赖包或工具链下载缓存，多为可重建数据。",
       "migrationAdvice": "若开发工具未运行，可迁移到其他盘释放 C 盘空间，或在「垃圾清理 → 软件与开发者缓存」中按需清理/更改缓存目录环境变量。",
       "hintLevel": "Info"
     },
     {
       "matchKind": "Leaf",
       "names": ["WeChat Files", "xwechat_files", "Tencent Files"],
+      "shortSummary": "微信 / QQ 聊天文件与本地记录",
       "roleTitle": "微信 / QQ 本地聊天与文件目录",
       "purpose": "存放聊天图片、视频、收发文件与本地消息数据库，常占数十 GB。",
       "migrationAdvice": "优先推荐在微信/QQ「设置 → 文件管理」中点击「更改」使用官方迁移功能；如用本工具迁移，务必先彻底退出微信/QQ。",
@@ -386,6 +481,7 @@
     {
       "matchKind": "Leaf",
       "names": ["Steam", "SteamLibrary"],
+      "shortSummary": "Steam 游戏客户端与资源库",
       "roleTitle": "Steam 游戏库目录",
       "purpose": "存放 Steam 客户端或游戏安装资源文件。",
       "migrationAdvice": "请先彻底退出 Steam；不建议迁移 Steam 客户端本体，优先只迁移 `steamapps\\common` 或 `steamapps\\workshop` 目录。",
@@ -394,6 +490,7 @@
     {
       "matchKind": "Leaf",
       "names": ["WeGameApps", "Epic Games", "Battle.net"],
+      "shortSummary": "第三方游戏平台客户端资源库",
       "roleTitle": "第三方游戏平台安装库",
       "purpose": "存放大型网络或单机游戏客户端文件与更新资源。",
       "migrationAdvice": "完全退出游戏及对应启动器后，通常可安全迁移到其他大容量磁盘。",
@@ -402,6 +499,7 @@
     {
       "matchKind": "Leaf",
       "names": ["MoveWithSymlinkWPF-TestLab"],
+      "shortSummary": "本工具测试用虚拟盘实验目录",
       "roleTitle": "本工具自动化测试实验目录",
       "purpose": "运行 VHDX 安全验收测试时创建的临时虚拟磁盘镜像与测试证据目录，不包含你的个人业务数据。",
       "migrationAdvice": "无需迁移；确认当前没有运行测试脚本后，可直接手工删除旧测试记录释放空间。",
@@ -409,19 +507,1034 @@
     },
     {
       "matchKind": "Leaf",
-      "names": [".vscode"],
-      "roleTitle": "VS Code 扩展与用户数据目录",
-      "purpose": "存放 Visual Studio Code 已安装的扩展插件及辅助配置。",
-      "migrationAdvice": "彻底关闭所有 VS Code 窗口后，如插件体积较大可谨慎迁移。",
+      "names": [".vscode", ".cursor", ".windsurf", ".trae", ".antigravity"],
+      "shortSummary": "编辑器已安装扩展插件与用户数据",
+      "roleTitle": "VS Code / AI IDE 扩展与用户数据目录",
+      "purpose": "存放编辑器已安装的扩展插件（extensions）及 CLI 辅助配置，插件较多时常占用数 GB。",
+      "migrationAdvice": "彻底关闭所有对应编辑器窗口后，如 extensions 目录体积较大可谨慎迁移。",
       "hintLevel": "Info"
     },
     {
       "matchKind": "Leaf",
       "names": ["Microsoft VS Code"],
+      "shortSummary": "VS Code 编辑器程序本体",
       "roleTitle": "VS Code 程序本体目录",
       "purpose": "Visual Studio Code 编辑器可执行程序目录。",
       "migrationAdvice": "程序本体通常仅数百 MB 至 1 GB，且涉及右键菜单与自动更新，一般不建议迁移。",
       "hintLevel": "Warning"
+    }
+  ],
+  "families": [
+    {
+      "id": "jetbrains-roaming",
+      "pathAnchors": ["\\appdata\\roaming\\jetbrains\\"],
+      "minRelativeDepth": 2,
+      "maxRelativeDepth": 2,
+      "productPrefixes": [
+        { "prefix": "IntelliJIdea", "displayName": "IntelliJ IDEA" },
+        { "prefix": "PyCharm", "displayName": "PyCharm" },
+        { "prefix": "WebStorm", "displayName": "WebStorm" },
+        { "prefix": "GoLand", "displayName": "GoLand" },
+        { "prefix": "Rider", "displayName": "Rider" },
+        { "prefix": "CLion", "displayName": "CLion" },
+        { "prefix": "DataGrip", "displayName": "DataGrip" },
+        { "prefix": "PhpStorm", "displayName": "PhpStorm" },
+        { "prefix": "RubyMine", "displayName": "RubyMine" },
+        { "prefix": "RustRover", "displayName": "RustRover" },
+        { "prefix": "DataSpell", "displayName": "DataSpell" },
+        { "prefix": "AndroidStudio", "displayName": "Android Studio" },
+        { "prefix": "Aqua", "displayName": "Aqua" },
+        { "prefix": "Fleet", "displayName": "Fleet" }
+      ],
+      "productRootTemplate": {
+        "shortSummary": "{product} 配置与已装插件",
+        "roleTitle": "{product} 用户配置与插件目录",
+        "purpose": "存放 {product} 该版本的已装插件（plugins）、全局设置、快捷键、数据源与同步记录。",
+        "migrationAdvice": "请先完全关闭 {product}；若占用大主要是 plugins 目录，可单独迁移 plugins 或清理不再使用的旧版本目录。"
+      },
+      "subdirectories": [
+        {
+          "names": ["ConsentOptions"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "隐私与诊断数据授权设置",
+          "roleTitle": "JetBrains 隐私授权配置",
+          "purpose": "记录 JetBrains 全家桶的统计与诊断数据授权选项，体积通常极小。",
+          "migrationAdvice": "体积极小，保持原位即可。"
+        },
+        {
+          "names": ["plugins"],
+          "shortSummary": "IDE 已装插件（常占主要空间）",
+          "roleTitle": "JetBrains IDE 插件目录（plugins）",
+          "purpose": "存放当前版本 IDE 安装的全部第三方插件与语言支持包，通常占 Roaming 体积的 80% 以上。",
+          "migrationAdvice": "完全关闭对应 IDE 后适合迁移到其他盘，或在 IDE 插件管理中卸载不常用插件释放空间。"
+        },
+        {
+          "names": ["options"],
+          "shortSummary": "全局设置与快捷键配置",
+          "roleTitle": "JetBrains IDE 全局设置目录（options）",
+          "purpose": "保存编辑器偏好、字体主题、快捷键绑定、SDK 路径及工具栏布局等 XML 配置。",
+          "migrationAdvice": "核心配置且体积通常很小，建议保留原位。"
+        },
+        {
+          "names": ["workspace"],
+          "shortSummary": "项目窗口布局与历史状态",
+          "roleTitle": "JetBrains 工作区状态目录（workspace）",
+          "purpose": "记录各项目打开的标签页、运行配置、工具窗口位置与上次编辑状态。",
+          "migrationAdvice": "体积一般较小，无需单独迁移。"
+        },
+        {
+          "names": ["tasks"],
+          "shortSummary": "任务上下文与切换缓存",
+          "roleTitle": "JetBrains 任务上下文目录（tasks）",
+          "purpose": "存放 IDE 任务切换（Tasks & Contexts）保存的上下文快照与历史工作集。",
+          "migrationAdvice": "若体积偏大（数百 MB），通常是长期累积的旧任务上下文，可在关闭 IDE 后按需清理或随配置保留。"
+        },
+        {
+          "names": ["jdbc-drivers"],
+          "shortSummary": "数据库驱动，删后可重新下载",
+          "roleTitle": "JetBrains 数据库 JDBC 驱动目录",
+          "purpose": "存放 DataGrip / Database 工具下载的 MySQL、PostgreSQL、Oracle 等 JDBC 驱动包。",
+          "migrationAdvice": "属于可重新下载的资源；若体积较大可在关闭 IDE 后迁移，或删掉旧版本驱动。"
+        },
+        {
+          "names": ["javascript"],
+          "shortSummary": "JS/TS 语言服务与类型库",
+          "roleTitle": "JetBrains JavaScript/TypeScript 运行支持",
+          "purpose": "存放 IDE 内置或自动下载的 TypeScript 类型定义（@types）、语言服务与前端工具支持。",
+          "migrationAdvice": "删后可由 IDE 自动恢复，一般无需单独迁移。"
+        },
+        {
+          "names": ["event-log-metadata"],
+          "shortSummary": "诊断统计事件元数据缓存",
+          "roleTitle": "JetBrains 事件日志元数据目录",
+          "purpose": "存放 IDE 功能使用统计与诊断上报所需的事件结构定义缓存。",
+          "migrationAdvice": "可自动重新拉取的元数据，体积通常不大，无需单独迁移。"
+        },
+        {
+          "names": ["grazie"],
+          "shortSummary": "拼写与语法检查语言包",
+          "roleTitle": "JetBrains Grazie 语法检查模型",
+          "purpose": "存放内置自然语言拼写与语法检查插件（Grazie）下载的离线语言模型包。",
+          "migrationAdvice": "可重建资源，通常十几 MB 左右，无需迁移。"
+        },
+        {
+          "names": ["settingsSync"],
+          "shortSummary": "云端设置同步历史仓库",
+          "roleTitle": "JetBrains Settings Sync 同步目录",
+          "purpose": "基于本地 Git 记录 IDE 设置云同步的变更历史与合并快照。",
+          "migrationAdvice": "体积通常极小且参与云同步，建议保留原位。"
+        },
+        {
+          "names": ["consoles"],
+          "shortSummary": "SQL 与临时控制台脚本",
+          "roleTitle": "JetBrains 控制台脚本目录（consoles）",
+          "purpose": "保存你在 Database / HTTP Client / Groovy 控制台里编写的 SQL 与调试脚本。",
+          "migrationAdvice": "包含个人编写的调试脚本，请勿随意删除，体积很小保持原位即可。"
+        },
+        {
+          "names": ["extensions"],
+          "shortSummary": "数据库与工具自定义扩展脚本",
+          "roleTitle": "JetBrains 扩展脚本目录（extensions）",
+          "purpose": "存放数据导出器（CSV/JSON/Markdown）及数据库工具的自定义扩展脚本。",
+          "migrationAdvice": "体积极小，保持原位即可。"
+        },
+        {
+          "names": ["dataSourcesHistory"],
+          "shortSummary": "数据源 SQL 查询历史记录",
+          "roleTitle": "JetBrains 数据库查询历史",
+          "purpose": "记录在 IDE 数据库工具中执行过的 SQL 查询历史。",
+          "migrationAdvice": "体积极小，包含个人查询记录，保持原位即可。"
+        },
+        {
+          "names": ["aia-task-history"],
+          "shortSummary": "AI Assistant 对话与任务历史",
+          "roleTitle": "JetBrains AI Assistant 任务历史",
+          "purpose": "保存 JetBrains AI Assistant / Junie 的本地对话上下文与任务记录。",
+          "migrationAdvice": "体积通常较小，按需保留即可。"
+        },
+        {
+          "names": ["scratches"],
+          "shortSummary": "临时草稿代码文件（Scratches）",
+          "roleTitle": "JetBrains 草稿文件目录（scratches）",
+          "purpose": "存放不隶属于具体项目的临时草稿代码、JSON 样本或笔记文件。",
+          "migrationAdvice": "包含个人草稿文件，请勿误删，通常体积很小。"
+        },
+        {
+          "names": ["codestyles", "colors", "keymaps", "inspection", "templates", "fileTemplates", "tools", "ssl"],
+          "shortSummary": "代码风格、主题与自定义模板",
+          "roleTitle": "JetBrains 个性化配置子目录",
+          "purpose": "保存自定义代码格式规范、配色主题、快捷键、检查规则、文件模板或受信任证书。",
+          "migrationAdvice": "体积极小且属核心个人配置，保留原位即可。"
+        },
+        {
+          "names": ["shelf"],
+          "shortSummary": "暂存的本地代码变更（Shelf）",
+          "roleTitle": "JetBrains 代码暂存区（shelf）",
+          "purpose": "存放通过 IDE Shelve 功能暂存的未提交代码补丁文件。",
+          "migrationAdvice": "可能包含尚未提交的宝贵代码变更，切勿随意删除。"
+        },
+        {
+          "names": ["jba_config", "migration"],
+          "shortSummary": "账号同步与版本迁移记录",
+          "roleTitle": "JetBrains 账号与版本迁移配置",
+          "purpose": "存放旧版 JetBrains Account 同步配置或跨版本升级迁移标记。",
+          "migrationAdvice": "体积极小，保留原位即可。"
+        }
+      ]
+    },
+    {
+      "id": "jetbrains-local",
+      "pathAnchors": ["\\appdata\\local\\jetbrains\\"],
+      "minRelativeDepth": 2,
+      "maxRelativeDepth": 2,
+      "productPrefixes": [
+        { "prefix": "IntelliJIdea", "displayName": "IntelliJ IDEA" },
+        { "prefix": "PyCharm", "displayName": "PyCharm" },
+        { "prefix": "WebStorm", "displayName": "WebStorm" },
+        { "prefix": "GoLand", "displayName": "GoLand" },
+        { "prefix": "Rider", "displayName": "Rider" },
+        { "prefix": "CLion", "displayName": "CLion" },
+        { "prefix": "DataGrip", "displayName": "DataGrip" },
+        { "prefix": "PhpStorm", "displayName": "PhpStorm" },
+        { "prefix": "RubyMine", "displayName": "RubyMine" },
+        { "prefix": "RustRover", "displayName": "RustRover" },
+        { "prefix": "DataSpell", "displayName": "DataSpell" },
+        { "prefix": "AndroidStudio", "displayName": "Android Studio" },
+        { "prefix": "Aqua", "displayName": "Aqua" },
+        { "prefix": "Fleet", "displayName": "Fleet" }
+      ],
+      "productRootTemplate": {
+        "shortSummary": "{product} 项目索引与本地缓存",
+        "roleTitle": "{product} 本地索引与缓存目录",
+        "purpose": "存放 {product} 该版本的 VFS 缓存、代码符号索引、编译缓存与运行日志，删除后会自动重建。",
+        "migrationAdvice": "彻底关闭 {product} 后可迁移到其他盘；如果是已卸载的旧版本目录，可直接清理释放数 GB 空间。"
+      },
+      "subdirectories": [
+        {
+          "names": ["Toolbox"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Toolbox 管理器与安装缓存",
+          "roleTitle": "JetBrains Toolbox 本地数据目录",
+          "purpose": "存放 JetBrains Toolbox 本体、下载缓存以及默认安装的各 IDE 程序目录。",
+          "migrationAdvice": "可在 Toolbox 设置中修改「工具安装位置」到其他盘；若缓存过大可清理 Toolbox\\cache。"
+        },
+        {
+          "relativePaths": ["Toolbox\\cache"],
+          "shortSummary": "Toolbox 安装包下载缓存，可清理",
+          "roleTitle": "JetBrains Toolbox 下载缓存",
+          "purpose": "存放 Toolbox 下载升级各 IDE 留下的压缩包缓存。",
+          "migrationAdvice": "完全退出 Toolbox 后可直接清理释放空间，无需迁移。"
+        },
+        {
+          "relativePaths": ["Toolbox\\apps"],
+          "shortSummary": "Toolbox 安装的各 IDE 程序本体",
+          "roleTitle": "JetBrains Toolbox 已安装 IDE 目录",
+          "purpose": "存放通过 Toolbox 安装的 IDEA / PyCharm / WebStorm 等程序本体文件。",
+          "migrationAdvice": "推荐直接在 Toolbox「设置 → 工具安装位置」更换目标盘，不建议强行符号链接。"
+        },
+        {
+          "relativePaths": ["Toolbox\\logs"],
+          "shortSummary": "Toolbox 运行诊断日志",
+          "roleTitle": "JetBrains Toolbox 日志目录",
+          "purpose": "记录 Toolbox 后台更新与启动日志。",
+          "migrationAdvice": "可清理，无需迁移。"
+        },
+        {
+          "names": ["JetBrainsClientDist", "RemoteDev"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "远程开发瘦客户端与连接缓存",
+          "roleTitle": "JetBrains 远程开发客户端目录",
+          "purpose": "存放 JetBrains Gateway / Remote Development 下载的瘦客户端分发包（常占数 GB）。",
+          "migrationAdvice": "不使用旧版本远程开发时可直接在 Gateway 中卸载旧客户端，或在关闭后迁移。"
+        },
+        {
+          "names": ["caches"],
+          "shortSummary": "项目 VFS 缓存，删后可自动重建",
+          "roleTitle": "JetBrains VFS 文件系统缓存（caches）",
+          "purpose": "缓存项目文件树与虚拟文件系统快照，加速 IDE 启动和文件检索。",
+          "migrationAdvice": "可重建缓存；彻底关闭 IDE 后可迁移，也可在 IDE 中执行 Invalidate Caches 重建。"
+        },
+        {
+          "names": ["index"],
+          "shortSummary": "代码符号与搜索索引，可重建",
+          "roleTitle": "JetBrains 代码索引目录（index）",
+          "purpose": "存放跳转定义、全局搜索与代码补全依赖的倒排索引，大型项目常占数 GB。",
+          "migrationAdvice": "完全可重建；关闭 IDE 后可迁移或清理旧版本索引释放空间。"
+        },
+        {
+          "names": ["compile-server"],
+          "shortSummary": "Java/Kotlin 增量编译缓存",
+          "roleTitle": "JetBrains 增量编译缓存（compile-server）",
+          "purpose": "保存后台编译守护进程（JPS）的增量编译中间产物，加快下次构建速度。",
+          "migrationAdvice": "可重建缓存；关闭 IDE 后可安全迁移或清理。"
+        },
+        {
+          "names": ["log", "rdclient-logs"],
+          "shortSummary": "IDE 运行与异常诊断日志",
+          "roleTitle": "JetBrains 运行日志目录（log）",
+          "purpose": "记录 IDE 启动、插件异常与线程转储日志。",
+          "migrationAdvice": "属于可清理日志，无需迁移。"
+        },
+        {
+          "names": ["LocalHistory"],
+          "shortSummary": "本地文件编辑历史记录",
+          "roleTitle": "JetBrains 本地历史记录（LocalHistory）",
+          "purpose": "独立于 Git 保存最近数天的本地代码修改时间线，用于误删恢复。",
+          "migrationAdvice": "若依赖本地历史回退建议保留；长期不使用旧版本时可随版本目录一起清理。"
+        },
+        {
+          "names": ["full-line"],
+          "shortSummary": "本地整行代码补全 AI 模型",
+          "roleTitle": "JetBrains 本地代码补全模型（full-line）",
+          "purpose": "存放 IDE 内置离线整行代码补全（Full Line Code Completion）下载的本地模型权重。",
+          "migrationAdvice": "可自动重新下载；完全关闭 IDE 后可安全迁移。"
+        },
+        {
+          "names": ["projects", "external_build_system", "maven", "gradle", "javascript", "python_stubs", "python_packages"],
+          "shortSummary": "项目构建模型与依赖索引缓存",
+          "roleTitle": "JetBrains 项目构建与语言缓存",
+          "purpose": "缓存 Maven/Gradle/Python/JS 等项目解析结果与依赖索引，删后打开项目会自动重建。",
+          "migrationAdvice": "完全关闭 IDE 后可迁移或随旧版本缓存一起清理。"
+        },
+        {
+          "names": ["vcs-log", "vcs-users"],
+          "shortSummary": "Git 提交历史图与作者索引",
+          "roleTitle": "JetBrains 版本控制日志索引",
+          "purpose": "加速 Git Log 面板加载提交树与作者筛选的本地索引缓存。",
+          "migrationAdvice": "可自动重建，关闭 IDE 后可迁移或清理。"
+        },
+        {
+          "names": ["tmp", "conversion", "plugins-image-cache", "httpFileSystem", "stat", "event-log-data", "snapshots"],
+          "shortSummary": "临时缓存、统计或内存快照",
+          "roleTitle": "JetBrains 辅助缓存与诊断数据",
+          "purpose": "存放临时工作文件、插件市场图标缓存、统计数据或内存分析快照（snapshots）。",
+          "migrationAdvice": "通常可直接清理释放空间，无需迁移。"
+        }
+      ]
+    },
+    {
+      "id": "vscode-ai-ide-roaming",
+      "pathAnchors": [
+        "\\appdata\\roaming\\code\\",
+        "\\appdata\\roaming\\code - insiders\\",
+        "\\appdata\\roaming\\cursor\\",
+        "\\appdata\\roaming\\windsurf\\",
+        "\\appdata\\roaming\\trae\\",
+        "\\appdata\\roaming\\trae cn\\",
+        "\\appdata\\roaming\\antigravity\\",
+        "\\appdata\\roaming\\kiro\\"
+      ],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["User"],
+          "shortSummary": "个人设置、快捷键与工作区存储",
+          "roleTitle": "编辑器用户核心配置目录（User）",
+          "purpose": "存放 settings.json、keybindings.json、代码片段以及扩展/AI 插件的全局与工作区状态数据库。",
+          "migrationAdvice": "包含核心配置与对话记录，请勿误删；若体积过大可展开查看 globalStorage 或 workspaceStorage。"
+        },
+        {
+          "relativePaths": ["User\\globalStorage"],
+          "shortSummary": "插件全局数据与 AI 对话库",
+          "roleTitle": "扩展全局存储目录（globalStorage）",
+          "purpose": "存放所有已装插件（含 AI 编程助手）的全局状态数据库（state.vscdb）、离线语言服务与模型缓存。",
+          "migrationAdvice": "常占主要体积；关闭编辑器后可展开排查单个大插件目录或谨慎迁移。"
+        },
+        {
+          "relativePaths": ["User\\workspaceStorage"],
+          "shortSummary": "各项目工作区索引与历史状态",
+          "roleTitle": "工作区状态存储（workspaceStorage）",
+          "purpose": "按项目分别保存打开状态、语言服务器索引与扩展缓存，长期使用会累积大量历史项目记录。",
+          "migrationAdvice": "关闭编辑器后可清理长期不再打开的旧项目存储或按需迁移。"
+        },
+        {
+          "relativePaths": ["User\\History"],
+          "shortSummary": "本地文件编辑时间线历史",
+          "roleTitle": "编辑器本地修改历史（History）",
+          "purpose": "保存 Timeline 面板中的本地文件快照，方便误改后回溯。",
+          "migrationAdvice": "通常体积可控；如不再需要久远编辑快照可在关闭编辑器后按需清理。"
+        },
+        {
+          "relativePaths": ["User\\snippets", "User\\profiles", "User\\sync"],
+          "shortSummary": "代码片段、多配置方案与同步缓存",
+          "roleTitle": "编辑器个性化配置子目录",
+          "purpose": "保存自定义代码片段、多套 Profile 配置方案及设置同步备份。",
+          "migrationAdvice": "体积极小且属重要配置，保留原位即可。"
+        },
+        {
+          "names": ["CachedData"],
+          "shortSummary": "V8 脚本字节码缓存，可清理",
+          "roleTitle": "Electron / V8 字节码缓存（CachedData）",
+          "purpose": "缓存编辑器核心脚本的 V8 编译结果，加快冷启动速度，删后自动重建。",
+          "migrationAdvice": "无需迁移；可在「垃圾清理」或退出编辑器后直接清理。"
+        },
+        {
+          "names": ["CachedExtensionVSIXs"],
+          "shortSummary": "已下载插件安装包缓存，可清理",
+          "roleTitle": "扩展安装包下载缓存（CachedExtensionVSIXs）",
+          "purpose": "保存安装或更新扩展时下载的 .vsix 压缩包副本。",
+          "migrationAdvice": "无需迁移；退出编辑器后可直接清理释放空间。"
+        },
+        {
+          "names": ["Cache", "Code Cache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache", "DawnCache"],
+          "shortSummary": "内置浏览器与 GPU 渲染缓存",
+          "roleTitle": "Electron 网页与显卡渲染缓存",
+          "purpose": "存放编辑器内置 Chromium 的资源缓存、JS/Wasm 编译缓存与 GPU 着色器缓存。",
+          "migrationAdvice": "完全可重建，无需迁移；可在「垃圾清理」中安全清理。"
+        },
+        {
+          "names": ["Backups"],
+          "shortSummary": "未保存文件的热退出备份",
+          "roleTitle": "热退出未保存文件备份（Backups）",
+          "purpose": "保存未按 Ctrl+S 保存的编辑器标签页草稿内容，防止意外关闭丢代码。",
+          "migrationAdvice": "切勿在有未保存文件时删除，体积通常很小。"
+        },
+        {
+          "names": ["logs", "Crashpad"],
+          "shortSummary": "运行日志与崩溃转储报告",
+          "roleTitle": "编辑器日志与崩溃报告目录",
+          "purpose": "记录编辑器启动、扩展宿主日志及崩溃转储文件。",
+          "migrationAdvice": "可安全清理，无需迁移。"
+        },
+        {
+          "names": ["IndexedDB", "Local Storage", "Session Storage", "Service Worker", "WebStorage", "blob_storage", "Network", "clp", "CachedProfilesData"],
+          "shortSummary": "界面状态、Webview 存储与语言包",
+          "roleTitle": "编辑器界面存储与辅助缓存",
+          "purpose": "存放插件 Webview 数据库、登录态 Cookie、多语言包或配置缓存。",
+          "migrationAdvice": "包含登录态或插件界面状态，一般保持原位即可。"
+        }
+      ]
+    },
+    {
+      "id": "vscode-ai-ide-home",
+      "pathAnchors": [
+        "\\.vscode\\",
+        "\\.cursor\\",
+        "\\.windsurf\\",
+        "\\.trae\\",
+        "\\.antigravity\\",
+        "\\.gemini\\"
+      ],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["extensions"],
+          "shortSummary": "已安装扩展插件（常占主要空间）",
+          "roleTitle": "编辑器扩展插件目录（extensions）",
+          "purpose": "存放全部已安装扩展的程序代码与内置语言服务器（如 C++/Python/Java/AI 扩展），常占数 GB。",
+          "migrationAdvice": "彻底关闭所有对应编辑器窗口后，适合迁移到空间充足的磁盘，也可卸载不常用扩展释放空间。"
+        },
+        {
+          "names": ["cli"],
+          "shortSummary": "命令行启动器与隧道组件",
+          "roleTitle": "编辑器 CLI 工具目录（cli）",
+          "purpose": "存放远程隧道与命令行启动器辅助状态。",
+          "migrationAdvice": "体积通常很小，保留原位即可。"
+        },
+        {
+          "names": ["antigravity-cli"],
+          "shortSummary": "Antigravity CLI 配置、会话与缓存",
+          "roleTitle": "Antigravity CLI 数据目录",
+          "purpose": "存放 Antigravity CLI 的本地会话记录、脑图产物、内置技能与插件配置。",
+          "migrationAdvice": "包含历史会话与自定义配置，确认无运行中的代理会话后再按需清理旧记录。"
+        },
+        {
+          "names": ["brain", "conversations"],
+          "shortSummary": "AI 对话记录与工作产物",
+          "roleTitle": "AI 助手会话与产物目录",
+          "purpose": "保存历史对话日志、生成的文档与临时分析产物。",
+          "migrationAdvice": "可定期清理不再需要的旧会话记录，非必要无需迁移。"
+        },
+        {
+          "names": ["skills", "config", "plugins", "mcp"],
+          "shortSummary": "自定义技能、插件与 MCP 配置",
+          "roleTitle": "开发者工具扩展配置目录",
+          "purpose": "存放本地配置的自定义技能、规则、插件或 MCP 工具描述。",
+          "migrationAdvice": "体积小且属重要个人配置，建议保留原位。"
+        }
+      ]
+    },
+    {
+      "id": "android-sdk-avd",
+      "pathAnchors": ["\\appdata\\local\\android\\", "\\.android\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["Sdk"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Android SDK 根目录（常占数十 GB）",
+          "roleTitle": "Android SDK 根目录",
+          "purpose": "包含各版本 Android 平台包、模拟器镜像、NDK 与构建工具。",
+          "migrationAdvice": "推荐在 Android Studio「SDK Manager」中更改 Android SDK Location 原生迁移，或彻底退出相关进程后迁移。"
+        },
+        {
+          "relativePaths": ["Sdk\\system-images"],
+          "shortSummary": "模拟器系统镜像（常占数十 GB）",
+          "roleTitle": "Android 模拟器系统镜像（system-images）",
+          "purpose": "存放各 API 版本的模拟手机系统 ROM 镜像，单个镜像常占 1–5 GB。",
+          "migrationAdvice": "最容易占满 C 盘；建议先在 SDK Manager 卸载旧版镜像，或关闭全部模拟器后迁移。"
+        },
+        {
+          "relativePaths": ["Sdk\\platforms"],
+          "shortSummary": "各版本 Android API 开发平台包",
+          "roleTitle": "Android API 平台包（platforms）",
+          "purpose": "存放不同 Android 版本编译所需的 android.jar 与框架资源。",
+          "migrationAdvice": "关闭 Android Studio 后可迁移，或卸载不再开发的旧 API 版本。"
+        },
+        {
+          "relativePaths": ["Sdk\\ndk", "Sdk\\ndk-bundle"],
+          "shortSummary": "C/C++ 原生开发工具包（NDK）",
+          "roleTitle": "Android NDK 工具链目录",
+          "purpose": "存放编译原生 C/C++ 库所需的交叉编译器与头文件，单版本常占 1–2 GB。",
+          "migrationAdvice": "关闭 IDE 后可迁移或卸载不用的旧版 NDK。"
+        },
+        {
+          "relativePaths": ["Sdk\\build-tools", "Sdk\\platform-tools", "Sdk\\cmdline-tools"],
+          "shortSummary": "APK 编译与 adb 调试工具集",
+          "roleTitle": "Android 构建与调试工具目录",
+          "purpose": "存放 aapt2、d8、adb、fastboot 等编译与设备调试命令行工具。",
+          "migrationAdvice": "确保无 adb 后台进程后随 SDK 统一迁移或管理。"
+        },
+        {
+          "relativePaths": ["Sdk\\emulator"],
+          "shortSummary": "Android 模拟器主程序引擎",
+          "roleTitle": "Android 模拟器引擎目录（emulator）",
+          "purpose": "存放 QEMU 硬件加速模拟器可执行文件与依赖库。",
+          "migrationAdvice": "退出所有模拟器后再迁移整个 SDK。"
+        },
+        {
+          "relativePaths": ["Sdk\\sources"],
+          "shortSummary": "Android 框架源码附件",
+          "roleTitle": "Android SDK 源码目录（sources）",
+          "purpose": "供 IDE 跳转查看 Android 框架源码的本地附件，可随时重新下载。",
+          "migrationAdvice": "可按需在 SDK Manager 卸载或随 SDK 迁移。"
+        },
+        {
+          "names": ["avd"],
+          "shortSummary": "Android 虚拟设备磁盘镜像",
+          "roleTitle": "Android 虚拟设备目录（avd）",
+          "purpose": "存放已创建的模拟手机虚拟硬盘（userdata-qemu.img 等），单台设备常占数 GB。",
+          "migrationAdvice": "非常适合通过设置 `ANDROID_AVD_HOME` 环境变量原生移到其他盘，或退出模拟器后迁移。"
+        },
+        {
+          "names": ["cache", "build-cache"],
+          "shortSummary": "Android 调试与构建缓存，可清理",
+          "roleTitle": "Android 本地构建缓存目录",
+          "purpose": "存放旧版构建与调试缓存文件，删后可自动重建。",
+          "migrationAdvice": "无需迁移，可直接清理。"
+        }
+      ]
+    },
+    {
+      "id": "gradle-cache",
+      "pathAnchors": ["\\.gradle\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["caches"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Gradle 依赖包与构建缓存（常占大头）",
+          "roleTitle": "Gradle 全局依赖与构建缓存（caches）",
+          "purpose": "存放所有项目下载的 JAR/AAR 依赖库与增量构建缓存，常占数 GB 至数十 GB。",
+          "migrationAdvice": "退出 IDE 与 Gradle 守护进程后非常适合迁移，或设置 `GRADLE_USER_HOME` 环境变量改到其他盘。"
+        },
+        {
+          "names": ["wrapper"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "各版本 Gradle 发行版下载包",
+          "roleTitle": "Gradle Wrapper 发行版目录（wrapper）",
+          "purpose": "保存各项目自动下载的不同版本 Gradle 压缩包与解压目录。",
+          "migrationAdvice": "可清理旧版本发行版，或随 `.gradle` 整体迁移。"
+        },
+        {
+          "names": ["daemon"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Gradle 后台守护进程日志",
+          "roleTitle": "Gradle Daemon 日志与状态目录",
+          "purpose": "存放各版本 Gradle 后台守护进程的运行日志，可清理。",
+          "migrationAdvice": "无需迁移，可直接清理旧日志。"
+        },
+        {
+          "names": ["jdks"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Gradle 自动下载的 JDK 工具链",
+          "roleTitle": "Gradle 托管 JDK 工具链（jdks）",
+          "purpose": "存放 Gradle Toolchain 功能自动下载的各版本 JDK 运行时。",
+          "migrationAdvice": "关闭 IDE 与构建进程后可随 `.gradle` 一起迁移。"
+        },
+        {
+          "names": ["native", "notifications"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "原生库解压缓存与通知记录",
+          "roleTitle": "Gradle 运行时辅助缓存",
+          "purpose": "存放 Gradle 内部原生库解压缓存，删后自动重建。",
+          "migrationAdvice": "无需单独迁移。"
+        }
+      ]
+    },
+    {
+      "id": "maven-repo",
+      "pathAnchors": ["\\.m2\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["repository"],
+          "shortSummary": "Maven 本地依赖仓库（常占大头）",
+          "roleTitle": "Maven 本地依赖仓库（repository）",
+          "purpose": "存放所有 Java 项目下载的 Maven JAR/POM 依赖包，常占数 GB 至数十 GB。",
+          "migrationAdvice": "非常适合在 `settings.xml` 中修改 `<localRepository>` 到其他盘，或在关闭 IDE 后直接迁移。"
+        },
+        {
+          "names": ["wrapper"],
+          "shortSummary": "Maven Wrapper 发行版缓存",
+          "roleTitle": "Maven Wrapper 缓存目录",
+          "purpose": "存放项目通过 mvnw 自动下载的各版本 Maven 发行包。",
+          "migrationAdvice": "删后可重新下载，可随 `.m2` 迁移。"
+        }
+      ]
+    },
+    {
+      "id": "rust-cargo-rustup",
+      "pathAnchors": ["\\.cargo\\", "\\.rustup\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["registry"],
+          "shortSummary": "Cargo Crate 依赖源码缓存",
+          "roleTitle": "Rust Cargo 依赖包缓存（registry）",
+          "purpose": "存放从 crates.io 下载的依赖索引、压缩包及解压源码，常占数 GB。",
+          "migrationAdvice": "可设置 `CARGO_HOME` 环境变量改到其他盘，或在无编译进程时安全迁移。"
+        },
+        {
+          "names": ["git"],
+          "shortSummary": "Cargo Git 依赖检出缓存",
+          "roleTitle": "Rust Cargo Git 依赖缓存",
+          "purpose": "存放通过 Git 仓库引用的 Rust 依赖源码检出缓存。",
+          "migrationAdvice": "可重建缓存，关闭 IDE/编译进程后可迁移或清理。"
+        },
+        {
+          "names": ["bin"],
+          "shortSummary": "已安装的 Cargo 命令行工具",
+          "roleTitle": "Cargo 全局可执行工具目录（bin）",
+          "purpose": "存放通过 `cargo install` 安装的 Rust 命令行工具以及 rustc/cargo 代理入口。",
+          "migrationAdvice": "与 PATH 环境变量强关联，不建议单独迁移；如需搬家请整体配置 `CARGO_HOME`。"
+        },
+        {
+          "names": ["toolchains"],
+          "shortSummary": "各版本 Rust 编译器工具链",
+          "roleTitle": "Rustup 编译器工具链目录（toolchains）",
+          "purpose": "存放 stable / nightly 等各版本 Rust 编译器、标准库与文档，单个工具链常占 1–2 GB。",
+          "migrationAdvice": "可先用 `rustup toolchain list` 清理不用的旧工具链，或通过 `RUSTUP_HOME` 环境变量迁移。"
+        },
+        {
+          "names": ["downloads", "tmp"],
+          "shortSummary": "Rustup 安装包临时下载缓存",
+          "roleTitle": "Rustup 临时下载目录",
+          "purpose": "存放工具链更新过程中的临时下载与解压文件。",
+          "migrationAdvice": "无更新任务时可直接清理，无需迁移。"
+        }
+      ]
+    },
+    {
+      "id": "node-pkg-caches",
+      "pathAnchors": [
+        "\\appdata\\local\\npm-cache\\",
+        "\\appdata\\local\\pnpm\\",
+        "\\appdata\\local\\pnpm-store\\",
+        "\\appdata\\local\\yarn\\",
+        "\\appdata\\roaming\\npm\\"
+      ],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["_cacache"],
+          "shortSummary": "npm 下载包内容缓存，可清理",
+          "roleTitle": "npm 包内容缓存（_cacache）",
+          "purpose": "保存 npm 下载过的全部依赖包压缩缓存，用于离线/加速安装。",
+          "migrationAdvice": "可运行 `npm cache clean --force` 清理，或通过 `npm config set cache` 改到其他盘。"
+        },
+        {
+          "names": ["_npx"],
+          "shortSummary": "npx 临时执行的包缓存",
+          "roleTitle": "npx 临时包缓存（_npx）",
+          "purpose": "保存通过 `npx` 临时拉取执行过的命令行包。",
+          "migrationAdvice": "无需迁移，可直接清理。"
+        },
+        {
+          "names": ["_logs"],
+          "shortSummary": "npm 调试与错误日志",
+          "roleTitle": "npm 调试日志目录（_logs）",
+          "purpose": "记录 npm 安装报错时生成的调试日志文件。",
+          "migrationAdvice": "可直接清理，无需迁移。"
+        },
+        {
+          "names": ["store"],
+          "shortSummary": "pnpm 全局内容寻址依赖仓库",
+          "roleTitle": "pnpm 全局依赖仓库（store）",
+          "purpose": "存放 pnpm 去重后的所有前端依赖包（与项目 node_modules 通过硬链接共享），常占数 GB。",
+          "migrationAdvice": "注意 pnpm 依赖与项目位于同盘硬链接；若项目多在 D 盘，强烈建议用 `pnpm config set store-dir` 改到 D 盘。"
+        },
+        {
+          "names": ["node_modules"],
+          "shortSummary": "全局安装的 Node 命令行工具包",
+          "roleTitle": "npm 全局工具包目录（node_modules）",
+          "purpose": "存放通过 `npm install -g` 安装的全局 CLI 工具及其依赖。",
+          "migrationAdvice": "通常体积适中，如需迁移请先关闭所有终端与 Node 进程。"
+        },
+        {
+          "names": ["Cache"],
+          "shortSummary": "Yarn 依赖包下载缓存，可清理",
+          "roleTitle": "Yarn 全局包缓存（Cache）",
+          "purpose": "存放 Yarn 下载过的前端依赖压缩包缓存。",
+          "migrationAdvice": "可通过 `yarn cache clean` 清理或改用 `yarn config set cache-folder` 转移。"
+        }
+      ]
+    },
+    {
+      "id": "python-conda-uv",
+      "pathAnchors": [
+        "\\.conda\\",
+        "\\anaconda3\\",
+        "\\miniconda3\\",
+        "\\appdata\\local\\pip\\",
+        "\\appdata\\local\\uv\\"
+      ],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["envs"],
+          "shortSummary": "Conda Python 虚拟环境（常占大头）",
+          "roleTitle": "Conda 虚拟环境目录（envs）",
+          "purpose": "存放各独立的 Python / PyTorch / AI 虚拟环境，往往占用数十 GB。",
+          "migrationAdvice": "退出所有终端、Jupyter 与 IDE 后可迁移，或通过 `.condarc` 的 `envs_dirs` 将新环境建到其他盘。"
+        },
+        {
+          "names": ["pkgs"],
+          "shortSummary": "Conda 已下载包缓存，可清理",
+          "roleTitle": "Conda 包下载缓存（pkgs）",
+          "purpose": "存放安装虚拟环境时下载解压的 tar.bz2 / conda 包缓存（注意部分文件可能与 envs 存在硬链接）。",
+          "migrationAdvice": "优先执行 `conda clean --all` 安全清理未被引用的包缓存，不建议粗暴手工删除。"
+        },
+        {
+          "names": ["cache"],
+          "shortSummary": "Python 依赖包下载缓存，可清理",
+          "roleTitle": "Python pip / uv 依赖包缓存",
+          "purpose": "存放下载过的 Wheel 与源码包缓存（尤其是 PyTorch/CUDA 大包），可完全重建。",
+          "migrationAdvice": "可直接清理（`pip cache purge` / `uv cache clean`）或通过环境变量迁移到其他盘。"
+        },
+        {
+          "names": ["python"],
+          "shortSummary": "uv 托管的独立 Python 解释器",
+          "roleTitle": "uv 托管 Python 运行时目录",
+          "purpose": "存放 uv 自动下载管理的各版本独立 Python 解释器。",
+          "migrationAdvice": "关闭所有 Python 进程后可迁移，或通过 `UV_PYTHON_INSTALL_DIR` 更改目录。"
+        },
+        {
+          "names": ["archive-v0", "wheels-v4", "simple-v15"],
+          "shortSummary": "uv Wheel 与依赖包解压缓存",
+          "roleTitle": "uv 包管理器内部缓存目录",
+          "purpose": "存放 uv 解压缓存的 Python Wheel 包（可能通过硬链接共享至项目 `.venv`）。",
+          "migrationAdvice": "建议通过 `uv cache clean` 清理或配置 `UV_CACHE_DIR` 到项目所在盘。"
+        }
+      ]
+    },
+    {
+      "id": "nuget-cache",
+      "pathAnchors": ["\\.nuget\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["packages"],
+          "shortSummary": "NuGet .NET 全局依赖包缓存",
+          "roleTitle": "NuGet 全局包目录（packages）",
+          "purpose": "存放所有 .NET / WPF / C# 项目还原下载的 NuGet 依赖包，常占数 GB。",
+          "migrationAdvice": "非常适合设置 `NUGET_PACKAGES` 环境变量迁移到其他盘，或在关闭 VS/Rider 后迁移。"
+        },
+        {
+          "names": ["http-cache", "plugins-cache"],
+          "shortSummary": "NuGet 源元数据与认证缓存",
+          "roleTitle": "NuGet 辅助缓存目录",
+          "purpose": "缓存 NuGet 源接口响应与凭据插件数据，可随时重建。",
+          "migrationAdvice": "无需迁移，可通过 `dotnet nuget locals http-cache --clear` 清理。"
+        }
+      ]
+    },
+    {
+      "id": "go-cache",
+      "pathAnchors": ["\\go\\pkg\\", "\\appdata\\local\\go-build\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 1,
+      "subdirectories": [
+        {
+          "names": ["mod"],
+          "shortSummary": "Go Module 依赖下载缓存",
+          "roleTitle": "Go Module 缓存目录（pkg\\mod）",
+          "purpose": "存放 `go mod download` 拉取的第三方 Go 依赖模块源码与压缩包。",
+          "migrationAdvice": "可通过 `go env -w GOMODCACHE=...` 改到其他盘，或执行 `go clean -modcache` 清理。"
+        },
+        {
+          "names": ["sumdb"],
+          "shortSummary": "Go 模块校验和数据库缓存",
+          "roleTitle": "Go 校验和缓存目录（sumdb）",
+          "purpose": "缓存 Go 官方校验和数据库记录，体积通常很小。",
+          "migrationAdvice": "可自动重建，无需单独迁移。"
+        }
+      ]
+    },
+    {
+      "id": "visual-studio-local",
+      "pathAnchors": ["\\appdata\\local\\microsoft\\visualstudio\\"],
+      "minRelativeDepth": 2,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["ComponentModelCache"],
+          "shortSummary": "VS 组件组合缓存，删后可重建",
+          "roleTitle": "Visual Studio MEF 组件缓存",
+          "purpose": "缓存 Visual Studio 扩展与组件加载元数据，遇到插件异常时常需清除重建。",
+          "migrationAdvice": "无需迁移；关闭 VS 后可直接删除重建。"
+        },
+        {
+          "names": ["Extensions"],
+          "shortSummary": "已安装的 Visual Studio 扩展",
+          "roleTitle": "Visual Studio 用户级扩展目录",
+          "purpose": "存放当前用户安装的 VSIX 扩展插件。",
+          "migrationAdvice": "不建议单独符号链接迁移，可在 VS 扩展管理器中卸载不常用插件。"
+        },
+        {
+          "names": ["Roslyn", "ProjectAssemblies", "ImageLibrary"],
+          "shortSummary": "VS 编译器分析与设计器缓存",
+          "roleTitle": "Visual Studio 编译与界面缓存",
+          "purpose": "存放 Roslyn 语法分析、XAML 设计器临时程序集或图标缓存，均可重建。",
+          "migrationAdvice": "无需迁移，关闭 VS 后可按需清理。"
+        }
+      ]
+    },
+    {
+      "id": "local-ai-models",
+      "pathAnchors": [
+        "\\.ollama\\",
+        "\\appdata\\local\\ollama\\",
+        "\\.lmstudio\\",
+        "\\.cache\\huggingface\\",
+        "\\.cache\\modelscope\\"
+      ],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["models"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "本地大模型权重（常占数十 GB）",
+          "roleTitle": "本地 AI 模型权重目录（models）",
+          "purpose": "存放已下载的本地大语言模型 / 视觉模型权重文件（GGUF / Safetensors / Blobs）。",
+          "migrationAdvice": "强烈推荐迁移到空间充足的盘；也可在软件设置或 `OLLAMA_MODELS` 环境变量中直接更改存储路径。"
+        },
+        {
+          "relativePaths": ["models\\blobs"],
+          "shortSummary": "Ollama 模型分片权重数据块",
+          "roleTitle": "Ollama 模型权重数据块（blobs）",
+          "purpose": "按 SHA256 存储全部本地大模型的真实权重数据，几乎占据 Ollama 全部空间。",
+          "migrationAdvice": "建议优先设置 `OLLAMA_MODELS` 环境变量整体迁移 `models` 目录，不要单独拆开 blobs 与 manifests。"
+        },
+        {
+          "relativePaths": ["models\\manifests"],
+          "shortSummary": "Ollama 模型版本清单元数据",
+          "roleTitle": "Ollama 模型清单目录（manifests）",
+          "purpose": "记录已拉取模型的名称、标签与对应 blobs 引用，体积很小但必须与 blobs 配套。",
+          "migrationAdvice": "请随 `models` 整体迁移，不要单独移动。"
+        },
+        {
+          "names": ["hub"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "HuggingFace 下载的模型仓库",
+          "roleTitle": "HuggingFace 模型仓库缓存（hub）",
+          "purpose": "存放通过 transformers / diffusers / huggingface-cli 下载的模型权重与分词器快照。",
+          "migrationAdvice": "非常适合设置 `HF_HOME` 环境变量原生转移，或退出 Python/AI 进程后直接迁移。"
+        },
+        {
+          "names": ["datasets"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "本地缓存的 AI 数据集",
+          "roleTitle": "AI 训练与评测数据集缓存",
+          "purpose": "存放下载的开源训练/评测数据集（Arrow / Parquet 格式）。",
+          "migrationAdvice": "退出相关进程后非常适合迁移到其他大容量磁盘。"
+        },
+        {
+          "names": ["extensions"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "本地推理引擎后端（CUDA/Vulkan）",
+          "roleTitle": "AI 推理后端运行时（extensions）",
+          "purpose": "存放 LM Studio 等客户端下载的 llama.cpp / CUDA / Vulkan 推理引擎运行库。",
+          "migrationAdvice": "完全关闭客户端后可随主目录迁移或删除旧版推理后端。"
+        },
+        {
+          "names": ["conversations", "logs"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "本地 AI 对话记录与运行日志",
+          "roleTitle": "AI 客户端会话与日志目录",
+          "purpose": "保存本地聊天历史记录或推理服务运行日志。",
+          "migrationAdvice": "体积极小，日志可清理，对话记录请按需保留。"
+        }
+      ]
+    },
+    {
+      "id": "docker-desktop-local",
+      "pathAnchors": ["\\appdata\\local\\docker\\"],
+      "minRelativeDepth": 1,
+      "maxRelativeDepth": 2,
+      "subdirectories": [
+        {
+          "names": ["wsl"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Docker WSL2 虚拟硬盘（宜原生迁）",
+          "roleTitle": "Docker Desktop WSL2 存储目录",
+          "purpose": "存放 Docker 镜像、容器与数据卷所在的虚拟磁盘文件（docker_data.vhdx），常占数十至数百 GB。",
+          "migrationAdvice": "严禁强建符号链接；请在 Docker Desktop「Settings → Resources → Disk image location」直接迁移。"
+        },
+        {
+          "relativePaths": ["wsl\\disk", "wsl\\data", "wsl\\main"],
+          "shortSummary": "Docker 镜像与容器虚拟磁盘",
+          "roleTitle": "Docker 虚拟磁盘数据目录",
+          "purpose": "直接包含 ext4.vhdx / docker_data.vhdx 虚拟硬盘文件。",
+          "migrationAdvice": "请通过 Docker Desktop 设置或 `wsl --export / --import` 原生迁移，勿直接符号链接。"
+        },
+        {
+          "names": ["log"],
+          "minRelativeDepth": 1,
+          "maxRelativeDepth": 1,
+          "shortSummary": "Docker Desktop 运行日志",
+          "roleTitle": "Docker Desktop 诊断日志目录",
+          "purpose": "记录 Docker 引擎与桌面端运行日志。",
+          "migrationAdvice": "无需迁移，退出 Docker 后可按需清理。"
+        }
+      ]
+    },
+    {
+      "id": "appdata-electron-generic",
+      "pathAnchors": ["\\appdata\\roaming\\", "\\appdata\\local\\"],
+      "isGenericFallback": true,
+      "minRelativeDepth": 2,
+      "maxRelativeDepth": 3,
+      "subdirectories": [
+        {
+          "names": ["Cache", "Cache_Data", "Local Cache"],
+          "shortSummary": "应用网页与资源缓存，可重建",
+          "roleTitle": "应用本地资源缓存目录",
+          "purpose": "存放桌面应用（尤其是 Electron/Chromium 内核）下载的图片、媒体与网页资源缓存。",
+          "migrationAdvice": "属于可重建缓存，通常无需迁移；退出对应软件后可按需清理。"
+        },
+        {
+          "names": ["Code Cache", "CachedData"],
+          "shortSummary": "JS/Wasm 编译代码缓存，可重建",
+          "roleTitle": "脚本与字节码编译缓存",
+          "purpose": "缓存内置浏览器解析编译后的 JavaScript / WebAssembly 字节码，加快界面打开速度。",
+          "migrationAdvice": "完全可重建，无需迁移；退出软件后可清理。"
+        },
+        {
+          "names": ["GPUCache", "GrShaderCache", "ShaderCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache", "GraphiteDawnCache"],
+          "shortSummary": "显卡着色器渲染缓存，可重建",
+          "roleTitle": "应用 GPU 着色器缓存",
+          "purpose": "存放应用界面硬件加速编译生成的显卡着色器缓存。",
+          "migrationAdvice": "可自动重建，无需迁移；退出软件后可安全清理。"
+        },
+        {
+          "names": ["Service Worker"],
+          "shortSummary": "离线脚本与网页缓存，可重建",
+          "roleTitle": "Chromium Service Worker 缓存",
+          "purpose": "存放桌面应用内嵌网页注册的离线脚本与资源缓存。",
+          "migrationAdvice": "一般可自动重建，无需单独迁移。"
+        },
+        {
+          "names": ["IndexedDB"],
+          "shortSummary": "应用本地结构化数据库",
+          "roleTitle": "应用本地数据库（IndexedDB）",
+          "purpose": "存放聊天记录索引、离线文档或插件结构化数据（桌面端核心业务数据常存于此）。",
+          "migrationAdvice": "可能包含本地消息或未同步数据，请勿随意删除；如需迁移请先彻底退出该软件。"
+        },
+        {
+          "names": ["Local Storage", "Session Storage", "WebStorage"],
+          "shortSummary": "界面配置与会话存储数据",
+          "roleTitle": "应用本地键值存储",
+          "purpose": "保存桌面应用界面偏好、登录态令牌或会话临时状态。",
+          "migrationAdvice": "删除可能导致退出登录，体积一般较小，保留原位即可。"
+        },
+        {
+          "names": ["blob_storage"],
+          "shortSummary": "临时二进制块缓存数据",
+          "roleTitle": "内嵌浏览器二进制块缓存（blob_storage）",
+          "purpose": "暂存网页与客户端运行期间生成的二进制大对象缓存。",
+          "migrationAdvice": "退出软件后通常可重建，无需迁移。"
+        },
+        {
+          "names": ["Crashpad", "CrashReports", "CrashDumps"],
+          "shortSummary": "程序崩溃日志与转储报告",
+          "roleTitle": "应用崩溃转储目录",
+          "purpose": "保存应用异常闪退时收集的崩溃日志与内存转储文件（.dmp）。",
+          "migrationAdvice": "排查完问题后可直接清理释放空间，无需迁移。"
+        },
+        {
+          "names": ["logs", "log"],
+          "shortSummary": "应用运行与诊断日志",
+          "roleTitle": "应用运行日志目录",
+          "purpose": "记录桌面客户端日常运行与报错信息，长期未轮转可能占用数百 MB。",
+          "migrationAdvice": "无需迁移，退出对应软件后可清理旧日志。"
+        },
+        {
+          "names": ["Temp", "tmp"],
+          "shortSummary": "应用临时工作与解压缓存",
+          "roleTitle": "应用临时文件目录",
+          "purpose": "存放软件运行或更新过程中的临时文件。",
+          "migrationAdvice": "无需迁移，退出对应软件后可清理。"
+        },
+        {
+          "names": ["Updates", "Update", "UpdateCache"],
+          "shortSummary": "自动更新安装包下载缓存",
+          "roleTitle": "应用自动更新缓存目录",
+          "purpose": "保存桌面软件后台下载的新版本安装包缓存，更新完成后有时会残留。",
+          "migrationAdvice": "确认软件已更新完成后，可直接清理旧安装包释放空间。"
+        },
+        {
+          "names": ["Partitions", "User Data", "Network", "Dictionaries"],
+          "shortSummary": "多账号分区、网络态或词典数据",
+          "roleTitle": "应用多实例/运行态数据目录",
+          "purpose": "存放多账号独立分区存储、Cookie 网络状态或内置拼写词典。",
+          "migrationAdvice": "与登录会话或账户数据相关，如需处理请先彻底退出应用。"
+        },
+        {
+          "prefixes": ["app-"],
+          "minRelativeDepth": 2,
+          "maxRelativeDepth": 2,
+          "shortSummary": "应用该版本程序本体文件",
+          "roleTitle": "Squirrel / Electron 版本程序本体",
+          "purpose": "存放通过 Squirrel 安装器部署的桌面应用可执行程序文件（常以 app-x.y.z 命名）。",
+          "migrationAdvice": "涉及快捷方式与自动更新，一般不建议单独迁移；若残留多个旧版本目录通常在重启应用后会自动清理。"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,45 @@
+<UserControl x:Class="MoveWithSymlinkWPF.Controls.HoldConfirmButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="True"
+             FocusVisualStyle="{x:Null}"
+             MinHeight="34"
+             MinWidth="136"
+             Padding="16,0"
+             SnapsToDevicePixels="True"
+             UseLayoutRounding="True">
+    <Border x:Name="RootBorder"
+            CornerRadius="7"
+            BorderThickness="1"
+            SnapsToDevicePixels="True">
+        <Grid x:Name="SurfaceGrid">
+            <Grid.Clip>
+                <RectangleGeometry x:Name="SurfaceClipRect" RadiusX="6" RadiusY="6" Rect="0,0,0,0"/>
+            </Grid.Clip>
+
+            <!-- 底层常态文案 -->
+            <TextBlock x:Name="BaseLabelText"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Margin="{Binding Padding, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                       IsHitTestVisible="False"/>
+
+            <!-- 顶层按住进度填充与反白文案（随填充进度从左到右无缝裁切扫过） -->
+            <Grid x:Name="FillOverlay" IsHitTestVisible="False">
+                <Grid.Clip>
+                    <RectangleGeometry x:Name="FillClipRect" Rect="0,0,0,0"/>
+                </Grid.Clip>
+                <Border x:Name="FillBackgroundBorder"/>
+                <TextBlock x:Name="OverlayLabelText"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="12.5"
+                           FontWeight="SemiBold"
+                           Foreground="#FFFFFF"
+                           Margin="{Binding Padding, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

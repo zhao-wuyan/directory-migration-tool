@@ -177,7 +177,7 @@
     <sys:String x:Key="CleanupTier2Badge">按需清理</sys:String>
     <sys:String x:Key="CleanupTier2Desc">开发构建缓存、包管理器缓存、浏览器/应用缓存或旧版更新残留，清理后对应软件可能需重新拉取或预热缓存。</sys:String>
     <sys:String x:Key="CleanupTier3Badge">谨慎清理</sys:String>
-    <sys:String x:Key="CleanupTier3Desc">影响较广或不可逆项目（如系统组件存储、休眠/旧驱动等），附详细风险说明，执行前强制要求手动输入确认短语（如「确认清理」）。</sys:String>
+    <sys:String x:Key="CleanupTier3Desc">影响较广或不可逆项目（如系统组件存储、休眠/旧驱动等），附详细风险说明，执行前采用免打字分级确认（通道 A 长按 1.2 秒；含不可恢复的通道 B 需勾选知情项并长按 1.5 秒）。</sys:String>
 
     <sys:String x:Key="CleanupChannelsTitle">双执行通道与同卷隔离区</sys:String>
     <sys:String x:Key="CleanupChannelATitle">通道 A：文件级缓存（默认同卷隔离 · 可一键恢复）</sys:String>
@@ -229,7 +229,7 @@
     <sys:String x:Key="BackupCenterTitle">全局备份管理与使用验证流程</sys:String>
     <sys:String x:Key="BackupCenter1">• 顶栏「备份管理」集中收口手动、一键、磁盘扫描的迁移与还原事务；有待验证备份时会显示琥珀色数量角标</sys:String>
     <sys:String x:Key="BackupCenter2">• 身份绑定：每份备份通过 VolumeGuid + FileId 精确绑定，绝不靠目录名猜测或误删同名目录</sys:String>
-    <sys:String x:Key="BackupCenter3">• 先实际使用、再处理备份：程序核对（含 SHA-256）不能替代启动对应软件验证功能正常；确认验证后方可选择保留、移入回收站或永久删除（均需独立双确认，永久删除须输入原目录名）</sys:String>
+    <sys:String x:Key="BackupCenter3">• 先实际使用、再处理备份：程序核对（含 SHA-256）不能替代启动对应软件验证功能正常；确认验证后方可选择保留、移入回收站或永久删除（均需独立双确认，永久删除第二步须勾选核对原目录名并长按 1.5 秒确认）</sys:String>
     <sys:String x:Key="BackupCenter4">• 中断恢复保护（RecoveryRequired）：若操作中途因断电/强制退出中断，重启后顶部会出现红色恢复横幅并暂停新任务，保全全部副本供您核验现场</sys:String>
 
     <sys:String x:Key="AclAndRollbackTitle">ACL 权限冻结与如实回滚</sys:String>

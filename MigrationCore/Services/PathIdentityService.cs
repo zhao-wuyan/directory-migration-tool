@@ -73,6 +73,71 @@ public sealed class PathIdentityService
         catch (Win32Exception ex) when (ex.NativeErrorCode is 2 or 3) { return null; }
     }
 
+    /// <summary>
+    /// 仅读取单个路径自身身份（不重复向上遍历盘符祖先链）。
+    /// 仅供调用方已确认父目录非重解析点且位于预期卷时复用，避免批量核验时重复触发数十万次祖先 CreateFileW。
+    /// </summary>
+    public DirectoryIdentity? ReadDirectIfExists(string path, bool followLink = false)
+    {
+        path = Normalize(path);
+        try { return ReadNative(path, followLink); }
+        catch (Win32Exception ex) when (ex.NativeErrorCode is 2 or 3) { return null; }
+    }
+
+    /// <summary>
+    /// 单次句柄读取文件自身身份、大小与修改时间（不重复遍历祖先链），用于极小目录或批量目录枚举回退探测。
+    /// </summary>
+    internal bool TryReadDirectFileMetadata(
+        string path,
+        out DirectoryIdentity? identity,
+        out long length,
+        out long lastWriteUtcTicks)
+    {
+        identity = null;
+        length = 0;
+        lastWriteUtcTicks = 0;
+        try
+        {
+            path = Normalize(path);
+            using SafeFileHandle handle = CreateFileW(@"\\?\" + path, 0, 7, IntPtr.Zero, 3,
+                0x02000000U | 0x00200000U, IntPtr.Zero);
+            if (handle.IsInvalid) return false;
+            if (!GetFileInformationByHandle(handle, out FileInformation info)) return false;
+
+            var name = new StringBuilder(512);
+            uint nameLen = GetFinalPathNameByHandleW(handle, name, (uint)name.Capacity, 1);
+            if (nameLen >= name.Capacity)
+            {
+                name = new StringBuilder(checked((int)nameLen + 1));
+                nameLen = GetFinalPathNameByHandleW(handle, name, (uint)name.Capacity, 1);
+            }
+            if (nameLen == 0) return false;
+
+            string final = name.ToString();
+            const int rootLength = 49;
+            if (nameLen >= name.Capacity || final.Length < rootLength || !final.StartsWith(@"\\?\Volume{", StringComparison.Ordinal)
+                || final[47] != '}' || final[48] != '\\' || !Guid.TryParseExact(final.AsSpan(11, 36), "D", out Guid volume) || volume == Guid.Empty)
+            {
+                return false;
+            }
+
+            identity = new DirectoryIdentity(
+                final[..rootLength].ToUpperInvariant(),
+                info.VolumeSerialNumber,
+                ((ulong)info.FileIndexHigh << 32) | info.FileIndexLow,
+                (info.Attributes & (uint)FileAttributes.ReparsePoint) != 0,
+                (info.Attributes & (uint)FileAttributes.Directory) != 0);
+            length = ((long)info.FileSizeHigh << 32) | info.FileSizeLow;
+            long fileTime = ((long)info.LastWriteTime.dwHighDateTime << 32) | (uint)info.LastWriteTime.dwLowDateTime;
+            lastWriteUtcTicks = fileTime > 0 ? DateTime.FromFileTimeUtc(fileTime).Ticks : 0;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public void RequireMissing(string path)
     {
         if (ReadIfExists(path) is not null) throw new IOException($"路径已存在，不得覆盖：{path}");

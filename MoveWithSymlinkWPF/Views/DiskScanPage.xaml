@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+             xmlns:helpers="clr-namespace:MoveWithSymlinkWPF.Helpers"
              xmlns:views="clr-namespace:MoveWithSymlinkWPF.Views"
              xmlns:diskViews="clr-namespace:MoveWithSymlinkWPF.Views.DiskScan"
              mc:Ignorable="d"
@@ -19,6 +20,7 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
+        <helpers:TreeTableColumnLayoutState x:Key="TreeColumnLayout"/>
     </UserControl.Resources>
 
     <Grid>
@@ -193,18 +195,20 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧 TreeTableCard -->
-                <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+                <Border x:Name="TreeTableCard" Grid.Column="0" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" ClipToBounds="True"
+                        SizeChanged="TreeTableCard_OnSizeChanged">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- 简洁 4 列表头（大软件模式下内嵌「直达列表 | 按路径展开」子视角切换） -->
+                        <!-- 简洁 5 列表头（宽屏自动展现浅灰「用途说明」对齐列；大软件模式下内嵌「按路径 | 直达列表」子视角切换） -->
                         <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,6">
                             <Grid MinHeight="22">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="{Binding SummaryColumnWidth, Source={StaticResource TreeColumnLayout}}"/>
                                     <ColumnDefinition Width="82"/>
                                     <ColumnDefinition Width="96"/>
                                     <ColumnDefinition Width="108"/>
@@ -242,9 +246,11 @@
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
-                                <TextBlock Grid.Column="1" Text="实际占用" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Right" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="{Binding ShareColumnHeader}" ToolTip="{Binding ShareColumnToolTip}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="3" Text="准入等级" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="用途说明" FontSize="11.5" FontWeight="SemiBold" Foreground="#94A3B8" Margin="10,0,8,0" VerticalAlignment="Center"
+                                           Visibility="{Binding SummaryColumnVisibility, Source={StaticResource TreeColumnLayout}}"/>
+                                <TextBlock Grid.Column="2" Text="实际占用" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Right" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="{Binding ShareColumnHeader}" ToolTip="{Binding ShareColumnToolTip}" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="4" Text="准入等级" FontSize="11.5" FontWeight="SemiBold" Foreground="#64748B" TextAlignment="Center" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
 
@@ -262,7 +268,7 @@
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    <Setter Property="Padding" Value="12,7"/>
+                                    <Setter Property="Padding" Value="0"/>
                                     <Setter Property="Background" Value="#FFFFFF"/>
                                     <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                     <Setter Property="BorderBrush" Value="#F1F5F9"/>
@@ -291,17 +297,31 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="82"/>
-                                            <ColumnDefinition Width="96"/>
-                                            <ColumnDefinition Width="108"/>
-                                        </Grid.ColumnDefinitions>
+                                    <Border x:Name="RowHoverBorder" Background="Transparent" Padding="12,7">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="{Binding SummaryColumnWidth, Source={StaticResource TreeColumnLayout}}"/>
+                                                <ColumnDefinition Width="82"/>
+                                                <ColumnDefinition Width="96"/>
+                                                <ColumnDefinition Width="108"/>
+                                            </Grid.ColumnDefinitions>
 
-                                        <!-- 第 1 列：缩进 + 展开箭头 + 锁/勾选状态 + 类型图标 + 目录名（DockPanel 防止标签右端被硬切） -->
-                                        <DockPanel Grid.Column="0" Margin="{Binding IndentMargin}" VerticalAlignment="Center" LastChildFill="True">
-                                            <Button DockPanel.Dock="Left" Content="{Binding ExpandGlyph}"
+                                            <!-- 第 1 列：缩进 + 展开箭头 + 锁/勾选状态 + 类型图标 + 目录名 + 右侧悬浮打开按钮（DockPanel 防止标签右端被硬切） -->
+                                            <DockPanel Grid.Column="0" Margin="{Binding IndentMargin}" VerticalAlignment="Center" LastChildFill="True">
+                                                <Button x:Name="RowOpenExplorerButton"
+                                                        DockPanel.Dock="Right"
+                                                        Command="{Binding OpenInExplorerCommand}"
+                                                        Style="{StaticResource FluentIconButtonStyle}"
+                                                        Width="22" Height="22" Margin="4,0,2,0"
+                                                        Opacity="0" IsHitTestVisible="False"
+                                                        ToolTip="{Binding OpenInExplorerToolTip}"
+                                                        Visibility="{Binding CanOpenInExplorer, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Path Data="{StaticResource IconFolderOpen}" Width="13" Height="13" Stretch="Uniform"
+                                                          Stroke="#64748B" StrokeThickness="1.8"/>
+                                                </Button>
+
+                                                <Button DockPanel.Dock="Left" Content="{Binding ExpandGlyph}"
                                                     Command="{Binding DataContext.ToggleExpandCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource FluentIconButtonStyle}"
@@ -381,19 +401,35 @@
                                                        Visibility="{Binding HasAttribution, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                         </DockPanel>
 
-                                        <!-- 第 2 列：实际占用 -->
-                                        <TextBlock Grid.Column="1" Text="{Binding AllocatedText}" FontSize="12.5" FontWeight="SemiBold"
+                                        <!-- 第 2 列（响应式独立左对齐）：常见软件/IDE/开发目录一句话浅灰用途介绍（不抢主次，窄屏自动收起） -->
+                                        <Border Grid.Column="1" ClipToBounds="True"
+                                                Visibility="{Binding SummaryColumnVisibility, Source={StaticResource TreeColumnLayout}}">
+                                            <TextBlock x:Name="RowSummaryText"
+                                                       Text="{Binding InlineSummary}"
+                                                       FontSize="11"
+                                                       Foreground="#94A3B8"
+                                                       Margin="10,0,8,0"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding SummaryToolTip}"
+                                                       ToolTipService.InitialShowDelay="250"
+                                                       ToolTipService.ShowDuration="15000"
+                                                       Visibility="{Binding HasInlineSummary, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </Border>
+
+                                        <!-- 第 3 列：实际占用 -->
+                                        <TextBlock Grid.Column="2" Text="{Binding AllocatedText}" FontSize="12.5" FontWeight="SemiBold"
                                                    Foreground="#0F172A" TextAlignment="Right" VerticalAlignment="Center"/>
 
-                                        <!-- 第 3 列：上方百分比 + 下方 5px 语义色细条 -->
-                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,4,0">
+                                        <!-- 第 4 列：上方百分比 + 下方 5px 语义色细条 -->
+                                        <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="12,0,4,0">
                                             <TextBlock Text="{Binding ShareText}" FontSize="11" FontWeight="Medium" Foreground="#64748B" Margin="0,0,0,3"/>
                                             <ProgressBar Value="{Binding ParentSharePercent, Mode=OneWay}" Maximum="100" Height="5"
                                                          Foreground="{Binding BarBrush}" Style="{StaticResource FluentProgressBarStyle}"/>
                                         </StackPanel>
 
-                                        <!-- 第 4 列：99 圆角准入胶囊 -->
-                                        <Border Grid.Column="3" CornerRadius="11" Padding="9,3" BorderThickness="1"
+                                        <!-- 第 5 列：99 圆角准入胶囊 -->
+                                        <Border Grid.Column="4" CornerRadius="11" Padding="9,3" BorderThickness="1"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 Background="{Binding LevelBadgeBackground}"
                                                 BorderBrush="{Binding LevelBadgeBorder}"
@@ -401,7 +437,15 @@
                                             <TextBlock Text="{Binding LevelBadgeText}" FontSize="11" FontWeight="Medium"
                                                        Foreground="{Binding LevelBadgeForeground}"/>
                                         </Border>
-                                    </Grid>
+                                        </Grid>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <Trigger SourceName="RowHoverBorder" Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="RowOpenExplorerButton" Property="Opacity" Value="1"/>
+                                            <Setter TargetName="RowOpenExplorerButton" Property="IsHitTestVisible" Value="True"/>
+                                            <Setter TargetName="RowSummaryText" Property="Foreground" Value="#64748B"/>
+                                        </Trigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
@@ -437,10 +481,11 @@
                         </Button>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel>
-                            <!-- 顶部准入徽章 + 打开文件夹图标 -->
+                            <!-- 顶部准入徽章 + 打开文件夹/定位文件图标 -->
                             <DockPanel Margin="0,0,0,8">
                                 <Button DockPanel.Dock="Right" Command="{Binding OpenSelectedInExplorerCommand}"
-                                        Style="{StaticResource FluentIconButtonStyle}" ToolTip="在资源管理器中打开目录">
+                                        IsEnabled="{Binding CanOpenSelectedInExplorer}"
+                                        Style="{StaticResource FluentIconButtonStyle}" ToolTip="{Binding OpenSelectedInExplorerToolTip}">
                                     <Path Data="{StaticResource IconFolderOpen}" Width="15" Height="15" Stretch="Uniform" Stroke="#64748B" StrokeThickness="1.8"/>
                                 </Button>
                                 <Border Background="{Binding SelectedLevelBadgeBg}"

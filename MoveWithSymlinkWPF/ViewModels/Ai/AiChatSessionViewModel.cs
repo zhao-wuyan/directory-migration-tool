@@ -1150,7 +1150,8 @@ public partial class AiChatSessionViewModel : ObservableObject
 
                 bool executed = execItem.Status is CleanupItemExecutionStatus.Quarantined
                     or CleanupItemExecutionStatus.Recycled
-                    or CleanupItemExecutionStatus.ReclaimedByOfficialApi;
+                    or CleanupItemExecutionStatus.ReclaimedByOfficialApi
+                    or CleanupItemExecutionStatus.PermanentlyDeleted;
                 if (!executed)
                 {
                     continue;
@@ -1170,6 +1171,7 @@ public partial class AiChatSessionViewModel : ObservableObject
                     {
                         CleanupItemExecutionStatus.Quarantined => "✓ 已同卷隔离",
                         CleanupItemExecutionStatus.Recycled => "✓ 已移入回收站",
+                        CleanupItemExecutionStatus.PermanentlyDeleted => "✓ 已直接删除释放",
                         _ => "✓ 已清理"
                     };
                     card.IsCleanupRuleCleaned = true;

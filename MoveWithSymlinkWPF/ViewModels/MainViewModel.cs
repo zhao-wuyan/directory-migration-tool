@@ -238,21 +238,15 @@ public partial class MainViewModel : ObservableObject
         OverviewViewModel = new OverviewViewModel(
             openDiskScanCallback: driveRoot =>
             {
-                if (IsOperationBusy) return;
                 if (!string.IsNullOrWhiteSpace(driveRoot))
                 {
                     diskScanVm?.SelectVolumeByRoot(driveRoot);
                 }
                 SetActiveMode(diskScan: true);
             },
-            openCleanupCallback: () =>
-            {
-                if (IsOperationBusy) return;
-                ShowCleanup();
-            },
+            openCleanupCallback: () => ShowCleanup(),
             openQuarantineCallback: () =>
             {
-                if (IsOperationBusy) return;
                 SetActiveMode(cleanup: true);
                 if (cleanupVm is not null)
                 {
@@ -260,22 +254,10 @@ public partial class MainViewModel : ObservableObject
                     _ = cleanupVm.OnEnteredCleanupPageAsync();
                 }
             },
-            openManualModeCallback: () =>
-            {
-                if (!IsOperationBusy) ShowManualMode();
-            },
-            openQuickMigrateCallback: () =>
-            {
-                if (!IsOperationBusy) ShowQuickMigrate();
-            },
-            openAiAssistantCallback: () =>
-            {
-                if (!IsOperationBusy) ShowAiAssistant();
-            },
-            openBackupCenterCallback: () =>
-            {
-                if (!IsOperationBusy) ShowBackupCenter();
-            },
+            openManualModeCallback: () => ShowManualMode(),
+            openQuickMigrateCallback: () => ShowQuickMigrate(),
+            openAiAssistantCallback: () => ShowAiAssistant(),
+            openBackupCenterCallback: () => ShowBackupCenter(),
             readQuickMigrateSummary: () => BuildQuickMigrateOverviewSummary(quickMigrateVm));
         OverviewPage = new OverviewPage { DataContext = OverviewViewModel };
 
@@ -304,14 +286,8 @@ public partial class MainViewModel : ObservableObject
                 SetActiveMode(diskScan: true);
                 return true;
             },
-            openDiskScanCallback: () =>
-            {
-                if (!IsOperationBusy) SetActiveMode(diskScan: true);
-            },
-            openAiSettingsCallback: () =>
-            {
-                if (!IsOperationBusy) SetActiveMode(aiAssistant: true);
-            },
+            openDiskScanCallback: () => SetActiveMode(diskScan: true),
+            openAiSettingsCallback: () => SetActiveMode(aiAssistant: true),
             closeDrawerCallback: () =>
             {
                 if (diskScanVm is not null) diskScanVm.IsAiDrawerOpen = false;
@@ -319,7 +295,6 @@ public partial class MainViewModel : ObservableObject
             },
             openCleanupResidualCallback: () =>
             {
-                if (IsOperationBusy) return;
                 SetActiveMode(cleanup: true);
                 if (cleanupVm is not null)
                 {
@@ -333,27 +308,22 @@ public partial class MainViewModel : ObservableObject
                     : cleanupVm.TryCheckRuleFromAiAdvice(ruleId),
             locateCleanupRuleCallback: ruleId =>
             {
-                if (IsOperationBusy || cleanupVm is null) return false;
+                if (cleanupVm is null) return false;
                 if (!cleanupVm.TryLocateCleanupRule(ruleId)) return false;
                 SetActiveMode(cleanup: true);
                 return true;
             },
             openCleanupCallback: () =>
             {
-                if (IsOperationBusy) return;
                 SetActiveMode(cleanup: true);
                 if (cleanupVm is not null)
                 {
                     _ = cleanupVm.OnEnteredCleanupPageAsync();
                 }
             },
-            openBackupCenterCallback: () =>
-            {
-                if (!IsOperationBusy) ShowBackupCenter();
-            },
+            openBackupCenterCallback: () => ShowBackupCenter(),
             openQuarantineCallback: () =>
             {
-                if (IsOperationBusy) return;
                 SetActiveMode(cleanup: true);
                 if (cleanupVm is not null)
                 {
@@ -408,7 +378,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowOverview()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(overview: true);
         _ = OverviewViewModel.OnEnteredOverviewPageAsync();
     }
@@ -416,28 +385,24 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowManualMode()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(manual: true);
     }
 
     [RelayCommand]
     private void ShowQuickMigrate()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(quick: true);
     }
 
     [RelayCommand]
     private void ShowDiskScan()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(diskScan: true);
     }
 
     [RelayCommand]
     private void ShowAiAssistant()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(aiAssistant: true);
         _ = AiAssistantViewModel.OnEnteredAiPageAsync();
     }
@@ -445,7 +410,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowCleanup()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(cleanup: true);
         if (CleanupPage is CleanupPage cp && cp.DataContext is CleanupViewModel cvm)
         {
@@ -456,7 +420,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowBackupCenter()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(backupCenter: true);
         _ = RefreshGlobalStatusAsync();
         if (GlobalBackupPage is GlobalBackupPage bp && bp.DataContext is GlobalBackupViewModel bvm)
@@ -466,7 +429,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenRecoveryCenter()
     {
-        if (IsOperationBusy) return;
         SetActiveMode(backupCenter: true);
         _ = RefreshGlobalStatusAsync();
         if (GlobalBackupPage is GlobalBackupPage bp && bp.DataContext is GlobalBackupViewModel bvm)
@@ -700,6 +662,11 @@ public partial class MainViewModel : ObservableObject
         {
             if (dvm.IsBatchExecuting) dvm.CancelBatchCommand.Execute(null);
             if (dvm.IsScanning) dvm.CancelScanCommand.Execute(null);
+        }
+        if (CleanupPage is CleanupPage cp && cp.DataContext is CleanupViewModel cvm)
+        {
+            if (cvm.IsExecuting) cvm.CancelExecutionCommand.Execute(null);
+            if (cvm.IsScanning) cvm.CancelScanCommand.Execute(null);
         }
         if (AiAssistantViewModel.IsAnySessionAnalyzing)
         {

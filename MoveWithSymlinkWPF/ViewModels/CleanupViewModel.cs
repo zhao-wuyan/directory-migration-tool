@@ -201,7 +201,20 @@ public partial class CleanupViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanConfirmAiQuarantine))]
     [NotifyPropertyChangedFor(nameof(CanBatchDeleteQuarantine))]
     [NotifyPropertyChangedFor(nameof(IsNotExecuting))]
+    [NotifyPropertyChangedFor(nameof(CanSelectRecommendedInScope))]
     private bool _isExecuting;
+
+    partial void OnIsExecutingChanged(bool value)
+    {
+        foreach (CleanupRuleItemViewModel item in AllRuleItems)
+        {
+            item.IsSelectionLocked = value;
+        }
+        foreach (CleanupRuleGroupViewModel grp in VisibleEntries.OfType<CleanupRuleGroupViewModel>())
+        {
+            grp.IsSelectionLocked = value;
+        }
+    }
 
     public bool IsNotExecuting => !IsExecuting;
     public bool IsBusy => IsScanning || IsExecuting || OperationExecutionGate.Shared.IsBusy;
@@ -250,6 +263,8 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty]
     private bool _executionReceiptIsWarning;
 
+    private CleanupExecutionResult? _lastExecutionResult;
+
     [ObservableProperty]
     private string _statusMessage = "点击「重新扫描」只读评估可清理空间；所有项目默认不勾选。";
 
@@ -277,7 +292,10 @@ public partial class CleanupViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectRecommendedButtonText))]
     [NotifyPropertyChangedFor(nameof(SelectRecommendedButtonToolTip))]
+    [NotifyPropertyChangedFor(nameof(CanSelectRecommendedInScope))]
     private bool _hasSelectableRecommendedInScope;
+
+    public bool CanSelectRecommendedInScope => HasSelectableRecommendedInScope && IsNotExecuting;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectRecommendedButtonText))]
@@ -629,7 +647,7 @@ public partial class CleanupViewModel : ObservableObject
     [RelayCommand]
     private void ToggleGroupCheck(CleanupRuleGroupViewModel? group)
     {
-        if (group is null || !group.CanCheckGroup) return;
+        if (IsExecuting || group is null || !group.CanCheckGroup) return;
 
         // 简洁两段切换：未全选（false / null）→ 全选本组可选软件；已全选（true）→ 取消本组全部勾选
         bool targetChecked = group.GroupCheckState != true;
@@ -707,6 +725,7 @@ public partial class CleanupViewModel : ObservableObject
     [RelayCommand]
     private void SelectRecommendedOnly()
     {
+        if (IsExecuting) return;
         CleanupRuleItemViewModel[] scopeItems = GetCurrentScopeRuleItems().ToArray();
         CleanupRuleItemViewModel[] recommendedSelectable = scopeItems
             .Where(item => item.Tier == CleanupRecommendationTier.Recommended && item.CanCheck)
@@ -744,6 +763,7 @@ public partial class CleanupViewModel : ObservableObject
     [RelayCommand]
     private void ClearAllSelections()
     {
+        if (IsExecuting) return;
         _isBatchUpdatingSelection = true;
         try
         {
@@ -782,6 +802,11 @@ public partial class CleanupViewModel : ObservableObject
     /// </summary>
     public (bool Checked, string Message) TryCheckRuleFromAiAdvice(string ruleId)
     {
+        if (IsExecuting)
+        {
+            return (false, "当前正在执行清理，暂不可修改勾选状态。");
+        }
+
         if (string.IsNullOrWhiteSpace(ruleId))
         {
             return (false, "规则编号无效。");
@@ -902,6 +927,16 @@ public partial class CleanupViewModel : ObservableObject
     [RelayCommand]
     private void ShowExecutionReceiptDetails()
     {
+        if (_lastExecutionResult is not null)
+        {
+            CleanupExecutionReceiptWindow.ShowForResult(
+                result: _lastExecutionResult,
+                windowTitle: "清理执行完整回执",
+                plainTextReport: ExecutionReceiptDetailText,
+                openQuarantineCallback: () => OpenQuarantineViewCommand.Execute(null));
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(ExecutionReceiptDetailText)) return;
         CustomMessageBox.ShowInformation(ExecutionReceiptDetailText, "清理执行完整回执");
     }
@@ -996,7 +1031,7 @@ public partial class CleanupViewModel : ObservableObject
 
             string groupTitle = children[0].Rule.GroupDisplayName ?? grp.Key;
             bool isExpanded = _expandedGroupIds.Contains(grp.Key);
-            var groupVm = new CleanupRuleGroupViewModel(grp.Key, groupTitle, children, isExpanded);
+            var groupVm = new CleanupRuleGroupViewModel(grp.Key, groupTitle, children, isExpanded, isSelectionLocked: IsExecuting);
 
             sortableEntries.Add((
                 Entry: groupVm,
@@ -1283,6 +1318,7 @@ public partial class CleanupViewModel : ObservableObject
                 CleanupItemExecutionStatus.Quarantined => "[已隔离 · 未释放物理空间]",
                 CleanupItemExecutionStatus.Recycled => "[已移入回收站]",
                 CleanupItemExecutionStatus.ReclaimedByOfficialApi => "[官方接口已回收]",
+                CleanupItemExecutionStatus.PermanentlyDeleted => "[已直接删除 · 立即释放空间]",
                 CleanupItemExecutionStatus.Blocked => "[已安全拦截]",
                 CleanupItemExecutionStatus.Skipped => "[已跳过]",
                 _ => "[失败]"

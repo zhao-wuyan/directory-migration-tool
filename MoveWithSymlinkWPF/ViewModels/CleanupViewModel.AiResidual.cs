@@ -73,7 +73,11 @@ public partial class CleanupViewModel
                 _ = OnEnteredCleanupPageAsync(force: true);
                 SyncAiResidualCandidatesFromInbox();
                 StatusMessage = result.SummaryMessage;
-                CustomMessageBox.ShowInformation(FormatExecutionResultDetail(result), "AI 疑似残留隔离结果");
+                CleanupExecutionReceiptWindow.ShowForResult(
+                    result: result,
+                    windowTitle: "AI 疑似残留隔离结果",
+                    plainTextReport: FormatExecutionResultDetail(result),
+                    openQuarantineCallback: () => OpenQuarantineViewCommand.Execute(null));
             });
         }
         catch (Exception ex)

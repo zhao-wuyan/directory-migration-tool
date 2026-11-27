@@ -88,7 +88,6 @@
           AutomationProperties.Name="返回概览首页"
           AutomationProperties.AutomationId="NavBrandOverview"
           ToolTip="返回概览首页"
-          IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
           VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Image Source="{StaticResource AppIconDrawingImage}"
@@ -107,8 +106,7 @@
         <!-- 中央 Fluent 分段胶囊导航栏（新动线：概览 | 磁盘扫描 | 垃圾清理 | 手动模式 | 一键迁移） -->
         <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
           Background="#EEF2F6" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10"
-          Padding="4"
-          IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}">
+          Padding="4">
           <StackPanel Orientation="Horizontal">
             <Button Command="{Binding ShowOverviewCommand}"
               AutomationProperties.Name="概览"
@@ -196,7 +194,6 @@
             AutomationProperties.AutomationId="NavAiAssistant"
             Style="{StaticResource FluentSoftPrimaryButtonStyle}"
             Tag="{Binding AiAssistantNavTag}"
-            IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
             Padding="10,0" Height="32" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
               <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform"
@@ -212,7 +209,6 @@
             AutomationProperties.AutomationId="NavGlobalBackup"
             Style="{StaticResource FluentSecondaryButtonStyle}"
             Tag="{Binding BackupCenterNavTag}"
-            IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
             Padding="11,0" Height="32" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
               <Path Data="{StaticResource IconArchive}" Width="14" Height="14" Stretch="Uniform"
@@ -274,7 +270,6 @@
           <Button Grid.Column="1" Content="立即查看现场"
             Command="{Binding OpenRecoveryCenterCommand}"
             AutomationProperties.AutomationId="OpenRecoveryCenterButton"
-            IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
             Style="{StaticResource FluentDangerButtonStyle}"
             Height="30" Padding="12,0" Margin="12,0,0,0" />
         </Grid>
@@ -994,7 +989,7 @@
                     <Button Content="上一步" Command="{Binding BackToStep1Command}"
                       IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}" />
                     <Button Command="{Binding StartMigrationFromStep2Command}"
-                      IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}"
+                      IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}"
                       Background="#0078D4" Foreground="White" FontWeight="SemiBold"
                       Margin="12,0,0,0">
                       <Button.Style>
@@ -1172,7 +1167,7 @@
                         IsReadOnly="True" TextWrapping="Wrap" Height="Auto" MinHeight="32"
                         Margin="0,6,0,0" AutomationProperties.AutomationId="MainBackupPath" />
                       <WrapPanel Margin="0,8,0,0"
-                        IsEnabled="{Binding IsMigrating, Converter={StaticResource InverseBoolConverter}}">
+                        IsEnabled="{Binding IsOperationBusy, Converter={StaticResource InverseBoolConverter}}">
                         <Button Content="验证迁移并管理备份…" Command="{Binding VerifyDataCommand}"
                           AutomationProperties.AutomationId="MainVerifyData" />
                       </WrapPanel>

@@ -173,6 +173,8 @@ public partial class ScanTreeRowItem : ObservableObject
     public int DirectoryCount { get; init; }
     public double ParentSharePercent { get; init; }
     public string AttributionLabel { get; init; } = string.Empty;
+    public string InlineSummary { get; init; } = string.Empty;
+    public string SummaryToolTip { get; init; } = string.Empty;
     public MigrationAdmissionLevel AdmissionLevel { get; init; } = MigrationAdmissionLevel.ManualRiskConfirm;
     public bool IsToolSelfProtected { get; init; }
     public DirectoryHintLevel HintLevel { get; init; } = DirectoryHintLevel.None;
@@ -202,14 +204,28 @@ public partial class ScanTreeRowItem : ObservableObject
     public bool IsHardDenied => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel == MigrationAdmissionLevel.HardDenied;
     public bool IsNativeGuide => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel == MigrationAdmissionLevel.VendorNativeRecommended;
     public bool CanToggleInPlan => IsDirectory && !IsLoadMorePlaceholder && AdmissionLevel is MigrationAdmissionLevel.VerifiedEligible or MigrationAdmissionLevel.ManualRiskConfirm;
+    public bool CanOpenInExplorer => !IsLoadMorePlaceholder
+        && (Flags & ScanNodeFlags.IsOrphaned) == 0
+        && !string.IsNullOrWhiteSpace(FullPath);
+    public string OpenInExplorerToolTip => IsDirectory
+        ? "在资源管理器中打开目录"
+        : "在资源管理器中定位文件";
     public bool ShowWarningHint => IsDirectory && !IsLoadMorePlaceholder && HintLevel == DirectoryHintLevel.Warning;
     public bool ShowInfoHint => IsDirectory && !IsLoadMorePlaceholder && HintLevel == DirectoryHintLevel.Info;
+
+    [RelayCommand]
+    private void OpenInExplorer()
+    {
+        if (!CanOpenInExplorer) return;
+        ExplorerHelper.OpenInExplorer(FullPath);
+    }
 
     public string AllocatedText => IsLoadMorePlaceholder ? string.Empty : FileStatsService.FormatBytes(UniqueAllocatedBytes);
     public string LogicalText => IsLoadMorePlaceholder ? string.Empty : FileStatsService.FormatBytes(LogicalBytes);
     public string ShareText => IsLoadMorePlaceholder ? string.Empty : $"{ParentSharePercent:F1}%";
     public bool ShowLevelBadge => IsDirectory && !IsLoadMorePlaceholder;
     public bool HasAttribution => !string.IsNullOrWhiteSpace(AttributionLabel);
+    public bool HasInlineSummary => IsDirectory && !IsLoadMorePlaceholder && !string.IsNullOrWhiteSpace(InlineSummary);
 
     public string TypeIconColor => IsLoadMorePlaceholder ? "#0078D4"
         : !IsDirectory ? "#64748B"
@@ -286,7 +302,25 @@ public partial class BatchPlanRowItem : ObservableObject
     public BatchPlanItemSource Source { get; init; } = BatchPlanItemSource.ScanDiscovery;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTargetPath))]
     private string _targetPath = string.Empty;
+
+    public bool HasSourcePath => !string.IsNullOrWhiteSpace(SourcePath);
+    public bool HasTargetPath => !string.IsNullOrWhiteSpace(TargetPath);
+
+    [RelayCommand]
+    private void OpenSourceInExplorer()
+    {
+        if (!HasSourcePath) return;
+        ExplorerHelper.OpenInExplorer(SourcePath);
+    }
+
+    [RelayCommand]
+    private void OpenTargetInExplorer()
+    {
+        if (!HasTargetPath) return;
+        ExplorerHelper.OpenInExplorer(TargetPath, fallbackToExistingAncestor: true);
+    }
 
     [ObservableProperty]
     private bool _l3RiskAcknowledged;

@@ -1,0 +1,331 @@
+<Window x:Class="MoveWithSymlinkWPF.Views.QuarantineOperationResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:MoveWithSymlinkWPF.Converters"
+        Title="{Binding WindowTitle}"
+        AutomationProperties.AutomationId="QuarantineOperationResultWindow"
+        Width="860" Height="640"
+        MinWidth="700" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="#F4F6F9"
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="16,12,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 0. 紧凑单行状态头（省出垂直空间让给关键明细） -->
+        <Border Grid.Row="0"
+                Background="#FFFFFF"
+                BorderBrush="{Binding HeaderAccentBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="9"
+                Padding="12,9"
+                Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Width="32" Height="32" CornerRadius="8"
+                        Background="{Binding HeaderAccentBackground}"
+                        BorderBrush="{Binding HeaderAccentBorderBrush}"
+                        BorderThickness="1"
+                        Margin="0,0,10,0" VerticalAlignment="Center">
+                    <Grid>
+                        <Path Data="{StaticResource IconCheckCircle}" Width="16" Height="16" Stretch="Uniform"
+                              Stroke="{Binding HeaderAccentForeground}" StrokeThickness="1.9"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Visibility="{Binding IsSuccessHeader, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Path Data="{StaticResource IconTriangleAlert}" Width="16" Height="16" Stretch="Uniform"
+                              Stroke="{Binding HeaderAccentForeground}" StrokeThickness="1.9"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Visibility="{Binding IsWarningHeader, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Path Data="{StaticResource IconShieldAlert}" Width="16" Height="16" Stretch="Uniform"
+                              Stroke="{Binding HeaderAccentForeground}" StrokeThickness="1.9"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Visibility="{Binding IsErrorHeader, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="{Binding HeaderTitle}" FontSize="14.5" FontWeight="Bold"
+                               Foreground="#0F172A" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding HeaderSubtitle}" FontSize="11" Foreground="#64748B"
+                               TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                </StackPanel>
+
+                <Border Grid.Column="2"
+                        Background="{Binding HeaderAccentBackground}"
+                        BorderBrush="{Binding HeaderAccentBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="11" Padding="10,3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusChipText}" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{Binding HeaderAccentForeground}"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 1. 紧凑 4 栏一体化 KPI 指标条（总高仅 ~52px，核心数值一目了然不占主屏） -->
+        <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1"
+                CornerRadius="9" Padding="12,8" Margin="0,0,0,9">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" ToolTip="{Binding Kpi1Sub}">
+                    <TextBlock Text="{Binding Kpi1Label}" FontSize="10.5" Foreground="#64748B"/>
+                    <TextBlock Text="{Binding Kpi1Value}" FontSize="15.5" FontWeight="Bold"
+                               Foreground="{Binding Kpi1ValueBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" Width="1" Background="#E2E8F0" Margin="12,2"/>
+
+                <StackPanel Grid.Column="2" ToolTip="{Binding Kpi2Sub}">
+                    <TextBlock Text="{Binding Kpi2Label}" FontSize="10.5" Foreground="#64748B"/>
+                    <TextBlock Text="{Binding Kpi2Value}" FontSize="15.5" FontWeight="Bold"
+                               Foreground="{Binding Kpi2ValueBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="3" Width="1" Background="#E2E8F0" Margin="12,2"/>
+
+                <StackPanel Grid.Column="4" ToolTip="{Binding Kpi3Sub}">
+                    <TextBlock Text="{Binding Kpi3Label}" FontSize="10.5" Foreground="#64748B"/>
+                    <TextBlock Text="{Binding Kpi3Value}" FontSize="15.5" FontWeight="Bold"
+                               Foreground="{Binding Kpi3ValueBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="5" Width="1" Background="#E2E8F0" Margin="12,2"/>
+
+                <StackPanel Grid.Column="6" ToolTip="{Binding Kpi4Sub}">
+                    <TextBlock Text="{Binding Kpi4Label}" FontSize="10.5" Foreground="#64748B"/>
+                    <TextBlock Text="{Binding Kpi4Value}" FontSize="15.5" FontWeight="Bold"
+                               Foreground="{Binding Kpi4ValueBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. 主体区（占据约 70% 窗口高度）：完整明细虚拟化列表或清爽成功卡 -->
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+                <Grid Visibility="{Binding HasDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="12,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="240"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding DetailsSectionTitle}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#0F172A" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding VisibleCountText}" FontSize="11" Foreground="#64748B"
+                                       VerticalAlignment="Center" Margin="8,0,10,0"/>
+
+                            <Grid Grid.Column="2">
+                                <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource FluentCompactTextBoxStyle}"
+                                         Height="28" Padding="26,0,24,0" FontSize="11.5"
+                                         Tag="搜索路径、进程或原因…"
+                                         AutomationProperties.AutomationId="QuarantineResultSearchBox"/>
+                                <Path Data="{StaticResource IconSearch}" Width="12" Height="12" Stretch="Uniform"
+                                      Stroke="#94A3B8" StrokeThickness="1.9"
+                                      HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"/>
+                                <Button Command="{Binding ClearSearchCommand}"
+                                        Visibility="{Binding HasSearchQuery, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Style="{StaticResource FluentIconButtonStyle}"
+                                        Width="20" Height="20"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0">
+                                    <Path Data="{StaticResource IconX}" Width="10" Height="10" Stretch="Uniform" Stroke="#64748B" StrokeThickness="2"/>
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <ListView Grid.Row="1"
+                              ItemsSource="{Binding VisibleDetails}"
+                              BorderThickness="0"
+                              Background="Transparent"
+                              ScrollViewer.CanContentScroll="True"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              VirtualizingPanel.ScrollUnit="Pixel"
+                              AutomationProperties.AutomationId="QuarantineResultDetailsList">
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListViewItem">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding RowBackground}" BorderBrush="#EEF2F6" BorderThickness="0,0,0,1" Padding="14,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0" Background="{Binding GuideLineBrush}" CornerRadius="1.5" Margin="0,1,0,1"/>
+
+                                        <StackPanel Grid.Column="1" Margin="10,0,10,0">
+                                            <!-- 第一行：序号 + 语义原因胶囊 + 醒目占用进程胶囊 -->
+                                            <WrapPanel VerticalAlignment="Center" Margin="0,0,0,3">
+                                                <TextBlock Text="{Binding IndexText}" FontSize="10.5" FontWeight="Medium" Foreground="#94A3B8"
+                                                           VerticalAlignment="Center" Margin="0,0,7,2"/>
+                                                <Border Background="{Binding TagBackground}"
+                                                        BorderBrush="{Binding TagBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="7" Padding="7,1" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ReasonTagText}" FontSize="10.5" FontWeight="SemiBold"
+                                                               Foreground="{Binding TagForeground}"/>
+                                                </Border>
+                                                <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1"
+                                                        CornerRadius="7" Padding="7,1" Margin="0,0,6,2" VerticalAlignment="Center"
+                                                        Visibility="{Binding HasProcessHighlight, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock Text="{Binding ProcessHighlightText}" FontSize="10.5" FontWeight="SemiBold"
+                                                               Foreground="#92400E"/>
+                                                </Border>
+                                            </WrapPanel>
+
+                                            <!-- 第二行：完整路径与明细正文 -->
+                                            <TextBlock Text="{Binding PrimaryPathOrTitle}" FontSize="12" Foreground="#0F172A"
+                                                       TextWrapping="Wrap" LineHeight="17.5" ToolTip="{Binding RawMessage}"/>
+
+                                            <!-- 第三行（极简无大框）：仅 1 行精炼建议，不挤占视口高度 -->
+                                            <TextBlock Text="{Binding FriendlyHint}" FontSize="11" Foreground="#B45309"
+                                                       TextWrapping="Wrap" LineHeight="15.5" Margin="0,3,0,0"
+                                                       Visibility="{Binding HasFriendlyHint, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2"
+                                                Content="{Binding CopyHintText}"
+                                                Command="{Binding CopyLineCommand}"
+                                                Style="{StaticResource FluentLinkButtonStyle}"
+                                                FontSize="11" Padding="7,2" VerticalAlignment="Top"
+                                                ToolTip="复制该条完整原始日志"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Visibility="{Binding ShowSearchEmptyState, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="没有匹配的明细条目" FontSize="13" FontWeight="SemiBold" Foreground="#64748B" HorizontalAlignment="Center"/>
+                        <TextBlock Text="请清空右上角搜索关键词查看全部记录。" FontSize="11.5" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 全部完成无异常 -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="28"
+                            Visibility="{Binding ShowAllCleanBanner, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border Width="48" Height="48" CornerRadius="24" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1"
+                            HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <Path Data="{StaticResource IconCheckCircle}" Width="24" Height="24" Stretch="Uniform"
+                              Stroke="#0F7B4B" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="{Binding AllCleanTitle}" FontSize="14.5" FontWeight="Bold"
+                               Foreground="#0F172A" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <TextBlock Text="{Binding AllCleanSubtitle}" FontSize="12" Foreground="#64748B"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 3. 底栏 -->
+        <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" VerticalAlignment="Center" Margin="0,0,14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Path Grid.Column="0" Data="{StaticResource IconInfo}" Width="13.5" Height="13.5" Stretch="Uniform"
+                      Stroke="#64748B" StrokeThickness="1.8" Margin="0,1,7,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding FooterHintText}" FontSize="11.5" Foreground="#475569"
+                           TextWrapping="Wrap" LineHeight="16" VerticalAlignment="Center"/>
+            </Grid>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Command="{Binding OpenQuarantineDirectoryCommand}"
+                        AutomationProperties.AutomationId="QuarantineResultOpenDirButton"
+                        Visibility="{Binding CanOpenQuarantineDir, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Style="{StaticResource FluentSecondaryButtonStyle}"
+                        Height="32" Padding="12,0" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconFolderOpen}" Width="13.5" Height="13.5" Stretch="Uniform"
+                              Stroke="#334155" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="打开隔离目录" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding CopyReportCommand}"
+                        AutomationProperties.AutomationId="QuarantineResultCopyButton"
+                        Style="{StaticResource FluentSecondaryButtonStyle}"
+                        Height="32" Padding="12,0" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconCopy}" Width="13" Height="13" Stretch="Uniform"
+                              Stroke="#334155" StrokeThickness="1.8" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CopyButtonText}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Content="关闭"
+                        Command="{Binding CloseWindowCommand}"
+                        IsDefault="True" IsCancel="True"
+                        AutomationProperties.AutomationId="QuarantineResultCloseButton"
+                        Style="{StaticResource FluentPrimaryButtonStyle}"
+                        Height="32" MinWidth="82" Padding="18,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -433,13 +433,14 @@ public sealed class CleanupService
             long quarantinedBytes = itemResults.Where(i => i.Status == CleanupItemExecutionStatus.Quarantined).Sum(i => i.ProcessedBytes);
             long recycledBytes = itemResults.Where(i => i.Status == CleanupItemExecutionStatus.Recycled).Sum(i => i.ProcessedBytes);
             long officialBytes = itemResults.Where(i => i.Status == CleanupItemExecutionStatus.ReclaimedByOfficialApi).Sum(i => i.ProcessedBytes);
+            long permanentlyDeletedBytes = itemResults.Where(i => i.Status == CleanupItemExecutionStatus.PermanentlyDeleted).Sum(i => i.ProcessedBytes);
             int skippedCount = itemResults.Sum(i => i.SkippedCount);
             int failedCount = itemResults.Sum(i => i.FailedCount);
 
-            string summary = BuildExecutionSummary(cancelled, quarantinedBytes, recycledBytes, officialBytes, skippedCount, failedCount);
+            string summary = BuildExecutionSummary(cancelled, quarantinedBytes, recycledBytes, officialBytes, permanentlyDeletedBytes, skippedCount, failedCount);
             return new CleanupExecutionResult(
                 execId, started, DateTimeOffset.UtcNow, cancelled,
-                itemResults.ToArray(), quarantinedBytes, recycledBytes, officialBytes, skippedCount, failedCount, summary);
+                itemResults.ToArray(), quarantinedBytes, recycledBytes, officialBytes, skippedCount, failedCount, summary, permanentlyDeletedBytes);
         }, ct).ConfigureAwait(false);
     }
 
@@ -553,10 +554,13 @@ public sealed class CleanupService
         long quarantinedBytes,
         long recycledBytes,
         long officialBytes,
+        long permanentlyDeletedBytes,
         int skippedCount,
         int failedCount)
     {
         var parts = new List<string>();
+        if (permanentlyDeletedBytes > 0)
+            parts.Add($"已直接永久删除并释放 {FileStatsService.FormatBytes(permanentlyDeletedBytes)}");
         if (quarantinedBytes > 0)
             parts.Add($"已同卷隔离 {FileStatsService.FormatBytes(quarantinedBytes)}（尚未释放物理空间，可随时恢复）");
         if (recycledBytes > 0)

@@ -243,7 +243,7 @@ internal sealed class CleanupOfficialApiHandlers
                     removed > 0
                         ? $"已通过官方 pnputil 移除 {removed} 个已取代旧驱动包（约 {FileStatsService.FormatBytes(reclaimed)}）。"
                         : "未能移除旧驱动包（均被系统判定为仍有关联设备）。",
-                    details.Take(20).ToArray());
+                    details.ToArray());
             }
 
             case CleanupOfficialApiKind.WindowsOldOfficial:

@@ -115,6 +115,7 @@ public partial class CleanupViewModel
             DispatchToUi(() =>
             {
                 StatusMessage = $"清理未完成：{ex.Message}";
+                _lastExecutionResult = null;
                 ExecutionReceiptTitle = "清理执行异常";
                 ExecutionReceiptMessage = ex.Message;
                 ExecutionReceiptDetailText = ex.Message;
@@ -182,13 +183,15 @@ public partial class CleanupViewModel
     /// </summary>
     public void ApplyExecutionReceipt(CleanupExecutionResult result)
     {
+        _lastExecutionResult = result;
         bool hasIssues = result.WasCancelled
             || result.TotalFailedCount > 0
             || result.Items.Any(i => i.Status is CleanupItemExecutionStatus.Blocked or CleanupItemExecutionStatus.Failed);
 
         int succeededItems = result.Items.Count(i => i.Status is CleanupItemExecutionStatus.Quarantined
             or CleanupItemExecutionStatus.Recycled
-            or CleanupItemExecutionStatus.ReclaimedByOfficialApi);
+            or CleanupItemExecutionStatus.ReclaimedByOfficialApi
+            or CleanupItemExecutionStatus.PermanentlyDeleted);
 
         ExecutionReceiptTitle = result.WasCancelled
             ? "清理已取消（已完成部分已保留）"
@@ -258,10 +261,7 @@ public partial class CleanupViewModel
                 SharedWorkspaceStateCache.Shared.Invalidate();
                 _ = OnEnteredCleanupPageAsync(force: true);
                 StatusMessage = res.Message;
-                if (res.Succeeded)
-                    CustomMessageBox.ShowInformation(res.Message, "恢复完成");
-                else
-                    CustomMessageBox.ShowWarning(res.Message + (res.Details.Length > 0 ? "\n\n" + string.Join("\n", res.Details.Take(8)) : ""), "恢复结果");
+                QuarantineOperationResultWindow.ShowRestore(res, row.DisplayTitle, row.Batch.QuarantineDirectoryPath);
             });
         }
         catch (Exception ex)
@@ -313,10 +313,7 @@ public partial class CleanupViewModel
                 SharedWorkspaceStateCache.Shared.Invalidate();
                 _ = OnEnteredCleanupPageAsync(force: true);
                 StatusMessage = res.Message;
-                if (res.FullyDeleted)
-                    CustomMessageBox.ShowInformation(res.Message, "永久删除完成");
-                else
-                    CustomMessageBox.ShowWarning(res.Message + (res.Details.Length > 0 ? "\n\n" + string.Join("\n", res.Details.Take(8)) : ""), "永久删除结果");
+                QuarantineOperationResultWindow.ShowSingleDelete(res, row.DisplayTitle, row.Batch.QuarantineDirectoryPath);
             });
         }
         catch (Exception ex)
@@ -382,17 +379,15 @@ public partial class CleanupViewModel
             var summary = await ExecuteBatchPermanentDeleteCoreAsync(selectedBatches, dialog.EnteredPhrase);
             await DispatchToUiAsync(() =>
             {
-                if (summary.AllSucceeded && !summary.WasCancelled)
-                {
-                    CustomMessageBox.ShowInformation(summary.SummaryMessage, "批量永久删除完成");
-                }
-                else
-                {
-                    string detailBody = summary.Details.Length > 0
-                        ? summary.SummaryMessage + "\n\n" + string.Join("\n", summary.Details.Take(10))
-                        : summary.SummaryMessage;
-                    CustomMessageBox.ShowWarning(detailBody, summary.WasCancelled ? "批量永久删除已中止" : "批量永久删除结果");
-                }
+                QuarantineOperationResultWindow.ShowBatchDelete(
+                    allSucceeded: summary.AllSucceeded,
+                    wasCancelled: summary.WasCancelled,
+                    totalSelectedBatches: selectedBatches.Length,
+                    fullyDeletedBatches: summary.FullyDeletedBatches,
+                    partialOrFailedBatches: summary.PartialOrFailedBatches,
+                    freedBytes: summary.FreedBytes,
+                    summaryMessage: summary.SummaryMessage,
+                    details: summary.Details);
             });
         }
         catch (Exception ex)
@@ -490,7 +485,7 @@ public partial class CleanupViewModel
                     {
                         partialOrFailedBatches++;
                         details.Add($"• {batch.DisplayTitle}：{res.Message}");
-                        foreach (string d in res.Details.Take(3))
+                        foreach (string d in res.Details)
                         {
                             details.Add($"  - {d}");
                         }

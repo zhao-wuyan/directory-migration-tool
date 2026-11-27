@@ -1,6 +1,7 @@
 <Window x:Class="MoveWithSymlinkWPF.Views.CleanupConfirmWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:MoveWithSymlinkWPF.Controls"
         Title="确认执行垃圾清理"
         AutomationProperties.AutomationId="CleanupConfirmWindow"
         Width="620" SizeToContent="Height" ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
@@ -36,18 +37,30 @@
             </StackPanel>
         </Border>
 
-        <!-- 通道 A 文件处理方式选择（默认推荐同卷隔离区；可选回收站，绝不自动降级永久删除） -->
+        <!-- 通道 A 文件处理方式选择（默认推荐同卷隔离区；可选回收站，或对 1 档推荐缓存直接永久删除并长按 1.2s 确认） -->
         <Border x:Name="ChannelAOptionsCard" Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
             <StackPanel>
                 <TextBlock Text="通道 A（文件级缓存）处理方式" FontSize="12.5" FontWeight="Bold" Foreground="#0078D4" Margin="0,0,0,6"/>
                 <RadioButton x:Name="QuarantineRadio" GroupName="FileActionGroup" IsChecked="True" Margin="0,0,0,6"
+                             Checked="FileActionRadio_OnChanged"
                              Content="移入同卷隔离区（默认推荐 · 可一键恢复；确认无碍后再于隔离区手动释放空间）"
                              FontSize="11.5" Foreground="#0F172A"/>
-                <RadioButton x:Name="RecycleBinRadio" GroupName="FileActionGroup"
+                <RadioButton x:Name="RecycleBinRadio" GroupName="FileActionGroup" Margin="0,0,0,6"
+                             Checked="FileActionRadio_OnChanged"
                              Content="移入 Windows 回收站（若回收站无法接收将自动中止并保留原文件，绝不退化为永久删除）"
                              FontSize="11.5" Foreground="#334155"/>
+                <RadioButton x:Name="DirectDeleteRadio" GroupName="FileActionGroup"
+                             Checked="FileActionRadio_OnChanged"
+                             AutomationProperties.AutomationId="CleanupDirectDeleteRadio"
+                             Content="直接永久删除（仅 1 档可重建缓存 · 立即释放物理空间，不可恢复）"
+                             FontSize="11.5" Foreground="#B45309"/>
+                <Border x:Name="DirectDeleteNoticeBox" Visibility="Collapsed"
+                        Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="7"
+                        Padding="9,6" Margin="0,8,0,0">
+                    <TextBlock x:Name="DirectDeleteNoticeText" FontSize="11" Foreground="#991B1B" TextWrapping="Wrap" LineHeight="16"/>
+                </Border>
                 <TextBlock x:Name="QuarantineForcedNote" Visibility="Collapsed" Margin="0,6,0,0"
-                           Text="注：所选包含孤立 Windows\Installer 补丁项，为保障回滚机会已强制锁定「同卷隔离区」。"
+                           Text="注：所选包含孤立 Windows\Installer 补丁项，该项已强制锁定「同卷隔离区」以保留回滚机会。"
                            FontSize="11" Foreground="#B45309" FontWeight="SemiBold" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
@@ -61,21 +74,20 @@
             </StackPanel>
         </Border>
 
-        <!-- 3 档谨慎项强制短语二次确认 -->
-        <Border x:Name="CautionPhraseCard" Visibility="Collapsed" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+        <!-- 3 档谨慎项分级确认卡（L1 长按 1.2s / L2 勾选 + 长按 1.5s，免打字） -->
+        <Border x:Name="CautionConfirmCard" Visibility="Collapsed" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="⚠ 包含 3 档「谨慎清理」项 — 需输入短语二次确认" FontSize="12.5" FontWeight="Bold" Foreground="#C42B1C" Margin="0,0,0,4"/>
+                <TextBlock x:Name="CautionHeaderText" Text="⚠ 包含 3 档「谨慎清理」项" FontSize="12.5" FontWeight="Bold" Foreground="#C42B1C" Margin="0,0,0,4"/>
                 <TextBlock x:Name="CautionImpactSummary" FontSize="11.5" Foreground="#7F1D1D" TextWrapping="Wrap" LineHeight="17" Margin="0,0,0,8"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <TextBlock Text="请准确输入确认短语（不会预填）：" FontSize="12" Foreground="#7F1D1D" VerticalAlignment="Center"/>
-                    <Border Background="#FFFFFF" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="6,0,0,0">
-                        <TextBlock x:Name="ExpectedPhraseText" Text="确认清理" FontWeight="Bold" Foreground="#C42B1C" FontSize="12"/>
-                    </Border>
-                </StackPanel>
-                <TextBox x:Name="PhraseInputBox" Height="32" Padding="8,4" VerticalContentAlignment="Center" FontSize="12.5"
-                         Background="#FFFFFF" BorderBrush="#C42B1C" BorderThickness="1"
-                         TextChanged="PhraseInputBox_OnTextChanged"
-                         AutomationProperties.AutomationId="CleanupCautionPhraseInput"/>
+                <TextBlock x:Name="CautionStandardHintText" Visibility="Collapsed"
+                           Text="防误触确认：按住右下角按钮 1.2 秒即可确认执行，中途松手随时取消。"
+                           FontSize="11.5" Foreground="#92400E" TextWrapping="Wrap"/>
+                <CheckBox x:Name="CautionAckCheckBox" Visibility="Collapsed"
+                          Content="我已知晓以上官方清理项不可恢复，确认继续执行"
+                          FontSize="12" Foreground="#7F1D1D" Cursor="Hand"
+                          Checked="CautionAckCheckBox_OnChanged"
+                          Unchecked="CautionAckCheckBox_OnChanged"
+                          AutomationProperties.AutomationId="CleanupCautionAckCheckBox"/>
             </StackPanel>
         </Border>
 
@@ -86,10 +98,14 @@
                         Click="CancelButton_OnClick" Style="{StaticResource FluentSecondaryButtonStyle}"
                         BorderBrush="#0078D4" Foreground="#0078D4" FontWeight="SemiBold" Height="34" Padding="16,0"
                         AutomationProperties.AutomationId="CleanupConfirmCancelButton"/>
-                <Button x:Name="ConfirmButton" DockPanel.Dock="Right" Content="确认执行清理" IsDefault="False"
-                        Click="ConfirmButton_OnClick" Style="{StaticResource FluentPrimaryButtonStyle}"
-                        Height="34" Padding="18,0"
-                        AutomationProperties.AutomationId="CleanupConfirmExecuteButton"/>
+                <controls:HoldConfirmButton x:Name="ConfirmHoldButton" DockPanel.Dock="Right"
+                                            Height="34" MinWidth="168" Padding="18,0"
+                                            Tone="Primary"
+                                            IsHoldRequired="False"
+                                            Label="确认执行清理"
+                                            DisabledLabel="请先勾选上方确认"
+                                            Confirmed="ConfirmHoldButton_OnConfirmed"
+                                            AutomationProperties.AutomationId="CleanupConfirmExecuteButton"/>
                 <FrameworkElement/>
             </DockPanel>
         </Border>

@@ -181,7 +181,12 @@ public partial class DiskScanViewModel : ObservableObject
     private string _searchFilter = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanOpenSelectedInExplorer))]
+    [NotifyPropertyChangedFor(nameof(OpenSelectedInExplorerToolTip))]
     private ScanTreeRowItem? _selectedRow;
+
+    public bool CanOpenSelectedInExplorer => SelectedRow?.CanOpenInExplorer == true;
+    public string OpenSelectedInExplorerToolTip => SelectedRow?.OpenInExplorerToolTip ?? "在资源管理器中打开目录";
 
     [ObservableProperty]
     private SafetyPolicyDecision? _selectedDecision;
@@ -224,7 +229,10 @@ public partial class DiskScanViewModel : ObservableObject
 
     // ---- 02 迁移清单与预检 ----
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnifiedTargetRoot))]
     private string _unifiedTargetRoot = @"D:\MigratedData";
+
+    public bool HasUnifiedTargetRoot => !string.IsNullOrWhiteSpace(UnifiedTargetRoot);
 
     [ObservableProperty]
     private string _targetSpaceHintText = string.Empty;
