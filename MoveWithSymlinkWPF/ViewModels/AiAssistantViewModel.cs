@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -34,8 +36,19 @@ public partial class AiAssistantViewModel : ObservableObject
     private readonly Action? _openCleanupCallback;
     private readonly Action? _openBackupCenterCallback;
     private readonly Action? _openQuarantineCallback;
+    private readonly Func<string, (bool Checked, string Message)>? _checkCleanupRuleCallback;
+    private readonly Func<string, bool>? _locateCleanupRuleCallback;
     private readonly Func<string, IProgress<(double Percent, string Message)>, CancellationToken, Task<ScanSnapshot?>>? _scanDriveCallback;
-    private readonly Func<IProgress<string>, CancellationToken, Task<CleanupScanSnapshot?>>? _scanCleanupCallback;
+    private readonly Func<IProgress<(double Percent, string Message)>, CancellationToken, Task<CleanupScanSnapshot?>>? _scanCleanupCallback;
+    private readonly Action? _cancelDiskScanCallback;
+    private readonly Action? _cancelCleanupScanCallback;
+
+    private bool _isExternalCleanupScanning;
+    private double _externalCleanupScanPercent;
+    private string _externalCleanupScanMessage = string.Empty;
+    private string? _externalDiskScanningDriveRoot;
+    private double _externalDiskScanPercent;
+    private string _externalDiskScanMessage = string.Empty;
 
     private AiProviderSettings _savedSettings;
     private CancellationTokenSource? _connectionTestCts;
@@ -163,12 +176,154 @@ public partial class AiAssistantViewModel : ObservableObject
     private int _timeoutSeconds = AiProviderSettings.DefaultTimeoutSeconds;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OverallTimeout10mTag))]
+    [NotifyPropertyChangedFor(nameof(OverallTimeout20mTag))]
+    [NotifyPropertyChangedFor(nameof(OverallTimeout30mTag))]
+    [NotifyPropertyChangedFor(nameof(OverallTimeout60mTag))]
+    [NotifyPropertyChangedFor(nameof(OverallTimeout120mTag))]
+    private int _overallTimeoutMinutes = AiProviderSettings.DefaultOverallTimeoutMinutes;
+
+    public string OverallTimeout10mTag => OverallTimeoutMinutes == 10 ? "Active" : string.Empty;
+    public string OverallTimeout20mTag => OverallTimeoutMinutes == 20 ? "Active" : string.Empty;
+    public string OverallTimeout30mTag => OverallTimeoutMinutes == 30 ? "Active" : string.Empty;
+    public string OverallTimeout60mTag => OverallTimeoutMinutes == 60 ? "Active" : string.Empty;
+    public string OverallTimeout120mTag => OverallTimeoutMinutes == 120 ? "Active" : string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveContextWindowTokens))]
+    [NotifyPropertyChangedFor(nameof(ContextWindowSourceText))]
+    [NotifyPropertyChangedFor(nameof(ContextWindowSummaryText))]
+    [NotifyPropertyChangedFor(nameof(ContextAutoChipTag))]
+    [NotifyPropertyChangedFor(nameof(Context32kChipTag))]
+    [NotifyPropertyChangedFor(nameof(Context64kChipTag))]
+    [NotifyPropertyChangedFor(nameof(Context128kChipTag))]
+    [NotifyPropertyChangedFor(nameof(Context256kChipTag))]
+    [NotifyPropertyChangedFor(nameof(Context1mChipTag))]
+    private int _contextWindowTokens = AiProviderSettings.DefaultContextWindowTokens;
+
+    [ObservableProperty]
+    private bool _isProbingContextWindow;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasContextProbeStatus))]
+    private string _contextProbeStatusMessage = string.Empty;
+
+    public bool HasContextProbeStatus => !string.IsNullOrWhiteSpace(ContextProbeStatusMessage);
+
+    public int EffectiveContextWindowTokens =>
+        BuiltInAiAgentService.ResolveContextWindowTokens(BuildDraftSettings(), out _);
+
+    public string ContextWindowSourceText
+    {
+        get
+        {
+            _ = BuiltInAiAgentService.ResolveContextWindowTokens(BuildDraftSettings(), out string src);
+            return src;
+        }
+    }
+
+    public string ContextWindowSummaryText
+    {
+        get
+        {
+            int tokens = BuiltInAiAgentService.ResolveContextWindowTokens(BuildDraftSettings(), out string src);
+            return $"{AiChatSessionViewModel.FormatTokenCount(tokens)} tokens（{src}）";
+        }
+    }
+
+    public string ContextAutoChipTag => ContextWindowTokens <= 0 ? "Active" : string.Empty;
+    public string Context32kChipTag => ContextWindowTokens == 32_768 ? "Active" : string.Empty;
+    public string Context64kChipTag => ContextWindowTokens == 65_536 ? "Active" : string.Empty;
+    public string Context128kChipTag => ContextWindowTokens == 131_072 ? "Active" : string.Empty;
+    public string Context256kChipTag => ContextWindowTokens == 262_144 ? "Active" : string.Empty;
+    public string Context1mChipTag => ContextWindowTokens == 1_048_576 ? "Active" : string.Empty;
+
+    partial void OnContextWindowTokensChanged(int value) => SyncSessionContextWindows();
+    partial void OnEndpointChanged(string value) => NotifyContextWindowMetadataChanged();
+    partial void OnModelNameChanged(string value) => NotifyContextWindowMetadataChanged();
+
+    internal void NotifyContextWindowMetadataChanged()
+    {
+        OnPropertyChanged(nameof(EffectiveContextWindowTokens));
+        OnPropertyChanged(nameof(ContextWindowSourceText));
+        OnPropertyChanged(nameof(ContextWindowSummaryText));
+        SyncSessionContextWindows();
+    }
+
+    internal void SyncSessionContextWindows()
+    {
+        int resolved = BuiltInAiAgentService.ResolveContextWindowTokens(BuildDraftSettings(), out _);
+        GeneralSession?.ApplyContextWindowTokens(resolved);
+        DiskScanSession?.ApplyContextWindowTokens(resolved);
+        CleanupSession?.ApplyContextWindowTokens(resolved);
+    }
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ChineseLanguageChipTag))]
     [NotifyPropertyChangedFor(nameof(EnglishLanguageChipTag))]
     private AiResponseLanguage _responseLanguage = AiResponseLanguage.Chinese;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ChatSmallFontSize))]
+    [NotifyPropertyChangedFor(nameof(ChatCaptionFontSize))]
+    [NotifyPropertyChangedFor(nameof(ChatFontSizeLabel))]
+    [NotifyPropertyChangedFor(nameof(CanDecreaseChatFontSize))]
+    [NotifyPropertyChangedFor(nameof(CanIncreaseChatFontSize))]
+    [NotifyPropertyChangedFor(nameof(FontSmallTag))]
+    [NotifyPropertyChangedFor(nameof(FontDefaultTag))]
+    [NotifyPropertyChangedFor(nameof(FontLargeTag))]
+    [NotifyPropertyChangedFor(nameof(FontExtraLargeTag))]
+    private double _chatFontSize = AiProviderSettings.DefaultChatFontSize;
+
+    public double ChatSmallFontSize => Math.Max(9.5, ChatFontSize - 1.0);
+    public double ChatCaptionFontSize => Math.Max(9.0, ChatFontSize - 1.5);
+    public string ChatFontSizeLabel => $"{ChatFontSize:0.#}px";
+    public bool CanDecreaseChatFontSize => ChatFontSize > AiProviderSettings.MinChatFontSize + 0.01;
+    public bool CanIncreaseChatFontSize => ChatFontSize < AiProviderSettings.MaxChatFontSize - 0.01;
+    public string FontSmallTag => Math.Abs(ChatFontSize - 10.5) < 0.25 ? "Active" : string.Empty;
+    public string FontDefaultTag => Math.Abs(ChatFontSize - 11.5) < 0.25 ? "Active" : string.Empty;
+    public string FontLargeTag => Math.Abs(ChatFontSize - 13.0) < 0.25 ? "Active" : string.Empty;
+    public string FontExtraLargeTag => Math.Abs(ChatFontSize - 14.5) < 0.25 ? "Active" : string.Empty;
+
     public string ChineseLanguageChipTag => ResponseLanguage == AiResponseLanguage.Chinese ? "Active" : string.Empty;
     public string EnglishLanguageChipTag => ResponseLanguage == AiResponseLanguage.English ? "Active" : string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortShortLabel))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortPillText))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortToolTip))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortPillFg))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortPillBorder))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortPillBg))]
+    [NotifyPropertyChangedFor(nameof(ReasoningEffortPillDot))]
+    [NotifyPropertyChangedFor(nameof(ReasoningDefaultTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningNoneTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningMinimalTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningLowTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningMediumTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningHighTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningXHighTag))]
+    [NotifyPropertyChangedFor(nameof(ReasoningMaxTag))]
+    private AiReasoningEffort _reasoningEffort = AiReasoningEffort.Default;
+
+    public string ReasoningEffortShortLabel => AiProviderSettings.GetReasoningEffortLabel(ReasoningEffort);
+    public string ReasoningEffortPillText => $"思考·{ReasoningEffortShortLabel}";
+    public string ReasoningEffortToolTip => ReasoningEffort == AiReasoningEffort.Default
+        ? "思考等级：默认（由模型服务端自适应）· 点击切换 none / minimal / low / medium / high / xhigh / max"
+        : $"思考等级：{ReasoningEffortShortLabel}（reasoning_effort={AiProviderSettings.ToReasoningEffortWireValue(ReasoningEffort)}）· 点击切换";
+    public string ReasoningEffortPillFg => Controls.EffortEnergyRenderer.GetVisualSpec(ReasoningEffort).PillFgHex;
+    public string ReasoningEffortPillBorder => Controls.EffortEnergyRenderer.GetVisualSpec(ReasoningEffort).PillBorderHex;
+    public string ReasoningEffortPillBg => Controls.EffortEnergyRenderer.GetVisualSpec(ReasoningEffort).PillBgHex;
+    public string ReasoningEffortPillDot => Controls.EffortEnergyRenderer.GetVisualSpec(ReasoningEffort).PillDotHex;
+
+    public string ReasoningDefaultTag => ReasoningEffort == AiReasoningEffort.Default ? "Active" : string.Empty;
+    public string ReasoningNoneTag => ReasoningEffort == AiReasoningEffort.None ? "Active" : string.Empty;
+    public string ReasoningMinimalTag => ReasoningEffort == AiReasoningEffort.Minimal ? "Active" : string.Empty;
+    public string ReasoningLowTag => ReasoningEffort == AiReasoningEffort.Low ? "Active" : string.Empty;
+    public string ReasoningMediumTag => ReasoningEffort == AiReasoningEffort.Medium ? "Active" : string.Empty;
+    public string ReasoningHighTag => ReasoningEffort == AiReasoningEffort.High ? "Active" : string.Empty;
+    public string ReasoningXHighTag => ReasoningEffort == AiReasoningEffort.XHigh ? "Active" : string.Empty;
+    public string ReasoningMaxTag => ReasoningEffort == AiReasoningEffort.Max ? "Active" : string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSavedApiKey))]
@@ -256,8 +411,12 @@ public partial class AiAssistantViewModel : ObservableObject
         Action? openBackupCenterCallback = null,
         Action? openQuarantineCallback = null,
         Func<string, IProgress<(double Percent, string Message)>, CancellationToken, Task<ScanSnapshot?>>? scanDriveCallback = null,
-        Func<IProgress<string>, CancellationToken, Task<CleanupScanSnapshot?>>? scanCleanupCallback = null,
-        SharedWorkspaceStateCache? stateCache = null)
+        Func<IProgress<(double Percent, string Message)>, CancellationToken, Task<CleanupScanSnapshot?>>? scanCleanupCallback = null,
+        SharedWorkspaceStateCache? stateCache = null,
+        Action? cancelDiskScanCallback = null,
+        Action? cancelCleanupScanCallback = null,
+        Func<string, (bool Checked, string Message)>? checkCleanupRuleCallback = null,
+        Func<string, bool>? locateCleanupRuleCallback = null)
     {
         _toolset = toolset ?? new ReadOnlyAiAnalysisToolset();
         _configStore = configStore ?? new AiProviderConfigStore();
@@ -272,8 +431,12 @@ public partial class AiAssistantViewModel : ObservableObject
         _openCleanupCallback = openCleanupCallback;
         _openBackupCenterCallback = openBackupCenterCallback;
         _openQuarantineCallback = openQuarantineCallback;
+        _checkCleanupRuleCallback = checkCleanupRuleCallback;
+        _locateCleanupRuleCallback = locateCleanupRuleCallback;
         _scanDriveCallback = scanDriveCallback;
         _scanCleanupCallback = scanCleanupCallback;
+        _cancelDiskScanCallback = cancelDiskScanCallback;
+        _cancelCleanupScanCallback = cancelCleanupScanCallback;
 
         GeneralSession = new AiChatSessionViewModel(this, AiChatScene.General);
         DiskScanSession = new AiChatSessionViewModel(this, AiChatScene.DiskScan);
@@ -294,7 +457,7 @@ public partial class AiAssistantViewModel : ObservableObject
         _toolset.AuthorizedScansChanged += (_, _) => DispatchToUi(RefreshContextSummary);
         _toolset.AuthorizedCleanupScansChanged += (_, _) => DispatchToUi(RefreshCleanupContextSummary);
         _toolset.Inbox.InboxChanged += (_, _) => DispatchToUi(OnInboxStateChanged);
-        _toolset.Inbox.CleanupProposalsChanged += (_, _) => DispatchToUi(RefreshProposalInboxSummary);
+        _toolset.Inbox.CleanupProposalsChanged += (_, _) => DispatchToUi(OnInboxStateChanged);
         _stateCache.StateUpdated += (_, snap) => DispatchToUi(() => ApplySharedStateSnapshot(snap));
 
         // 零阻塞首帧：若已有共享缓存直接填充，否则后台异步刷新一次
@@ -392,6 +555,13 @@ public partial class AiAssistantViewModel : ObservableObject
         {
             RefreshContextSummary();
         }
+
+        DispatchToUi(() =>
+        {
+            GeneralSession.SyncExternalDiskSnapshot(snapshot);
+            DiskScanSession.SyncExternalDiskSnapshot(snapshot);
+            CleanupSession.SyncExternalDiskSnapshot(snapshot);
+        });
     }
 
     /// <summary>
@@ -407,9 +577,66 @@ public partial class AiAssistantViewModel : ObservableObject
             return;
         }
 
-        _toolset.AuthorizeCleanupSnapshot(snapshot, replacePrevious: true);
-        ActiveCleanupScanId = snapshot.CleanupScanId;
-        RefreshCleanupContextSummary();
+        if (ActiveCleanupScanId != snapshot.CleanupScanId)
+        {
+            _toolset.AuthorizeCleanupSnapshot(snapshot, replacePrevious: true);
+            ActiveCleanupScanId = snapshot.CleanupScanId;
+            RefreshCleanupContextSummary();
+        }
+
+        DispatchToUi(() =>
+        {
+            GeneralSession.SyncExternalCleanupSnapshot(snapshot);
+            DiskScanSession.SyncExternalCleanupSnapshot(snapshot);
+            CleanupSession.SyncExternalCleanupSnapshot(snapshot);
+        });
+    }
+
+    /// <summary>
+    /// 供垃圾清理主界面同步进行中的扫描进度到所有待确认 AI 扫描卡片（实现主界面与 AI 抽屉双向联动）。
+    /// </summary>
+    public void NotifyExternalCleanupScanState(bool isScanning, double percent, string message)
+    {
+        DispatchToUi(() =>
+        {
+            _isExternalCleanupScanning = isScanning;
+            _externalCleanupScanPercent = isScanning ? percent : 0;
+            _externalCleanupScanMessage = isScanning ? message : string.Empty;
+
+            GeneralSession.SyncExternalCleanupScanState(isScanning, percent, message);
+            DiskScanSession.SyncExternalCleanupScanState(isScanning, percent, message);
+            CleanupSession.SyncExternalCleanupScanState(isScanning, percent, message);
+        });
+    }
+
+    /// <summary>
+    /// 供磁盘扫描主界面同步进行中的单盘扫描进度到所有待确认 AI 扫描卡片。
+    /// </summary>
+    public void NotifyExternalDiskScanState(string driveRoot, bool isScanning, double percent, string message)
+    {
+        string normRoot = VolumeSnapshotCache.NormalizeDriveRoot(driveRoot);
+        DispatchToUi(() =>
+        {
+            _externalDiskScanningDriveRoot = isScanning ? normRoot : null;
+            _externalDiskScanPercent = isScanning ? percent : 0;
+            _externalDiskScanMessage = isScanning ? message : string.Empty;
+
+            GeneralSession.SyncExternalDiskScanState(normRoot, isScanning, percent, message);
+            DiskScanSession.SyncExternalDiskScanState(normRoot, isScanning, percent, message);
+            CleanupSession.SyncExternalDiskScanState(normRoot, isScanning, percent, message);
+        });
+    }
+
+    internal void CancelExternalScanForCard(AiScanActionCardItem card)
+    {
+        if (card.ExternalScanIsCleanup)
+        {
+            _cancelCleanupScanCallback?.Invoke();
+        }
+        if (card.ExternalScanIsDisk)
+        {
+            _cancelDiskScanCallback?.Invoke();
+        }
     }
 
     [RelayCommand]
@@ -501,13 +728,196 @@ public partial class AiAssistantViewModel : ObservableObject
     [RelayCommand]
     private void OpenCleanupResidualReview(AiProposalCardItem? card)
     {
-        if (card is null) return;
         if (_openCleanupResidualCallback is not null)
         {
             _openCleanupResidualCallback();
             return;
         }
-        LocateProposalInTree(card);
+        if (card is not null)
+        {
+            LocateProposalInTree(card);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenTurnProposalsReview(AiConversationTurnItem? turn)
+    {
+        if (turn is null || turn.ProposalCards.Count == 0) return;
+
+        string subtitle = string.IsNullOrWhiteSpace(turn.UserPrompt)
+            ? "本轮 AI 建议统一审阅"
+            : $"提问：{turn.UserPrompt}";
+        ShowProposalsReviewDialog(turn.ProposalCards, "AI 建议统一审阅与添加", subtitle);
+    }
+
+    [RelayCommand]
+    private void OpenAllProposalsReview()
+    {
+        List<AiProposalCardItem> allCards = CollectAllSessionProposalCards();
+        if (allCards.Count == 0) return;
+
+        ShowProposalsReviewDialog(
+            allCards,
+            "会话建议汇总 · 统一审阅与添加",
+            "汇总当前所有 AI 会话轮次生成的迁移、清理与疑似残留建议，请核实后勾选加入。");
+    }
+
+    public void OpenProposalsReviewForCards(
+        IReadOnlyList<AiProposalCardItem> cards,
+        string windowTitle,
+        string subtitle)
+    {
+        if (cards.Count == 0) return;
+        ShowProposalsReviewDialog(cards, windowTitle, subtitle);
+    }
+
+    private void ShowProposalsReviewDialog(
+        IReadOnlyList<AiProposalCardItem> cards,
+        string windowTitle,
+        string subtitle)
+    {
+        var reviewVm = new AiProposalReviewViewModel(this, cards, windowTitle, subtitle);
+        var dialog = new MoveWithSymlinkWPF.Views.AiProposalReviewWindow(reviewVm);
+        if (Application.Current?.MainWindow is { IsVisible: true } owner)
+        {
+            dialog.Owner = owner;
+            dialog.Icon = owner.Icon;
+        }
+        dialog.ShowDialog();
+    }
+
+    public List<AiProposalCardItem> CollectAllSessionProposalCards()
+    {
+        var list = new List<AiProposalCardItem>();
+        foreach (AiChatSessionViewModel session in new[] { GeneralSession, DiskScanSession, CleanupSession })
+        {
+            foreach (AiConversationTurnItem turn in session.ConversationTurns)
+            {
+                list.AddRange(turn.ProposalCards);
+            }
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 供「AI 建议统一审阅」弹框批量应用用户勾选的建议：
+    /// - 迁移建议 → 加入待迁移清单（不立即执行迁移）；
+    /// - AI 疑似残留 → 确认加入「AI 疑似残留」列表（不立即隔离，仍须前往残留页双勾选免责确认）；
+    /// - 清理规则建议（仅 1/2 档）→ 同步勾选至垃圾清理页（3 档谨慎项绝不自动勾选）。
+    /// </summary>
+    public (int MigrationAdded, int ResidualAdded, int RuleChecked, List<string> Warnings) ApplyReviewedProposals(
+        IEnumerable<AiProposalCardItem> selectedCards)
+    {
+        int migrationAdded = 0;
+        int residualAdded = 0;
+        int ruleChecked = 0;
+        var warnings = new List<string>();
+        var residualTargets = new List<(Guid CandidateId, Guid? ScanId, int? NodeId)>();
+        var residualCards = new List<AiProposalCardItem>();
+
+        foreach (AiProposalCardItem card in selectedCards)
+        {
+            if (card.IsBlockedByPolicy || card.IsInvalidated)
+            {
+                continue;
+            }
+
+            if (card.CanAdopt)
+            {
+                if (_adoptToPlanCallback is null)
+                {
+                    warnings.Add($"「{card.DisplayName}」未连接到磁盘扫描迁移清单，请先在磁盘扫描页完成扫描。");
+                }
+                else
+                {
+                    var (added, message) = _adoptToPlanCallback(card.ScanId, card.NodeId, card.SuggestedTargetPath);
+                    if (added)
+                    {
+                        card.IsAdopted = true;
+                        _toolset.Inbox.UpdateStatus(card.ProposalId, AiProposalStatus.AdoptedToPlan,
+                            $"用户已在统一审阅弹窗中将「{card.DisplayName}」加入待迁移清单（未执行迁移）。");
+                        migrationAdded++;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(message))
+                    {
+                        warnings.Add($"「{card.DisplayName}」：{message}");
+                    }
+                }
+            }
+            else if (card.CanAdoptResidual)
+            {
+                residualTargets.Add((card.CandidateId, card.ScanId == Guid.Empty ? null : card.ScanId, card.NodeId > 0 ? card.NodeId : null));
+                residualCards.Add(card);
+            }
+            else if (card.CanSelectCleanupRuleInModal && !string.IsNullOrWhiteSpace(card.RuleId))
+            {
+                if (_checkCleanupRuleCallback is null)
+                {
+                    warnings.Add($"「{card.DisplayName}」未连接到垃圾清理页面，请前往垃圾清理页手动勾选。");
+                }
+                else
+                {
+                    var (checkedOk, message) = _checkCleanupRuleCallback(card.RuleId);
+                    if (checkedOk)
+                    {
+                        card.IsCleanupRuleSelected = true;
+                        ruleChecked++;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(message))
+                    {
+                        warnings.Add(message);
+                    }
+                }
+            }
+        }
+
+        if (residualTargets.Count > 0)
+        {
+            int newlyAdopted = _toolset.Inbox.AdoptCleanupResidualCandidates(residualTargets);
+            foreach (AiProposalCardItem rc in residualCards)
+            {
+                AiCleanupCandidateStatus? st = _toolset.Inbox.GetCleanupResidualCandidateStatus(rc.CandidateId, rc.ScanId, rc.NodeId);
+                if (st is AiCleanupCandidateStatus.PendingManualReview or AiCleanupCandidateStatus.Quarantined)
+                {
+                    rc.IsResidualAdopted = true;
+                    rc.IsResidualQuarantined = st == AiCleanupCandidateStatus.Quarantined;
+                }
+            }
+            residualAdded = newlyAdopted > 0 ? newlyAdopted : residualCards.Count(c => c.IsResidualAdopted);
+        }
+
+        RefreshProposalInboxSummary();
+        return (migrationAdded, residualAdded, ruleChecked, warnings);
+    }
+
+    public bool TryLocateCleanupRule(string? ruleId)
+    {
+        if (string.IsNullOrWhiteSpace(ruleId) || _locateCleanupRuleCallback is null) return false;
+        return _locateCleanupRuleCallback(ruleId);
+    }
+
+    public void OpenDirectoryInExplorer(string? actualLocalPath)
+    {
+        if (string.IsNullOrWhiteSpace(actualLocalPath)) return;
+        try
+        {
+            if (Directory.Exists(actualLocalPath))
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{actualLocalPath}\"") { UseShellExecute = true });
+                return;
+            }
+            string? parent = Path.GetDirectoryName(actualLocalPath);
+            if (!string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent))
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"\"{parent}\"") { UseShellExecute = true });
+                return;
+            }
+            CustomMessageBox.ShowInformation($"目标路径当前已不存在：\n{actualLocalPath}", "目录不存在");
+        }
+        catch (Exception ex)
+        {
+            CustomMessageBox.ShowWarning($"无法打开资源管理器：{ex.Message}", "打开目录失败");
+        }
     }
 
     [RelayCommand]
@@ -616,6 +1026,7 @@ public partial class AiAssistantViewModel : ObservableObject
         bool showDrivePicker = proposal.Kind is AiScanActionKind.DiskScan or AiScanActionKind.Both;
         bool showCleanupOption = proposal.Kind is AiScanActionKind.CleanupScan or AiScanActionKind.Both;
 
+        CleanupScanSnapshot? existingCleanupSnap = _toolset.GetLatestAuthorizedCleanupSnapshot();
         var card = new AiScanActionCardItem
         {
             RequestId = proposal.RequestId,
@@ -624,7 +1035,11 @@ public partial class AiAssistantViewModel : ObservableObject
             OriginalUserPrompt = originalUserPrompt,
             ShowDrivePicker = showDrivePicker,
             ShowCleanupOption = showCleanupOption,
-            IncludeCleanupScan = showCleanupOption && (proposal.IncludeCleanupScan || !HasAuthorizedCleanupSnapshot),
+            IncludeCleanupScan = showCleanupOption && (proposal.IncludeCleanupScan || existingCleanupSnap is null),
+            HasFreshCleanupSnapshot = showCleanupOption && existingCleanupSnap is not null,
+            FreshCleanupSummaryText = showCleanupOption && existingCleanupSnap is not null
+                ? $"已有最新快照 · 可清理 {FileStatsService.FormatBytes(existingCleanupSnap.TotalReclaimableBytes)}"
+                : string.Empty,
             AutoContinueAfterScan = true
         };
 
@@ -703,6 +1118,16 @@ public partial class AiAssistantViewModel : ObservableObject
             card.PopulateDrives(ordered);
         }
 
+        // 若主界面此刻正有对应扫描在进行，新建卡片立即同步显示进行中进度
+        if (_isExternalCleanupScanning && showCleanupOption)
+        {
+            card.ApplyExternalCleanupScanState(true, _externalCleanupScanPercent, _externalCleanupScanMessage);
+        }
+        if (!string.IsNullOrEmpty(_externalDiskScanningDriveRoot) && showDrivePicker)
+        {
+            card.ApplyExternalDiskScanState(_externalDiskScanningDriveRoot, true, _externalDiskScanPercent, _externalDiskScanMessage);
+        }
+
         return card;
     }
 
@@ -756,7 +1181,7 @@ public partial class AiAssistantViewModel : ObservableObject
     }
 
     internal async Task<CleanupScanSnapshot?> ExecuteCleanupScanForCardAsync(
-        IProgress<string> progress,
+        IProgress<(double Percent, string Message)> progress,
         CancellationToken ct)
     {
         CleanupScanSnapshot? snapshot = null;
@@ -801,7 +1226,7 @@ public partial class AiAssistantViewModel : ObservableObject
         return _lastSyncedPlanScanId == cardScanId && _currentPlanNodeIds.Contains(cardNodeId);
     }
 
-    internal void AppendProposalCards(AiConversationTurnItem turn, AiMigrationProposalReceipt receipt)
+    public void AppendProposalCards(AiConversationTurnItem turn, AiMigrationProposalReceipt receipt)
     {
         foreach (AiMigrationProposalItemRecord item in receipt.Items)
         {
@@ -812,6 +1237,7 @@ public partial class AiAssistantViewModel : ObservableObject
 
             bool isAdoptable = item.IsAdoptableToMigrationPlan;
             bool isAlreadyInPlan = isAdoptable && IsCardCurrentlyInPlan(receipt.ScanId, item.NodeId, item.ActualLocalPath);
+            long sizeBytes = Math.Max(item.UniqueAllocatedBytes, item.LogicalBytes);
 
             turn.ProposalCards.Add(new AiProposalCardItem
             {
@@ -821,7 +1247,8 @@ public partial class AiAssistantViewModel : ObservableObject
                 DisplayName = item.DisplayName,
                 SanitizedPath = item.SanitizedPath,
                 ActualLocalPath = item.ActualLocalPath,
-                SizeText = FileStatsService.FormatBytes(Math.Max(item.UniqueAllocatedBytes, item.LogicalBytes)),
+                SizeBytes = sizeBytes,
+                SizeText = FileStatsService.FormatBytes(sizeBytes),
                 Reason = item.Verdict == AiProposalItemVerdict.RejectedByPolicy
                     ? item.VerdictMessage
                     : item.Reason,
@@ -835,9 +1262,11 @@ public partial class AiAssistantViewModel : ObservableObject
                 IsNativeGuideAdvisory = item.SuggestedCategory.Equals("NativeGuideAdvisory", StringComparison.OrdinalIgnoreCase)
             });
         }
+
+        RefreshProposalInboxSummary();
     }
 
-    internal void AppendCleanupProposalCards(AiConversationTurnItem turn, AiCleanupProposalReceipt receipt)
+    public void AppendCleanupProposalCards(AiConversationTurnItem turn, AiCleanupProposalReceipt receipt)
     {
         foreach (AiCleanupProposalItemRecord item in receipt.Items)
         {
@@ -852,24 +1281,47 @@ public partial class AiAssistantViewModel : ObservableObject
             bool isResidual = item.Verdict == AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly;
             bool isRuleAdvice = item.Verdict == AiCleanupProposalItemVerdict.AcceptedRuleAdvice;
 
+            bool isResidualAdopted = false;
+            bool isResidualQuarantined = false;
+            bool isInvalidated = false;
+            if (isResidual)
+            {
+                AiCleanupCandidateStatus? status = _toolset.Inbox.GetCleanupResidualCandidateStatus(
+                    item.ProposalItemId, receipt.ScanId, item.NodeId);
+                isResidualAdopted = status is AiCleanupCandidateStatus.PendingManualReview or AiCleanupCandidateStatus.Quarantined;
+                isResidualQuarantined = status == AiCleanupCandidateStatus.Quarantined;
+                isInvalidated = status == AiCleanupCandidateStatus.Invalidated;
+            }
+
             turn.ProposalCards.Add(new AiProposalCardItem
             {
                 ProposalId = receipt.ProposalId,
+                CandidateId = item.ProposalItemId,
                 ScanId = receipt.ScanId ?? Guid.Empty,
+                CleanupScanId = receipt.CleanupScanId ?? Guid.Empty,
                 NodeId = item.NodeId ?? 0,
+                RuleId = item.RuleId,
+                OriginalRuleTier = item.OriginalRuleTier,
                 DisplayName = item.DisplayName,
                 SanitizedPath = item.SanitizedPath,
                 ActualLocalPath = item.ActualLocalPath,
+                SizeBytes = item.SizeBytes,
                 SizeText = item.SizeBytes > 0 ? FileStatsService.FormatBytes(item.SizeBytes) : "官方接口",
                 Reason = isBlocked ? item.VerdictMessage : item.Reason,
+                RiskWarning = item.RiskWarning ?? string.Empty,
                 VerdictMessage = item.VerdictMessage,
                 AdmissionLevel = isBlocked ? MigrationAdmissionLevel.HardDenied : MigrationAdmissionLevel.ManualRiskConfirm,
                 Verdict = isBlocked ? AiProposalItemVerdict.RejectedByPolicy : AiProposalItemVerdict.Accepted,
                 IsAdoptableToMigrationPlan = false,
                 IsCleanupResidualProposal = isResidual,
-                IsCleanupRuleAdvice = isRuleAdvice
+                IsCleanupRuleAdvice = isRuleAdvice,
+                IsResidualAdopted = isResidualAdopted,
+                IsResidualQuarantined = isResidualQuarantined,
+                IsInvalidated = isInvalidated
             });
         }
+
+        RefreshProposalInboxSummary();
     }
 
     private void ApplySharedStateSnapshot(WorkspaceStateSnapshot state)
@@ -1028,20 +1480,27 @@ public partial class AiAssistantViewModel : ObservableObject
         int migrationAccepted = _toolset.Inbox.GetAllReceipts()
             .Where(r => r.Status != AiProposalStatus.Invalidated)
             .Sum(r => r.AcceptedCount);
-        int residualPending = _toolset.Inbox.GetCleanupResidualCandidates()
+        int residualAwaiting = _toolset.Inbox.GetPendingUnadoptedResidualCount();
+        int residualAdopted = _toolset.Inbox.GetCleanupResidualCandidates()
             .Count(c => c.Status == AiCleanupCandidateStatus.PendingManualReview);
+        int sessionCardsCount = CollectAllSessionProposalCards().Count;
 
-        if (migrationAccepted == 0 && residualPending == 0)
+        if (migrationAccepted == 0 && residualAwaiting == 0 && residualAdopted == 0 && sessionCardsCount == 0)
         {
             HasAnyProposalSummary = false;
-            ProposalInboxSummaryText = "本轮尚未生成结构化建议卡片";
+            ProposalInboxSummaryText = "本轮尚未生成结构化建议";
             return;
         }
 
-        HasAnyProposalSummary = true;
+        HasAnyProposalSummary = sessionCardsCount > 0;
         var parts = new List<string>();
-        if (migrationAccepted > 0) parts.Add($"待审阅迁移建议 {migrationAccepted} 条");
-        if (residualPending > 0) parts.Add($"规则外 AI 疑似残留 {residualPending} 条");
+        if (migrationAccepted > 0) parts.Add($"迁移建议 {migrationAccepted} 条");
+        if (residualAwaiting > 0) parts.Add($"待确认疑似残留 {residualAwaiting} 条");
+        if (residualAdopted > 0) parts.Add($"已入池疑似残留 {residualAdopted} 条");
+        if (parts.Count == 0 && sessionCardsCount > 0)
+        {
+            parts.Add($"共 {sessionCardsCount} 条建议记录");
+        }
         ProposalInboxSummaryText = string.Join(" · ", parts);
     }
 

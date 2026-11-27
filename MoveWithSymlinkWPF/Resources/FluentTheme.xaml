@@ -377,7 +377,7 @@
         </Setter>
     </Style>
 
-    <!-- 圆角胶囊进度条样式（用于磁盘容量条、扫描进度条、WizTree 行内占比条） -->
+    <!-- 圆角胶囊进度条样式（支持确定进度与 IsIndeterminate 流畅滑块动画，彻底杜绝不确定态显示为 100% 满条） -->
     <Style x:Key="FluentProgressBarStyle" TargetType="ProgressBar">
         <Setter Property="Background" Value="#EEF2F6"/>
         <Setter Property="Foreground" Value="#0078D4"/>
@@ -386,15 +386,30 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
-                    <Grid x:Name="TemplateRoot" SnapsToDevicePixels="True">
+                    <Grid x:Name="TemplateRoot" SnapsToDevicePixels="True" ClipToBounds="True">
                         <Border x:Name="PART_Track"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="3"/>
-                        <Border x:Name="PART_Indicator"
-                                HorizontalAlignment="Left"
-                                Background="{TemplateBinding Foreground}"
-                                CornerRadius="3"/>
+                        <Decorator x:Name="PART_Indicator" HorizontalAlignment="Left">
+                            <Grid>
+                                <Border x:Name="DeterminateFill"
+                                        Background="{TemplateBinding Foreground}"
+                                        CornerRadius="3"/>
+                                <Border x:Name="PART_GlowRect"
+                                        HorizontalAlignment="Left"
+                                        Width="84"
+                                        CornerRadius="3"
+                                        Background="{TemplateBinding Foreground}"
+                                        Visibility="Collapsed"/>
+                            </Grid>
+                        </Decorator>
                     </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="DeterminateFill" Property="Visibility" Value="Collapsed"/>
+                            <Setter TargetName="PART_GlowRect" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

@@ -78,7 +78,8 @@ public sealed class AiProviderConfigStore
             {
                 MaxToolSteps = maxToolSteps,
                 TimeoutSeconds = loaded.EffectiveTimeoutSeconds,
-                OverallTimeoutSeconds = overallTimeout
+                OverallTimeoutSeconds = overallTimeout,
+                ContextWindowTokens = loaded.EffectiveConfiguredContextWindowTokens
             };
         }
         catch
@@ -120,6 +121,7 @@ public sealed class AiProviderConfigStore
             MaxToolSteps = settings.EffectiveMaxToolSteps,
             TimeoutSeconds = settings.EffectiveTimeoutSeconds,
             OverallTimeoutSeconds = settings.EffectiveOverallTimeoutSeconds,
+            ContextWindowTokens = settings.EffectiveConfiguredContextWindowTokens,
             EncryptedApiKeyBase64 = encryptedKey,
             MaskedApiKeyPreview = maskedPreview
         };

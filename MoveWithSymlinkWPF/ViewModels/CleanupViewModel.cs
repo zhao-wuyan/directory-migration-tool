@@ -19,7 +19,11 @@ public partial class CleanupViewModel : ObservableObject
 {
     private readonly CleanupService _cleanupService;
     private readonly QuarantineStore _quarantineStore;
+    private readonly object _scanSync = new();
+    private Task<CleanupScanSnapshot>? _activeScanTask;
     private CancellationTokenSource? _scanCts;
+    private readonly List<Action<(double Percent, string Message)>> _externalScanProgressListeners = [];
+    private (double Percent, string Message)? _lastScanProgressBroadcast;
     private CancellationTokenSource? _execCts;
     private CancellationTokenSource? _overviewRefreshCts;
     private CancellationTokenSource? _quarantineRefreshCts;
@@ -177,7 +181,7 @@ public partial class CleanupViewModel : ObservableObject
     public bool HasScanSnapshot => CurrentSnapshot is not null;
     public bool ShowIdleScanPrompt => CurrentSnapshot is null && !IsScanning;
     public bool ShowRuleList => CurrentSnapshot is not null && !IsScanning;
-    public string ScanActionButtonText => HasScanSnapshot ? "重新扫描" : "开始扫描";
+    public string ScanActionButtonText => IsScanning ? "扫描中…" : (HasScanSnapshot ? "重新扫描" : "开始扫描");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
@@ -185,6 +189,7 @@ public partial class CleanupViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanBatchDeleteQuarantine))]
     [NotifyPropertyChangedFor(nameof(ShowIdleScanPrompt))]
     [NotifyPropertyChangedFor(nameof(ShowRuleList))]
+    [NotifyPropertyChangedFor(nameof(ScanActionButtonText))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -741,6 +746,91 @@ public partial class CleanupViewModel : ObservableObject
     {
         SyncAiResidualCandidatesFromInbox();
         ActiveSubView = CleanupSubView.AiSuspectedResidual;
+    }
+
+    /// <summary>
+    /// 供「AI 建议统一审阅」弹框调用：仅允许勾选 1 档建议或 2 档按需内置规则，3 档谨慎项绝不自动勾选。
+    /// </summary>
+    public (bool Checked, string Message) TryCheckRuleFromAiAdvice(string ruleId)
+    {
+        if (string.IsNullOrWhiteSpace(ruleId))
+        {
+            return (false, "规则编号无效。");
+        }
+
+        CleanupRuleItemViewModel? target = AllRuleItems.FirstOrDefault(r =>
+            r.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
+        if (target is null)
+        {
+            return (false, "当前垃圾清理扫描快照中未找到该规则，请先执行扫描。");
+        }
+
+        if (target.IsCaution)
+        {
+            return (false, $"「{target.DisplayName}」属于 3 档谨慎清理项，不可自动勾选，请前往垃圾清理页展开谨慎项手动核对。");
+        }
+
+        if (!target.CanCheck)
+        {
+            return (false, target.HasBlockingProcesses
+                ? $"「{target.DisplayName}」存在正在运行的关联进程阻断，暂不可勾选。"
+                : $"「{target.DisplayName}」当前无待清理内容或不可勾选。");
+        }
+
+        if (!target.IsChecked)
+        {
+            target.IsChecked = true;
+        }
+        return (true, $"已勾选清理规则「{target.DisplayName}」（尚未执行清理）。");
+    }
+
+    /// <summary>
+    /// 供「AI 建议统一审阅」弹框定位至指定内置清理规则（若为 3 档谨慎项仅展开聚焦、绝不自动勾选）。
+    /// </summary>
+    public bool TryLocateCleanupRule(string ruleId)
+    {
+        if (string.IsNullOrWhiteSpace(ruleId)) return false;
+
+        CleanupRuleItemViewModel? target = AllRuleItems.FirstOrDefault(r =>
+            r.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase));
+        if (target is null) return false;
+
+        ActiveSubView = CleanupSubView.RulesMain;
+        if (target.IsCaution && !ShowCautionItems)
+        {
+            ShowCautionItems = true;
+        }
+        if (!target.HasReclaimableContent && !ShowEmptyRules)
+        {
+            ShowEmptyRules = true;
+        }
+        if (SelectedCategoryFilter is not null && SelectedCategoryFilter != target.Category)
+        {
+            SelectedCategoryFilter = null;
+            foreach (CleanupCategoryNavItem nav in CategoryNavItems) nav.IsSelected = false;
+        }
+
+        RebuildVisibleRules();
+
+        foreach (CleanupRuleGroupViewModel grp in VisibleEntries.OfType<CleanupRuleGroupViewModel>())
+        {
+            if (grp.Items.Contains(target))
+            {
+                grp.IsExpanded = true;
+                _expandedGroupIds.Add(grp.GroupId);
+                UpdateGroupExpansionSummary();
+                break;
+            }
+        }
+
+        SelectRule(target);
+        return true;
+    }
+
+    public bool IsRuleCurrentlyChecked(string? ruleId)
+    {
+        if (string.IsNullOrWhiteSpace(ruleId)) return false;
+        return AllRuleItems.Any(r => r.RuleId.Equals(ruleId, StringComparison.OrdinalIgnoreCase) && r.IsChecked);
     }
 
     [RelayCommand]

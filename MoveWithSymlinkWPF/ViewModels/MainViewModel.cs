@@ -260,6 +260,17 @@ public partial class MainViewModel : ObservableObject
                     _ = cleanupVm.OnEnteredCleanupPageAsync();
                 }
             },
+            checkCleanupRuleCallback: ruleId =>
+                cleanupVm is null
+                    ? (false, "垃圾清理模块尚未就绪。")
+                    : cleanupVm.TryCheckRuleFromAiAdvice(ruleId),
+            locateCleanupRuleCallback: ruleId =>
+            {
+                if (IsOperationBusy || cleanupVm is null) return false;
+                if (!cleanupVm.TryLocateCleanupRule(ruleId)) return false;
+                SetActiveMode(cleanup: true);
+                return true;
+            },
             openCleanupCallback: () =>
             {
                 if (IsOperationBusy) return;
@@ -290,7 +301,9 @@ public partial class MainViewModel : ObservableObject
             scanCleanupCallback: (progress, ct) =>
                 cleanupVm is null
                     ? Task.FromResult<MigrationCore.Models.Cleanup.CleanupScanSnapshot?>(null)
-                    : cleanupVm.ScanForAiCardAsync(progress, ct));
+                    : cleanupVm.ScanForAiCardAsync(progress, ct),
+            cancelDiskScanCallback: () => diskScanVm?.CancelScanCommand.Execute(null),
+            cancelCleanupScanCallback: () => cleanupVm?.CancelScanCommand.Execute(null));
 
         if (diskScanVm is not null)
         {

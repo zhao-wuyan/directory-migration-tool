@@ -1338,6 +1338,31 @@ internal static class Program
 
                     // 5. 二期内置 AI 助手页面、磁盘扫描 AI 抽屉、建议采纳与目录定位联合烟测
                     Phase2AiCases.VerifyWpfUiInCurrentSta(AssertAllButtonsSafeForRenderTransform);
+
+                    // 6. 新版 Fluent 使用说明弹框（UserGuideWindow）实例化、8 章节切换与按钮安全烟测
+                    var guideWindow = new UserGuideWindow();
+                    guideWindow.Measure(new Size(980, 680));
+                    guideWindow.Arrange(new Rect(0, 0, 980, 680));
+                    guideWindow.UpdateLayout();
+                    AssertAllButtonsSafeForRenderTransform(guideWindow);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        var navBtn = (Button)guideWindow.FindName($"NavButton{i}")!;
+                        var section = (UIElement)guideWindow.FindName($"Section{i}")!;
+                        navBtn.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                        guideWindow.UpdateLayout();
+                        Require(section.Visibility == Visibility.Visible, $"UserGuideWindow Section{i} should become visible when NavButton{i} is clicked");
+                        Require((string?)navBtn.Tag == "Active", $"UserGuideWindow NavButton{i} should have Active tag");
+                    }
+                    var prevBtn = (Button)guideWindow.FindName("PrevSectionButton")!;
+                    var nextBtn = (Button)guideWindow.FindName("NextSectionButton")!;
+                    Require(prevBtn.IsEnabled && !nextBtn.IsEnabled, "At last section, Prev should be enabled and Next disabled");
+                    prevBtn.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                    guideWindow.UpdateLayout();
+                    Require(((UIElement)guideWindow.FindName("Section6")!).Visibility == Visibility.Visible, "PrevSectionButton should navigate back to Section6");
+                    var versionBadge = (TextBlock)guideWindow.FindName("VersionBadgeText")!;
+                    Require(!string.IsNullOrWhiteSpace(versionBadge.Text) && versionBadge.Text.StartsWith("v", StringComparison.OrdinalIgnoreCase),
+                        $"UserGuideWindow version badge should display version, got '{versionBadge.Text}'");
                 }
                 catch (Exception ex)
                 {

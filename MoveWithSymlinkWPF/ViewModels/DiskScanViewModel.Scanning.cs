@@ -138,188 +138,364 @@ public partial class DiskScanViewModel
     }
 
     /// <summary>
-    /// 供 AI 交互式扫描卡片在用户手动勾选确认后执行的单盘只读扫描（写入共享快照缓存，绝不强制跳页打断对话）。
+    /// 供 AI 交互式扫描卡片在用户手动勾选确认后执行的单盘只读扫描：
+    /// 1. 与磁盘扫描页共享单一扫描任务、磁盘卡片扫描态、阶段 00/01 实时进度与双向取消；
+    /// 2. 同盘已在扫描时直接挂载复用进行中的任务，杜绝重复扫盘；
+    /// 3. 保留克制体验：扫描完成写入共享缓存与最近记录，若当前已在浏览目录树绝不强制跳页打断对话。
     /// </summary>
     public async Task<ScanSnapshot?> ScanDriveForAiCardAsync(
         string driveRoot,
         IProgress<(double Percent, string Message)>? progress,
         CancellationToken ct)
     {
-        var scanProgress = new Progress<ScanProgress>(p =>
+        ct.ThrowIfCancellationRequested();
+        string normRoot = VolumeSnapshotCache.NormalizeDriveRoot(driveRoot);
+
+        while (true)
         {
-            double pct = p.Phase switch
+            Task<ScanSnapshot> scanTask;
+            CancellationTokenSource activeCts;
+            TaskCompletionSource<ScanSnapshot>? tcsToRun = null;
+            Task<ScanSnapshot>? waitOtherDriveTask = null;
+            Action<(double Percent, string Message)>? listener = progress is null ? null : p => progress.Report(p);
+            (double Percent, string Message)? initialBroadcast = null;
+
+            lock (_diskScanSync)
             {
-                ScanPhase.ProbingVolume or ScanPhase.ReadingMft => p.Percent is double p1 ? Math.Clamp(p1 * 0.55, 5, 55) : 30,
-                ScanPhase.BuildingTree or ScanPhase.AggregatingSizes => 72,
-                ScanPhase.IdentifyingApplications => 90,
-                _ => p.Percent ?? 50
-            };
-            string msg = p.Phase switch
-            {
-                ScanPhase.ProbingVolume or ScanPhase.ReadingMft => p.Backend == ScanBackendKind.RawNtfsMft ? "读取 NTFS MFT 主表…" : "只读目录遍历中…",
-                ScanPhase.BuildingTree or ScanPhase.AggregatingSizes => "构建目录树与聚合体积…",
-                ScanPhase.IdentifyingApplications => "匹配软件归属与安全等级…",
-                _ => p.Message ?? "扫描中…"
-            };
-            progress?.Report((pct, msg));
-        });
-
-        ScanSnapshot snapshot = await _scanService.ScanVolumeAsync(
-            driveRoot,
-            allowFallbackToDirectoryWalk: true,
-            scanProgress,
-            ct).ConfigureAwait(false);
-
-        if (snapshot.Coverage == ScanCoverageStatus.Cancelled || ct.IsCancellationRequested)
-        {
-            throw new OperationCanceledException(ct);
-        }
-
-        double elapsedSec = Math.Max(0.1, (snapshot.CompletedAtUtc - snapshot.StartedAtUtc).TotalSeconds);
-        var (largeCount, l1Count, l1Bytes) = await Task.Run(() => SummarizeSnapshotHighlights(snapshot), ct).ConfigureAwait(false);
-        string title = string.IsNullOrWhiteSpace(snapshot.Volume.VolumeLabel)
-            ? $"{snapshot.Volume.DriveRoot.TrimEnd('\\')} 本地磁盘"
-            : $"{snapshot.Volume.DriveRoot.TrimEnd('\\')} {snapshot.Volume.VolumeLabel}";
-
-        _snapshotCache.Put(snapshot, title, elapsedSec, largeCount, l1Count, l1Bytes);
-
-        Application.Current?.Dispatcher.Invoke(() =>
-        {
-            RefreshVolumeCardCacheStates();
-            if (_snapshot is null)
-            {
-                ApplySnapshot(snapshot, title, elapsedSec);
+                if (_activeDiskScanTask is not null && _scanCts is not null && !_activeDiskScanTask.IsCompleted)
+                {
+                    if (string.Equals(_activeDiskScanDriveRoot, normRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (listener is not null)
+                        {
+                            _externalDiskScanProgressListeners.Add(listener);
+                        }
+                        scanTask = _activeDiskScanTask;
+                        activeCts = _scanCts;
+                        initialBroadcast = _lastDiskScanProgressBroadcast;
+                    }
+                    else
+                    {
+                        waitOtherDriveTask = _activeDiskScanTask;
+                        scanTask = null!;
+                        activeCts = null!;
+                    }
+                }
+                else
+                {
+                    if (listener is not null)
+                    {
+                        _externalDiskScanProgressListeners.Add(listener);
+                    }
+                    activeCts = new CancellationTokenSource();
+                    _scanCts = activeCts;
+                    _activeDiskScanDriveRoot = normRoot;
+                    _lastDiskScanProgressBroadcast = (6, "准备读取卷信息…");
+                    tcsToRun = new TaskCompletionSource<ScanSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    scanTask = tcsToRun.Task;
+                    _activeDiskScanTask = scanTask;
+                }
             }
-        });
 
-        return snapshot;
+            if (waitOtherDriveTask is not null)
+            {
+                try
+                {
+                    await waitOtherDriveTask.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // 前一块盘的取消或异常不影响继续扫描当前目标盘
+                }
+                continue;
+            }
+
+            if (tcsToRun is not null)
+            {
+                VolumeCardItem? matchedCard = FindVolumeCardByRoot(normRoot);
+                _ = RunUnifiedVolumeScanCoreAsync(normRoot, matchedCard, switchToTreeOnComplete: false, activeCts, tcsToRun);
+            }
+            else if (initialBroadcast is { } initProg)
+            {
+                progress?.Report(initProg);
+            }
+
+            using CancellationTokenRegistration cancelReg = ct.Register(() =>
+            {
+                try { activeCts.Cancel(); } catch (ObjectDisposedException) { }
+            });
+
+            try
+            {
+                return await scanTask.WaitAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (listener is not null)
+                {
+                    lock (_diskScanSync)
+                    {
+                        _externalDiskScanProgressListeners.Remove(listener);
+                    }
+                }
+            }
+        }
     }
 
     [RelayCommand]
     private async Task StartScanForVolumeAsync(VolumeCardItem? card)
     {
         VolumeCardItem? target = card ?? SelectedVolumeCard;
-        if (IsScanning || target is null) return;
+        if (target is null) return;
 
-        SelectedVolumeCard = target;
-        ActiveSubView = DiskScanSubView.VolumeSelectAndScan;
-        IsScanning = true;
-        target.IsCurrentlyScanning = true;
-        ScanProgressPercent = 6;
-        ScanStageBadgeText = $"正在扫描 · {target.DriveLetter}";
-        ScanStageHeading = target.Info.SupportsRawMft
-            ? "阶段 1 / 3：读取原始 NTFS MFT 主表"
-            : "阶段 1 / 3：普通目录遍历（降级只读模式）";
-        ScanProcessedRecordsText = "0 项";
-        ScanLargeDirCountText = "统计中…";
-        ScanL1SummaryText = "统计中…";
-        ScanStep1State = 1; ScanStep1Status = "进行中…";
-        ScanStep2State = 0; ScanStep2Status = "等待中";
-        ScanStep3State = 0; ScanStep3Status = "等待中";
+        string normRoot = VolumeSnapshotCache.NormalizeDriveRoot(target.DriveRoot);
+        CancellationTokenSource cts;
+        TaskCompletionSource<ScanSnapshot> tcs;
 
-        _scanStopwatch.Restart();
-        _scanElapsedTimer.Start();
-        _scanCts = new CancellationTokenSource();
+        lock (_diskScanSync)
+        {
+            if (_activeDiskScanTask is not null && !_activeDiskScanTask.IsCompleted)
+            {
+                return;
+            }
+
+            cts = new CancellationTokenSource();
+            _scanCts = cts;
+            _activeDiskScanDriveRoot = normRoot;
+            _lastDiskScanProgressBroadcast = (6, "准备读取卷信息…");
+            tcs = new TaskCompletionSource<ScanSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _activeDiskScanTask = tcs.Task;
+        }
+
+        _ = RunUnifiedVolumeScanCoreAsync(normRoot, target, switchToTreeOnComplete: true, cts, tcs);
+
+        try
+        {
+            await tcs.Task;
+        }
+        catch (OperationCanceledException)
+        {
+            // UI 取消态已由 RunUnifiedVolumeScanCoreAsync 统一更新
+        }
+        catch
+        {
+            // UI 错误态与提示框已由 RunUnifiedVolumeScanCoreAsync 统一处理
+        }
+    }
+
+    private VolumeCardItem? FindVolumeCardByRoot(string normRoot)
+    {
+        VolumeCardItem? found = null;
+        DispatchToUi(() =>
+        {
+            found = VolumeCards.FirstOrDefault(v =>
+                VolumeSnapshotCache.NormalizeDriveRoot(v.DriveRoot).Equals(normRoot, StringComparison.OrdinalIgnoreCase));
+        });
+        return found;
+    }
+
+    private async Task RunUnifiedVolumeScanCoreAsync(
+        string normRoot,
+        VolumeCardItem? target,
+        bool switchToTreeOnComplete,
+        CancellationTokenSource scanCts,
+        TaskCompletionSource<ScanSnapshot> tcs)
+    {
+        string driveLetter = normRoot.TrimEnd('\\');
+        bool supportsRawMft = target?.Info.SupportsRawMft ?? true;
+
+        DispatchToUi(() =>
+        {
+            if (switchToTreeOnComplete)
+            {
+                if (target is not null) SelectedVolumeCard = target;
+                ActiveSubView = DiskScanSubView.VolumeSelectAndScan;
+            }
+
+            IsScanning = true;
+            if (target is not null) target.IsCurrentlyScanning = true;
+            ScanProgressPercent = 6;
+            ScanStageBadgeText = $"正在扫描 · {driveLetter}";
+            ScanStageHeading = supportsRawMft
+                ? "阶段 1 / 3：读取原始 NTFS MFT 主表"
+                : "阶段 1 / 3：普通目录遍历（降级只读模式）";
+            ScanProcessedRecordsText = "0 项";
+            ScanLargeDirCountText = "统计中…";
+            ScanL1SummaryText = "统计中…";
+            ScanStep1State = 1; ScanStep1Status = "进行中…";
+            ScanStep2State = 0; ScanStep2Status = "等待中";
+            ScanStep3State = 0; ScanStep3Status = "等待中";
+
+            _scanStopwatch.Restart();
+            _scanElapsedTimer.Start();
+            AiAssistant?.NotifyExternalDiskScanState(normRoot, isScanning: true, percent: 6, message: "读取卷信息中…");
+        });
 
         try
         {
             var progress = new Progress<ScanProgress>(p =>
             {
-                if (_scanCts?.IsCancellationRequested == true || !IsScanning)
+                if (scanCts.IsCancellationRequested)
                 {
                     return;
                 }
 
-                if (p.ProcessedRecords > 0)
+                double aiPct = p.Phase switch
                 {
-                    ScanProcessedRecordsText = $"{p.ProcessedRecords:N0} 项";
+                    ScanPhase.ProbingVolume or ScanPhase.ReadingMft => p.Percent is double p1 ? Math.Clamp(p1 * 0.55, 5, 55) : 30,
+                    ScanPhase.BuildingTree or ScanPhase.AggregatingSizes => 72,
+                    ScanPhase.IdentifyingApplications => 90,
+                    _ => p.Percent ?? 50
+                };
+                string aiMsg = p.Phase switch
+                {
+                    ScanPhase.ProbingVolume or ScanPhase.ReadingMft => p.Backend == ScanBackendKind.RawNtfsMft ? "读取 NTFS MFT 主表…" : "只读目录遍历中…",
+                    ScanPhase.BuildingTree or ScanPhase.AggregatingSizes => "构建目录树与聚合体积…",
+                    ScanPhase.IdentifyingApplications => "匹配软件归属与安全等级…",
+                    _ => p.Message ?? "扫描中…"
+                };
+
+                Action<(double Percent, string Message)>[] listeners;
+                lock (_diskScanSync)
+                {
+                    _lastDiskScanProgressBroadcast = (aiPct, aiMsg);
+                    listeners = _externalDiskScanProgressListeners.Count > 0
+                        ? _externalDiskScanProgressListeners.ToArray()
+                        : [];
                 }
 
-                switch (p.Phase)
+                foreach (Action<(double Percent, string Message)> cb in listeners)
                 {
-                    case ScanPhase.ProbingVolume:
-                    case ScanPhase.ReadingMft:
-                        ScanStageHeading = p.Backend == ScanBackendKind.RawNtfsMft
-                            ? "阶段 1 / 3：读取原始 MFT 主表"
-                            : "阶段 1 / 3：只读目录遍历（降级）";
-                        ScanStep1State = 1;
-                        ScanStep1Status = p.Percent is double pct1 ? $"进行中 · {pct1:F0}%" : "读取中…";
-                        ScanProgressPercent = p.Percent is double p1 ? Math.Clamp(p1 * 0.55, 5, 55) : Math.Min(50, ScanProgressPercent + 1);
-                        break;
-
-                    case ScanPhase.BuildingTree:
-                    case ScanPhase.AggregatingSizes:
-                        ScanStageHeading = "阶段 2 / 3：构建目录邻接树与汇总空间";
-                        ScanStep1State = 2;
-                        if (ScanStep1Status.StartsWith("进行中") || ScanStep1Status == "读取中…")
-                            ScanStep1Status = $"已完成 · {_scanStopwatch.Elapsed.TotalSeconds:F1} s";
-                        ScanStep2State = 1;
-                        ScanStep2Status = "聚合计算中…";
-                        ScanProgressPercent = 72;
-                        break;
-
-                    case ScanPhase.IdentifyingApplications:
-                        ScanStageHeading = "阶段 3 / 3：匹配软件归属与 4 级准入";
-                        ScanStep1State = 2;
-                        ScanStep2State = 2; ScanStep2Status = "已完成";
-                        ScanStep3State = 1; ScanStep3Status = "匹配规则中…";
-                        ScanProgressPercent = 90;
-                        break;
+                    cb((aiPct, aiMsg));
                 }
+
+                DispatchToUi(() =>
+                {
+                    if (scanCts.IsCancellationRequested || !IsScanning)
+                    {
+                        return;
+                    }
+
+                    if (p.ProcessedRecords > 0)
+                    {
+                        ScanProcessedRecordsText = $"{p.ProcessedRecords:N0} 项";
+                    }
+
+                    switch (p.Phase)
+                    {
+                        case ScanPhase.ProbingVolume:
+                        case ScanPhase.ReadingMft:
+                            ScanStageHeading = p.Backend == ScanBackendKind.RawNtfsMft
+                                ? "阶段 1 / 3：读取原始 MFT 主表"
+                                : "阶段 1 / 3：只读目录遍历（降级）";
+                            ScanStep1State = 1;
+                            ScanStep1Status = p.Percent is double pct1 ? $"进行中 · {pct1:F0}%" : "读取中…";
+                            ScanProgressPercent = p.Percent is double p1 ? Math.Clamp(p1 * 0.55, 5, 55) : Math.Min(50, ScanProgressPercent + 1);
+                            break;
+
+                        case ScanPhase.BuildingTree:
+                        case ScanPhase.AggregatingSizes:
+                            ScanStageHeading = "阶段 2 / 3：构建目录邻接树与汇总空间";
+                            ScanStep1State = 2;
+                            if (ScanStep1Status.StartsWith("进行中") || ScanStep1Status == "读取中…")
+                                ScanStep1Status = $"已完成 · {_scanStopwatch.Elapsed.TotalSeconds:F1} s";
+                            ScanStep2State = 1;
+                            ScanStep2Status = "聚合计算中…";
+                            ScanProgressPercent = 72;
+                            break;
+
+                        case ScanPhase.IdentifyingApplications:
+                            ScanStageHeading = "阶段 3 / 3：匹配软件归属与 4 级准入";
+                            ScanStep1State = 2;
+                            ScanStep2State = 2; ScanStep2Status = "已完成";
+                            ScanStep3State = 1; ScanStep3Status = "匹配规则中…";
+                            ScanProgressPercent = 90;
+                            break;
+                    }
+
+                    AiAssistant?.NotifyExternalDiskScanState(normRoot, isScanning: true, percent: aiPct, message: aiMsg);
+                });
             });
 
             ScanSnapshot snapshot = await _scanService.ScanVolumeAsync(
-                target.DriveRoot,
+                normRoot,
                 allowFallbackToDirectoryWalk: true,
                 progress,
-                _scanCts.Token);
+                scanCts.Token).ConfigureAwait(false);
 
             // 扫描器在扫描中途收到取消信号时会返回 Coverage=Cancelled 的残缺快照；
             // 此处统一按取消流程收口，禁止将其作为完整结果切入目录树或写入缓存。
-            if (snapshot.Coverage == ScanCoverageStatus.Cancelled || _scanCts.IsCancellationRequested)
+            if (snapshot.Coverage == ScanCoverageStatus.Cancelled || scanCts.IsCancellationRequested)
             {
-                throw new OperationCanceledException(_scanCts.Token);
+                throw new OperationCanceledException(scanCts.Token);
             }
 
-            _scanStopwatch.Stop();
-            _scanElapsedTimer.Stop();
             double elapsedSec = Math.Max(0.1, (snapshot.CompletedAtUtc - snapshot.StartedAtUtc).TotalSeconds);
 
             // 后台汇总 >1GB 大目录与 L1 软件统计
-            var (largeCount, l1Count, l1Bytes) = await Task.Run(() => SummarizeSnapshotHighlights(snapshot));
-
-            ScanProgressPercent = 100;
-            ScanStep1State = 2; ScanStep1Status = "已完成";
-            ScanStep2State = 2; ScanStep2Status = "已完成";
-            ScanStep3State = 2; ScanStep3Status = $"已完成 · {elapsedSec:F1} s";
-            ScanProcessedRecordsText = $"{snapshot.Nodes.Length:N0} 项";
-            ScanLargeDirCountText = $"{largeCount:N0} 个";
-            ScanL1SummaryText = l1Count > 0 ? $"{l1Count} 项 · {FileStatsService.FormatBytes(l1Bytes)}" : "0 项";
-            ScanElapsedText = $"耗时 {elapsedSec:F1} s";
-            ScanStageBadgeText = $"扫描完成 · {target.DriveLetter}";
-            ScanStageHeading = $"扫描完成，共解析 {snapshot.Nodes.Length:N0} 个对象";
+            var (largeCount, l1Count, l1Bytes) = await Task.Run(() => SummarizeSnapshotHighlights(snapshot), scanCts.Token).ConfigureAwait(false);
+            string displayTitle = target?.DisplayTitle
+                ?? (string.IsNullOrWhiteSpace(snapshot.Volume.VolumeLabel)
+                    ? $"本地磁盘 ({driveLetter})"
+                    : $"{snapshot.Volume.VolumeLabel} ({driveLetter})");
 
             // 写入进程级共享快照缓存（供磁盘扫描卡片秒开、AI 助手与后续垃圾清理共享）
-            _snapshotCache.Put(snapshot, target.DisplayTitle, elapsedSec, largeCount, l1Count, l1Bytes);
+            _snapshotCache.Put(snapshot, displayTitle, elapsedSec, largeCount, l1Count, l1Bytes);
 
-            ApplySnapshot(snapshot, target.DisplayTitle, elapsedSec);
+            DispatchToUi(() =>
+            {
+                _scanStopwatch.Stop();
+                _scanElapsedTimer.Stop();
 
-            // 记录到最近扫描历史
-            var existingIdx = RecentScans.ToList().FindIndex(r => r.VolumeTitle == target.DisplayTitle);
-            if (existingIdx >= 0) RecentScans.RemoveAt(existingIdx);
-            RecentScans.Insert(0, new RecentScanItem(
-                snapshot.ScanId,
-                target.DisplayTitle,
-                DateTime.Now.ToString("HH:mm"),
-                $"已用 {FileStatsService.FormatBytes(snapshot.Volume.UsedBytes)} · 发现 {largeCount} 个 >1 GB 大目录",
-                snapshot));
-            if (RecentScans.Count > 5) RecentScans.RemoveAt(RecentScans.Count - 1);
-            RefreshVolumeCardCacheStates();
+                ScanProgressPercent = 100;
+                ScanStep1State = 2; ScanStep1Status = "已完成";
+                ScanStep2State = 2; ScanStep2Status = "已完成";
+                ScanStep3State = 2; ScanStep3Status = $"已完成 · {elapsedSec:F1} s";
+                ScanProcessedRecordsText = $"{snapshot.Nodes.Length:N0} 项";
+                ScanLargeDirCountText = $"{largeCount:N0} 个";
+                ScanL1SummaryText = l1Count > 0 ? $"{l1Count} 项 · {FileStatsService.FormatBytes(l1Bytes)}" : "0 项";
+                ScanElapsedText = $"耗时 {elapsedSec:F1} s";
+                ScanStageBadgeText = $"扫描完成 · {driveLetter}";
+                ScanStageHeading = $"扫描完成，共解析 {snapshot.Nodes.Length:N0} 个对象";
+
+                if (switchToTreeOnComplete || _snapshot is null)
+                {
+                    ApplySnapshot(snapshot, displayTitle, elapsedSec);
+                }
+                else
+                {
+                    AiAssistant?.SyncScanSnapshot(snapshot);
+                }
+
+                // 记录到最近扫描历史
+                var existingIdx = RecentScans.ToList().FindIndex(r => r.VolumeTitle == displayTitle);
+                if (existingIdx >= 0) RecentScans.RemoveAt(existingIdx);
+                RecentScans.Insert(0, new RecentScanItem(
+                    snapshot.ScanId,
+                    displayTitle,
+                    DateTime.Now.ToString("HH:mm"),
+                    $"已用 {FileStatsService.FormatBytes(snapshot.Volume.UsedBytes)} · 发现 {largeCount} 个 >1 GB 大目录",
+                    snapshot));
+                if (RecentScans.Count > 5) RecentScans.RemoveAt(RecentScans.Count - 1);
+                RefreshVolumeCardCacheStates();
+
+                AiAssistant?.NotifyExternalDiskScanState(normRoot, isScanning: false, percent: 100, message: string.Empty);
+
+                if (switchToTreeOnComplete)
+                {
+                    // 扫描完成后自动进入阶段 01 目录树（严格对齐 docs/untitled.pen 00 脚栏说明）
+                    ActiveSubView = DiskScanSubView.DirectoryTree;
+                }
+            });
 
 #if DEBUG
             if (!MigrationRuntime.IsTestLab && snapshot.CanUseForMigrationPlanning)
             {
-                string volTitleForCache = target.DisplayTitle;
+                string volTitleForCache = displayTitle;
                 _ = Task.Run(() =>
                 {
                     try
@@ -332,33 +508,57 @@ public partial class DiskScanViewModel
             }
 #endif
 
-            // 扫描完成后自动进入阶段 01 目录树（严格对齐 docs/untitled.pen 00 脚栏说明）
-            ActiveSubView = DiskScanSubView.DirectoryTree;
+            tcs.TrySetResult(snapshot);
         }
         catch (OperationCanceledException)
         {
-            _scanStopwatch.Stop();
-            _scanElapsedTimer.Stop();
-            ScanStageBadgeText = "已取消";
-            ScanStageHeading = "扫描已安全取消，未修改任何卷数据";
-            if (ScanStep1State != 2) { ScanStep1State = 0; ScanStep1Status = "已取消"; }
-            if (ScanStep2State != 2) { ScanStep2State = 0; ScanStep2Status = "已取消"; }
-            if (ScanStep3State != 2) { ScanStep3State = 0; ScanStep3Status = "已取消"; }
+            DispatchToUi(() =>
+            {
+                _scanStopwatch.Stop();
+                _scanElapsedTimer.Stop();
+                ScanStageBadgeText = "已取消";
+                ScanStageHeading = "扫描已安全取消，未修改任何卷数据";
+                if (ScanStep1State != 2) { ScanStep1State = 0; ScanStep1Status = "已取消"; }
+                if (ScanStep2State != 2) { ScanStep2State = 0; ScanStep2Status = "已取消"; }
+                if (ScanStep3State != 2) { ScanStep3State = 0; ScanStep3Status = "已取消"; }
+                AiAssistant?.NotifyExternalDiskScanState(normRoot, isScanning: false, percent: 0, message: string.Empty);
+            });
+            tcs.TrySetCanceled(scanCts.Token);
         }
         catch (Exception ex)
         {
-            _scanStopwatch.Stop();
-            _scanElapsedTimer.Stop();
-            ScanStageBadgeText = "扫描失败";
-            ScanStageHeading = ex.Message;
-            CustomMessageBox.ShowError($"磁盘扫描失败：\n{ex.Message}", "扫描错误");
+            DispatchToUi(() =>
+            {
+                _scanStopwatch.Stop();
+                _scanElapsedTimer.Stop();
+                ScanStageBadgeText = "扫描失败";
+                ScanStageHeading = ex.Message;
+                AiAssistant?.NotifyExternalDiskScanState(normRoot, isScanning: false, percent: 0, message: string.Empty);
+                if (switchToTreeOnComplete)
+                {
+                    CustomMessageBox.ShowError($"磁盘扫描失败：\n{ex.Message}", "扫描错误");
+                }
+            });
+            tcs.TrySetException(ex);
         }
         finally
         {
-            IsScanning = false;
-            target.IsCurrentlyScanning = false;
-            _scanCts?.Dispose();
-            _scanCts = null;
+            lock (_diskScanSync)
+            {
+                if (ReferenceEquals(_scanCts, scanCts))
+                {
+                    _scanCts = null;
+                    _activeDiskScanTask = null;
+                    _activeDiskScanDriveRoot = null;
+                    _lastDiskScanProgressBroadcast = null;
+                }
+            }
+
+            DispatchToUi(() =>
+            {
+                IsScanning = false;
+                if (target is not null) target.IsCurrentlyScanning = false;
+            });
         }
     }
 
@@ -368,8 +568,39 @@ public partial class DiskScanViewModel
     [RelayCommand]
     private void CancelScan()
     {
-        _scanCts?.Cancel();
-        ScanStageHeading = "正在安全取消扫描…";
+        CancellationTokenSource? cts;
+        lock (_diskScanSync)
+        {
+            cts = _scanCts;
+        }
+        try { cts?.Cancel(); } catch (ObjectDisposedException) { }
+        DispatchToUi(() => ScanStageHeading = "正在安全取消扫描…");
+    }
+
+    private static void DispatchToUi(Action action)
+    {
+        if (Application.Current?.Dispatcher is { } dispatcher)
+        {
+            if (dispatcher.CheckAccess())
+            {
+                action();
+                return;
+            }
+
+            if (!dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+            {
+                try
+                {
+                    dispatcher.Invoke(action);
+                }
+                catch (TaskCanceledException)
+                {
+                }
+                return;
+            }
+        }
+
+        action();
     }
 
     [RelayCommand]

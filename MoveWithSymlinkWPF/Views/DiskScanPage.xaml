@@ -57,7 +57,9 @@
                                 <TextBlock Text="切换磁盘"/>
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding StartScanCommand}" Style="{StaticResource FluentSecondaryButtonStyle}" Height="30">
+                        <Button Command="{Binding StartScanCommand}"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                                Style="{StaticResource FluentSecondaryButtonStyle}" Height="30">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{StaticResource IconRefreshCw}" Width="13" Height="13" Stretch="Uniform" Stroke="#0F172A" StrokeThickness="1.8" Margin="0,0,6,0"/>
                                 <TextBlock Text="重新扫描"/>
@@ -112,22 +114,49 @@
                 </DockPanel>
             </Border>
 
-            <!-- S01StaleBanner：会话缓存陈旧/卷变动温和提示条 -->
-            <Border Grid.Row="1" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8"
-                    Padding="12,6" Margin="0,0,0,9"
-                    Visibility="{Binding IsSnapshotStale, Converter={StaticResource BoolToVisibilityConverter}}">
-                <DockPanel>
-                    <Button DockPanel.Dock="Right" Command="{Binding StartScanCommand}"
-                            Style="{StaticResource FluentSecondaryButtonStyle}" Height="26" Padding="10,0" Margin="10,0,0,0">
-                        <TextBlock Text="立即重新扫描" FontSize="11.5"/>
-                    </Button>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Path Data="{StaticResource IconTriangleAlert}" Width="14" Height="14" Stretch="Uniform"
-                              Stroke="#B45309" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="0,0,7,0"/>
-                        <TextBlock Text="{Binding SnapshotStaleMessage}" FontSize="12" Foreground="#92400E" TextWrapping="Wrap"/>
+            <!-- S01Banners：后台联动扫描实时条 + 会话缓存陈旧温和提示条 -->
+            <StackPanel Grid.Row="1">
+                <Border Background="#EBF5FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8"
+                        Padding="12,7" Margin="0,0,0,9"
+                        AutomationProperties.AutomationId="DiskScanTreeLiveScanBanner"
+                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,5">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock Text="{Binding ScanElapsedText}" FontSize="11" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Command="{Binding CancelScanCommand}"
+                                        Style="{StaticResource FluentSecondaryButtonStyle}" Height="24" MinWidth="0" Padding="9,0">
+                                    <TextBlock Text="取消扫描" FontSize="11"/>
+                                </Button>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconRadar}" Width="13" Height="13" Stretch="Uniform"
+                                      Stroke="#0078D4" StrokeThickness="1.9" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ScanStageBadgeText}" FontSize="11.5" FontWeight="Bold" Foreground="#0078D4" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ScanStageHeading}" FontSize="11.5" Foreground="#334155" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <ProgressBar Value="{Binding ScanProgressPercent, Mode=OneWay}" Maximum="100" Height="5" Style="{StaticResource FluentProgressBarStyle}"/>
                     </StackPanel>
-                </DockPanel>
-            </Border>
+                </Border>
+
+                <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8"
+                        Padding="12,6" Margin="0,0,0,9"
+                        Visibility="{Binding IsSnapshotStale, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Command="{Binding StartScanCommand}"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBoolConverter}}"
+                                Style="{StaticResource FluentSecondaryButtonStyle}" Height="26" Padding="10,0" Margin="10,0,0,0">
+                            <TextBlock Text="立即重新扫描" FontSize="11.5"/>
+                        </Button>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconTriangleAlert}" Width="14" Height="14" Stretch="Uniform"
+                                  Stroke="#B45309" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="0,0,7,0"/>
+                            <TextBlock Text="{Binding SnapshotStaleMessage}" FontSize="12" Foreground="#92400E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
 
             <!-- S01FilterBar：面包屑 + 目录树/大软件切换 + 显示文件开关 + 搜索框 -->
             <DockPanel Grid.Row="2" Margin="0,0,0,9">

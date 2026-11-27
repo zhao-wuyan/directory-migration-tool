@@ -12,10 +12,12 @@ using System.Windows.Media;
 using Microsoft.Extensions.AI;
 using MigrationCore.Models;
 using MigrationCore.Models.Ai;
+using MigrationCore.Models.Cleanup;
 using MigrationCore.Models.Safety;
 using MigrationCore.Models.Scanning;
 using MigrationCore.Services;
 using MigrationCore.Services.Ai;
+using MigrationCore.Services.Cleanup;
 using MigrationCore.Services.Safety;
 using MigrationCore.Services.Scanning;
 using MoveWithSymlinkWPF;
@@ -405,6 +407,37 @@ internal static class Phase2AiCases
             Require(!overallRes.Succeeded && !overallRes.WasCancelled, "Endless stream must abort at overall safety cap");
             Require(overallRes.ErrorMessage is not null && overallRes.ErrorMessage.Contains("总耗时") && overallRes.ErrorMessage.Contains("安全上限"),
                 $"Expected overall cap message, got '{overallRes.ErrorMessage}'");
+
+            // D. 接近总耗时上限触发 TimeoutApproaching 预警，动态延长限时后流式分析应无损完成
+            var extendableClient = new TimedStreamChatClient(chunkCount: 14, delayBetweenChunksMs: 35, stallAfterChunk: -1);
+            var extAgent = new BuiltInAiAgentService(
+                toolset,
+                (_, _) => extendableClient,
+                idleTimeoutOverride: TimeSpan.FromSeconds(2),
+                overallTimeoutOverride: TimeSpan.FromMilliseconds(260));
+            var timeoutController = new AiOverallTimeoutController();
+            int approachingEvents = 0;
+            bool extendedOk = false;
+            var extProgress = new SyncProgress<AiAgentRunEvent>(ev =>
+            {
+                if (ev.Kind == AiAgentEventKind.TimeoutApproaching && ev.TimeoutApproaching is not null)
+                {
+                    approachingEvents++;
+                    if (!extendedOk)
+                    {
+                        extendedOk = timeoutController.TryExtend(TimeSpan.FromMilliseconds(1500), out _, out _);
+                    }
+                }
+            });
+            AiAgentAnalysisResult extendedRes = await extAgent.RunAnalysisAsync(
+                settings,
+                null,
+                new AiAgentAnalysisRequest(snapshot.ScanId, "动态延长限时测试", OverallTimeoutController: timeoutController),
+                extProgress);
+            Require(approachingEvents >= 1, $"Expected TimeoutApproaching event before cap, got {approachingEvents}");
+            Require(extendedOk && timeoutController.ExtensionCount == 1,
+                $"TryExtend should succeed once, extendedOk={extendedOk}, count={timeoutController.ExtensionCount}");
+            Require(extendedRes.Succeeded, $"Extended analysis should complete cleanly without timeout, got error='{extendedRes.ErrorMessage}'");
         });
 
         await test("AiRepetitionLoopDetector-and-agent-loop-recovery-or-abort", async () =>
@@ -626,7 +659,18 @@ internal static class Phase2AiCases
                 aiVm.SelectPresetCommand.Execute(ollama);
                 Require(aiVm.IsLocalEndpoint && aiVm.OriginBadgeText.Contains("本地"),
                     $"Ollama preset should show local origin badge, got '{aiVm.OriginBadgeText}'");
+                Require(aiVm.OverallTimeoutMinutes == AiProviderSettings.DefaultOverallTimeoutMinutes,
+                    $"Default OverallTimeoutMinutes should be {AiProviderSettings.DefaultOverallTimeoutMinutes}, got {aiVm.OverallTimeoutMinutes}");
+                aiVm.SelectOverallTimeoutPresetCommand.Execute("60");
+                Require(aiVm.OverallTimeoutMinutes == 60 && aiVm.OverallTimeout60mTag == "Active",
+                    $"OverallTimeoutMinutes preset 60 should activate chip, got {aiVm.OverallTimeoutMinutes}");
+                aiVm.OverallTimeoutMinutes = 999; // 超出上限应自动裁剪到 120 分钟
                 aiVm.SaveConfigCommand.Execute(null);
+                Require(aiVm.OverallTimeoutMinutes == AiProviderSettings.MaxOverallTimeoutMinutes,
+                    $"OverallTimeoutMinutes should clamp to {AiProviderSettings.MaxOverallTimeoutMinutes}, got {aiVm.OverallTimeoutMinutes}");
+                AiProviderSettings reloadedWithOverall = new AiProviderConfigStore(tempCfgDir).Load();
+                Require(reloadedWithOverall.OverallTimeoutSeconds == AiProviderSettings.HardMaxOverallTimeoutSeconds,
+                    $"Persisted OverallTimeoutSeconds should be {AiProviderSettings.HardMaxOverallTimeoutSeconds}, got {reloadedWithOverall.OverallTimeoutSeconds}");
 
                 // 撤销快照共享后状态与热点清空
                 aiVm.ToggleSnapshotSharingCommand.Execute(null);
@@ -1323,7 +1367,7 @@ internal static class Phase2AiCases
                     scanCleanupCallback: (progress, ct) =>
                     {
                         Interlocked.Increment(ref scannedCleanupCallbackCount);
-                        progress.Report("清理扫描完成");
+                        progress.Report((100, "清理扫描完成"));
                         return Task.FromResult<MigrationCore.Models.Cleanup.CleanupScanSnapshot?>(new MigrationCore.Models.Cleanup.CleanupScanSnapshot(
                             CleanupScanId: Guid.NewGuid(),
                             ScannedAtUtc: DateTimeOffset.UtcNow,
@@ -1428,6 +1472,602 @@ internal static class Phase2AiCases
                 Require(scanReqRes.Succeeded && scanReqRes.ScanActionProposals is { Length: 1 }
                     && scanReqRes.ScanActionProposals[0].RecommendedDrives.SequenceEqual(["D:"]),
                     "request_user_scan_action tool must normalize drive letter and emit ScanActionProposal without auto-scanning");
+
+                // 7. 验证字号调整实时生效与持久化 + 上下文占用圆环几何与调用遥测统计
+                aiVm.SetChatFontSizeCommand.Execute("Large");
+                Require(Math.Abs(aiVm.ChatFontSize - 13.0) < 0.01 && Math.Abs(cfgStore.Load().EffectiveChatFontSize - 13.0) < 0.01,
+                    $"ChatFontSize preset Large should persist as 13.0, got {aiVm.ChatFontSize}");
+                aiVm.IncreaseChatFontSizeCommand.Execute(null);
+                Require(Math.Abs(aiVm.ChatFontSize - 14.0) < 0.01, "IncreaseChatFontSize should step by +1.0");
+                aiVm.DecreaseChatFontSizeCommand.Execute(null);
+                Require(Math.Abs(aiVm.ChatFontSize - 13.0) < 0.01, "DecreaseChatFontSize should step by -1.0");
+
+                Require(aiVm.CleanupSession.HasTelemetry && aiVm.CleanupSession.ContextUsedTokens > 0 && aiVm.CleanupSession.SessionRequestCount >= 1,
+                    "Completed analysis must populate per-session telemetry for the context ring popup");
+                Require(string.IsNullOrEmpty(AiChatSessionViewModel.BuildContextRingArcGeometry(0)),
+                    "0% context usage should produce empty arc");
+                Require(AiChatSessionViewModel.BuildContextRingArcGeometry(30).Contains("A 6.8,6.8 0 0 1"),
+                    "30% context usage should produce minor-arc SVG path");
+                Require(AiChatSessionViewModel.BuildContextRingArcGeometry(80).Contains("A 6.8,6.8 0 1 1"),
+                    "80% context usage should produce major-arc SVG path");
+                Require(AiChatSessionViewModel.BuildContextRingArcGeometry(100).Split('A').Length == 3,
+                    "100% context usage should produce closed two-semicircle SVG path");
+
+                aiVm.CleanupSession.ClearConversationCommand.Execute(null);
+                Require(!aiVm.CleanupSession.HasTelemetry && aiVm.CleanupSession.ContextUsedTokens == 0,
+                    "Clearing session conversation must also reset that session's context ring telemetry");
+
+                // 8. 验证通用思考等级切换与持久化（default / none / minimal / low / medium / high / xhigh / max）
+                aiVm.SelectReasoningEffortCommand.Execute("XHigh");
+                Require(aiVm.ReasoningEffort == AiReasoningEffort.XHigh
+                    && cfgStore.Load().ReasoningEffort == AiReasoningEffort.XHigh
+                    && AiProviderSettings.ToReasoningEffortWireValue(AiReasoningEffort.XHigh) == "xhigh"
+                    && AiProviderSettings.ToReasoningEffortWireValue(AiReasoningEffort.Max) == "max"
+                    && AiProviderSettings.ToReasoningEffortWireValue(AiReasoningEffort.Default) is null,
+                    "ReasoningEffort should persist and map cleanly to standard OpenAI-compatible wire values");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        });
+
+        await test("ai-scan-card-bidirectional-linkage-cleanup-and-disk", async () =>
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "MoveFolder_AiScanLinkage_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                var cfgStore = new AiProviderConfigStore(tempDir);
+                cfgStore.Save(new AiProviderSettings
+                {
+                    Preset = AiProviderPreset.Ollama,
+                    Endpoint = "http://localhost:11434/v1",
+                    ModelName = "mock-linkage",
+                    CloudPrivacyAcknowledged = true
+                }, plainApiKey: null);
+
+                var sharedCache = new SharedWorkspaceStateCache(
+                    ttl: TimeSpan.FromMinutes(5),
+                    collector: _ => new WorkspaceStateSnapshot(
+                        DateTimeOffset.UtcNow, "C:", true, true,
+                        [
+                            new SharedDriveTelemetry(@"C:\", "C:", "System", "Fixed", "NTFS", 256L << 30, 30L << 30, 226L << 30, 88.3, true, true, true, false),
+                            new SharedDriveTelemetry(@"D:\", "D:", "Data", "Fixed", "NTFS", 1024L << 30, 500L << 30, 524L << 30, 51.2, false, true, true, true)
+                        ],
+                        new SharedBackupSummary(0, 0, 0, false, new Dictionary<string, int>()),
+                        new SharedQuarantineSummary(0, 0, new Dictionary<string, (int, long)>())));
+
+                var toolset = new ReadOnlyAiAnalysisToolset();
+                var agent = new BuiltInAiAgentService(toolset, (_, _) => new ScriptedMockChatClient(
+                [
+                    [new TextContent("已复用主界面最新快照完成分析。")]
+                ]));
+
+                int cleanupCancelCalls = 0;
+                int diskCancelCalls = 0;
+                int cleanupScanCallbackCalls = 0;
+
+                var aiVm = new AiAssistantViewModel(
+                    toolset: toolset,
+                    configStore: cfgStore,
+                    agentService: agent,
+                    scanCleanupCallback: (_, _) =>
+                    {
+                        cleanupScanCallbackCalls++;
+                        return Task.FromResult<CleanupScanSnapshot?>(null);
+                    },
+                    stateCache: sharedCache,
+                    cancelDiskScanCallback: () => diskCancelCalls++,
+                    cancelCleanupScanCallback: () => cleanupCancelCalls++);
+
+                // 1. 垃圾清理 AI 扫描卡片 ←→ 主界面扫描联动
+                await aiVm.CleanupSession.RunQuickPromptCommand.ExecuteAsync("Cleanup_CautionRisks");
+                AiScanActionCardItem cleanupCard = aiVm.CleanupSession.ConversationTurns[^1].ScanActionCards[0];
+                Require(cleanupCard.ShowIdleActions && cleanupCard.IncludeCleanupScan && !cleanupCard.IsExternalScanRunning,
+                    "Cleanup scan card should start in idle state with cleanup checked");
+
+                // 模拟左侧垃圾清理页开始扫描 → 右侧 AI 卡片实时同步进度并隐藏重复开始按钮
+                aiVm.NotifyExternalCleanupScanState(true, 42, "清理扫描 (34/80)：Windows 更新下载缓存");
+                Require(cleanupCard.IsExternalScanRunning
+                    && cleanupCard.ShowExternalRunningActions
+                    && !cleanupCard.ShowIdleActions
+                    && Math.Abs(cleanupCard.ExternalScanProgressPercent - 42) < 0.01
+                    && cleanupCard.ExternalScanStatusMessage.Contains("34/80"),
+                    "External cleanup scan progress must sync to open AI cleanup scan card");
+
+                // 模拟在 AI 卡片点击「停止扫描」→ 触发主界面取消回调
+                aiVm.CleanupSession.CancelScanCardCommand.Execute(cleanupCard);
+                Require(cleanupCancelCalls == 1, "Clicking stop on externally-linked cleanup card must invoke main cleanup cancel callback");
+
+                // 模拟主界面扫描进行中时新建另一张卡片 → 新建卡片应立刻处于同步扫描态
+                await aiVm.GeneralSession.RunQuickPromptCommand.ExecuteAsync("General_GlobalSpacePlan");
+                AiScanActionCardItem midScanCard = aiVm.GeneralSession.ConversationTurns[^1].ScanActionCards[0];
+                Require(midScanCard.IsExternalScanRunning && midScanCard.ShowExternalRunningActions,
+                    "Newly created cleanup card during an active external scan must immediately sync running state");
+
+                // 模拟主界面清理扫描完成 → 卡片退出同步扫描态、自动标记已有快照并允许直接复用
+                aiVm.NotifyExternalCleanupScanState(false, 100, string.Empty);
+                var testRuleDef = new CleanupRuleDefinition(
+                    RuleId: "temp",
+                    Version: BuiltInCleanupRules.CurrentRuleVersion,
+                    DisplayName: "系统临时文件",
+                    ShortDescription: "测试临时文件",
+                    Category: CleanupCategory.SystemTempAndShader,
+                    Tier: CleanupRecommendationTier.Recommended,
+                    Channel: CleanupExecutionChannel.FileQuarantine,
+                    OfficialApiKind: CleanupOfficialApiKind.None,
+                    TargetSpecs: [],
+                    RequiredStoppedProcesses: [],
+                    MinAgeHours: 24,
+                    CostAndReclaimNote: "可重建",
+                    ChannelBadgeText: "同卷隔离",
+                    IsRebuildable: true);
+                var cleanupSnap = new CleanupScanSnapshot(
+                    CleanupScanId: Guid.NewGuid(),
+                    ScannedAtUtc: DateTimeOffset.UtcNow,
+                    PolicyVersion: "test",
+                    RuleVersion: BuiltInCleanupRules.CurrentRuleVersion,
+                    Rules:
+                    [
+                        new CleanupRuleScanResult(
+                            Rule: testRuleDef,
+                            PreviewItems: [],
+                            VerificationExpectations: [],
+                            TotalBytes: 512L * 1024 * 1024,
+                            MatchedCount: 12,
+                            SkippedRecentOrLockedCount: 0,
+                            ExcludedProtectedCount: 0,
+                            RunningBlockingProcesses: [],
+                            IsAvailable: true,
+                            StatusNote: "可清理",
+                            ScannedAtUtc: DateTimeOffset.UtcNow)
+                    ],
+                    TotalReclaimableBytes: 512L * 1024 * 1024,
+                    RecommendedBytes: 512L * 1024 * 1024,
+                    OnDemandBytes: 0,
+                    CautionBytes: 0);
+                aiVm.SyncCleanupScanSnapshot(cleanupSnap);
+
+                Require(!cleanupCard.IsExternalScanRunning
+                    && cleanupCard.ShowIdleActions
+                    && cleanupCard.HasFreshCleanupSnapshot
+                    && !cleanupCard.IncludeCleanupScan
+                    && cleanupCard.CanStartScan
+                    && cleanupCard.StartScanButtonText == "复用已有快照继续分析",
+                    $"Completed external cleanup scan should update AI card to reusable state, got '{cleanupCard.StartScanButtonText}'");
+
+                // 点击卡片主按钮应直接复用最新清理快照继续分析，不再重复调用 scanCleanupCallback
+                await aiVm.CleanupSession.StartScanCardCommand.ExecuteAsync(cleanupCard);
+                Require(cleanupCard.IsCompleted && cleanupScanCallbackCalls == 0,
+                    "Clicking card after external cleanup scan must reuse snapshot without triggering duplicate scan");
+
+                // 2. 磁盘扫描 AI 扫描卡片 ←→ 主界面磁盘扫描联动
+                await aiVm.DiskScanSession.RunQuickPromptCommand.ExecuteAsync("DiskScan_LargeDirs");
+                AiScanActionCardItem diskCard = aiVm.DiskScanSession.ConversationTurns[^1].ScanActionCards[0];
+                AiScanDriveOptionItem cRow = diskCard.AllDrives.First(d => d.DriveLetter == "C:");
+                Require(cRow.IsChecked && !cRow.IsCurrentlyScanning && !cRow.HasFreshSnapshot,
+                    "Disk scan card should initially check C: with no fresh snapshot");
+
+                aiVm.NotifyExternalDiskScanState(@"C:\", true, 55, "读取 NTFS MFT 主表…");
+                Require(diskCard.IsExternalScanRunning && diskCard.ShowExternalRunningActions && cRow.IsCurrentlyScanning && cRow.PrimaryBadgeText == "扫描中…",
+                    "External disk scan must update matching drive row badge and card progress");
+
+                aiVm.DiskScanSession.CancelScanCardCommand.Execute(diskCard);
+                Require(diskCancelCalls == 1, "Clicking stop on externally-linked disk card must invoke main disk cancel callback");
+
+                aiVm.NotifyExternalDiskScanState(@"C:\", false, 100, string.Empty);
+                var (diskSnap, _, _) = BuildAiTestSnapshot();
+                aiVm.SyncScanSnapshot(diskSnap);
+                Require(!diskCard.IsExternalScanRunning
+                    && !cRow.IsCurrentlyScanning
+                    && cRow.HasFreshSnapshot
+                    && !cRow.IsChecked
+                    && diskCard.StartScanButtonText == "复用已有快照继续分析",
+                    "Completed external disk scan must mark drive row fresh, uncheck it, and offer snapshot reuse");
+
+                // 3. 验证 CleanupViewModel.ScanForAiCardAsync 立即驱动左侧 IsScanning 与按钮文案，且左侧 CancelScanCommand 可反向取消 AI 卡片扫描
+                var cleanupVm = new CleanupViewModel(new CleanupService(new QuarantineStore(new PathIdentityService(), tempDir)));
+                cleanupVm.AiAssistant = aiVm;
+                bool sawMainScanning = false;
+                bool sawScanningButtonText = false;
+                bool cancelledFromMain = false;
+
+                using var cardCts = new CancellationTokenSource();
+                try
+                {
+                    await cleanupVm.ScanForAiCardAsync(
+                        new SyncProgress<(double Percent, string Message)>(_ =>
+                        {
+                            if (cleanupVm.IsScanning) sawMainScanning = true;
+                            if (cleanupVm.ScanActionButtonText == "扫描中…") sawScanningButtonText = true;
+                            cleanupVm.CancelScanCommand.Execute(null);
+                        }),
+                        cardCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    cancelledFromMain = true;
+                }
+
+                Require(sawMainScanning && sawScanningButtonText,
+                    "ScanForAiCardAsync must immediately flip CleanupViewModel.IsScanning and ScanActionButtonText");
+                Require(cancelledFromMain && !cleanupVm.IsScanning,
+                    "CancelScanCommand on CleanupViewModel must cancel AI-initiated ScanForAiCardAsync and reset IsScanning");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        });
+
+        await test("LenientToolParameters-SchemaDescriptions-LargeCleanupProposal-and-ErrorBreaker", async () =>
+        {
+            var (snapshot, env, ids) = BuildAiTestSnapshot();
+            var catalog = new ApplicationCatalog(BuiltInApplicationRules.All, []);
+            var toolset = new ReadOnlyAiAnalysisToolset(
+                catalog: catalog,
+                policyEnvironment: env,
+                targetCandidatesProvider: () =>
+                [
+                    new AiTargetCandidateDto("target-vol-d", "D:", @"D:\MigratedData", 500L * 1024 * 1024 * 1024, true)
+                ]);
+            toolset.AuthorizeSnapshot(snapshot);
+
+            // 构造含 45 条内置规则的清理扫描快照，复现真实 43+ 项清理建议场景
+            CleanupRuleScanResult[] ruleResults = BuiltInCleanupRules.All
+                .Take(45)
+                .Select((r, idx) => new CleanupRuleScanResult(
+                    Rule: r,
+                    PreviewItems: [],
+                    VerificationExpectations: [],
+                    TotalBytes: (45L - idx) * 1024L * 1024L,
+                    MatchedCount: 5,
+                    SkippedRecentOrLockedCount: 0,
+                    ExcludedProtectedCount: 0,
+                    RunningBlockingProcesses: [],
+                    IsAvailable: true,
+                    StatusNote: "可清理",
+                    ScannedAtUtc: DateTimeOffset.UtcNow))
+                .ToArray();
+
+            var cleanupSnap = new CleanupScanSnapshot(
+                CleanupScanId: Guid.NewGuid(),
+                ScannedAtUtc: DateTimeOffset.UtcNow,
+                PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
+                RuleVersion: BuiltInCleanupRules.CurrentRuleVersion,
+                Rules: ruleResults,
+                TotalReclaimableBytes: ruleResults.Sum(r => r.TotalBytes),
+                RecommendedBytes: ruleResults.Where(r => r.Rule.Tier == CleanupRecommendationTier.Recommended).Sum(r => r.TotalBytes),
+                OnDemandBytes: ruleResults.Where(r => r.Rule.Tier == CleanupRecommendationTier.OnDemand).Sum(r => r.TotalBytes),
+                CautionBytes: ruleResults.Where(r => r.Rule.Tier == CleanupRecommendationTier.Caution).Sum(r => r.TotalBytes));
+            toolset.AuthorizeCleanupSnapshot(cleanupSnap);
+
+            // 1. 校验暴露给模型的 JSON Schema：可选参数不应出现在 required 中，且嵌套条目字段带清晰中文描述
+            var probeAgent = new BuiltInAiAgentService(toolset);
+            IReadOnlyList<AIFunction> tools = probeAgent.BuildWhitelistTools([], [], [], null, snapshot.ScanId, cleanupSnap.CleanupScanId);
+            AIFunction submitCleanupTool = tools.Single(t => t.Name == "submit_cleanup_proposal");
+            string cleanupSchemaJson = submitCleanupTool.JsonSchema.GetRawText();
+
+            using (JsonDocument schemaDoc = JsonDocument.Parse(cleanupSchemaJson))
+            {
+                JsonElement reqArr = schemaDoc.RootElement.GetProperty("required");
+                string[] requiredNames = reqArr.EnumerateArray().Select(e => e.GetString()!).ToArray();
+                Require(requiredNames.Length == 1 && requiredNames[0] == "items",
+                    $"submit_cleanup_proposal should only require 'items', got [{string.Join(", ", requiredNames)}]");
+
+                JsonElement itemProps = schemaDoc.RootElement
+                    .GetProperty("properties")
+                    .GetProperty("items")
+                    .GetProperty("items")
+                    .GetProperty("properties");
+                string kindDesc = itemProps.GetProperty("kind").GetProperty("description").GetString() ?? "";
+                string ruleIdDesc = itemProps.GetProperty("ruleId").GetProperty("description").GetString() ?? "";
+                string nodeIdDesc = itemProps.GetProperty("nodeId").GetProperty("description").GetString() ?? "";
+                Require(kindDesc.Contains("RuleMatched", StringComparison.Ordinal)
+                    && kindDesc.Contains("AiSuspectedResidual", StringComparison.Ordinal)
+                    && ruleIdDesc.Contains("内置清理规则 ID", StringComparison.Ordinal)
+                    && nodeIdDesc.Contains("磁盘扫描目录节点整数 ID", StringComparison.Ordinal),
+                    $"submit_cleanup_proposal schema must contain item field descriptions, got kind='{kindDesc}', ruleId='{ruleIdDesc}', nodeId='{nodeIdDesc}'");
+            }
+
+            AIFunction submitMigrationTool = tools.Single(t => t.Name == "submit_migration_proposal");
+            string migrationSchemaJson = submitMigrationTool.JsonSchema.GetRawText();
+            using (JsonDocument mSchemaDoc = JsonDocument.Parse(migrationSchemaJson))
+            {
+                string[] reqNames = mSchemaDoc.RootElement.GetProperty("required").EnumerateArray().Select(e => e.GetString()!).ToArray();
+                Require(reqNames.Length == 1 && reqNames[0] == "items",
+                    $"submit_migration_proposal should only require 'items', got [{string.Join(", ", reqNames)}]");
+
+                JsonElement mItemProps = mSchemaDoc.RootElement
+                    .GetProperty("properties")
+                    .GetProperty("items")
+                    .GetProperty("items")
+                    .GetProperty("properties");
+                string mNodeDesc = mItemProps.GetProperty("nodeId").GetProperty("description").GetString() ?? "";
+                string mCatDesc = mItemProps.GetProperty("suggestedCategory").GetProperty("description").GetString() ?? "";
+                Require(mNodeDesc.Contains("待迁移目录节点整数 ID", StringComparison.Ordinal)
+                    && mCatDesc.Contains("NativeGuideAdvisory", StringComparison.Ordinal),
+                    $"submit_migration_proposal schema must describe item fields, got nodeId='{mNodeDesc}', cat='{mCatDesc}'");
+            }
+
+            // 2. 端到端复现真实 LLM 传参：scanId="", nodeId="", priority="1", 43 条清理建议 + 省略/空串/字符串数字等
+            static Dictionary<string, object?> ParseJsonArgs(string json)
+            {
+                var d = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                foreach (JsonProperty p in doc.RootElement.EnumerateObject())
+                {
+                    d[p.Name] = p.Value.Clone();
+                }
+                return d;
+            }
+
+            string items43Json = JsonSerializer.Serialize(ruleResults.Take(43).Select((r, idx) => new
+            {
+                kind = idx % 2 == 0 ? "RuleMatched" : "",
+                ruleId = r.Rule.RuleId,
+                nodeId = "",
+                priority = (idx + 1).ToString(),
+                reason = $"建议清理 {r.Rule.DisplayName}，可释放空间且支持安全重建。"
+            }));
+
+            string submit43ArgsJson = $$"""
+                {
+                  "clientRequestId": "creq-001",
+                  "scanId": "",
+                  "cleanupScanId": "{{cleanupSnap.CleanupScanId}}",
+                  "items": {{items43Json}}
+                }
+                """;
+
+            string submitOmittedIdsArgsJson = $$"""
+                {
+                  "items": [
+                    { "kind": "RuleMatched", "ruleId": "{{ruleResults[0].Rule.RuleId}}", "nodeId": "null", "priority": "", "reason": "省略全部可选 ID 参数测试" }
+                  ]
+                }
+                """;
+
+            var scriptedClient = new ScriptedMockChatClient(
+            [
+                // 第 1 轮：带空串/字符串数字/单字符串数组调用各类工具
+                [
+                    new FunctionCallContent("c1", "get_cleanup_scan_summary", ParseJsonArgs("""{"cleanupScanId":""}""")),
+                    new FunctionCallContent("c2", "list_cleanup_items", ParseJsonArgs("""{"cleanupScanId":"null","tier":"","pageSize":"50"}""")),
+                    new FunctionCallContent("c3", "list_migration_candidates", ParseJsonArgs("""{"scanId":"","parentNodeId":"","pageSize":"10"}""")),
+                    new FunctionCallContent("c4", "request_user_scan_action", ParseJsonArgs("""{"actionKind":"DiskScan","recommendedDrives":"C:, D:"}""")),
+                    new FunctionCallContent("c5", "submit_cleanup_proposal", ParseJsonArgs(submit43ArgsJson)),
+                    new FunctionCallContent("c6", "submit_cleanup_proposal", ParseJsonArgs(submitOmittedIdsArgsJson))
+                ],
+                [
+                    new TextContent("已一次性提交全部 43 项垃圾清理建议。")
+                ]
+            ]);
+
+            var baseSettings = new AiProviderSettings
+            {
+                Preset = AiProviderPreset.Ollama,
+                Endpoint = "http://localhost:11434/v1",
+                ModelName = "mock-lenient",
+                MaxToolSteps = 20
+            };
+
+            var agent = new BuiltInAiAgentService(toolset, (_, _) => scriptedClient);
+            AiAgentAnalysisResult res = await agent.RunAnalysisAsync(
+                baseSettings,
+                plainApiKey: null,
+                new AiAgentAnalysisRequest(snapshot.ScanId, "帮我分析全部垃圾清理项", ActiveCleanupScanId: cleanupSnap.CleanupScanId));
+
+            Require(res.Succeeded, $"Expected lenient tool calls to succeed, error: {res.ErrorMessage}");
+            Require(res.ToolTraces.Length == 6 && res.ToolTraces.All(t => t.Succeeded),
+                $"All 6 lenient tool calls must succeed. Failures: {string.Join(" | ", res.ToolTraces.Where(t => !t.Succeeded).Select(t => $"{t.ToolName}: {t.ResultSummary}"))}");
+
+            Require(res.CleanupProposals is { Length: 2 }, $"Expected 2 cleanup proposals, got {res.CleanupProposals?.Length ?? 0}");
+            Require(res.CleanupProposals![0].AcceptedRuleAdviceCount == 43 && res.CleanupProposals[0].RejectionMessage is null,
+                $"Expected 43 accepted cleanup items, got accepted={res.CleanupProposals[0].AcceptedRuleAdviceCount}, err={res.CleanupProposals[0].RejectionMessage}");
+            Require(res.CleanupProposals[1].AcceptedRuleAdviceCount == 1,
+                $"Expected omitted-ID cleanup proposal to accept 1 item, got {res.CleanupProposals[1].AcceptedRuleAdviceCount}");
+
+            // 验证大回执（43 条）的序列化结果仍在 MaxToolResultChars 预算内且是 100% 合法 JSON
+            string bigReceiptJson = res.ToolTraces[4].ResultPayload!;
+            Require(bigReceiptJson.Length <= BuiltInAiAgentService.MaxToolResultChars,
+                $"Clamped 43-item receipt must fit in {BuiltInAiAgentService.MaxToolResultChars}, got {bigReceiptJson.Length}");
+            using (JsonDocument receiptDoc = JsonDocument.Parse(bigReceiptJson))
+            {
+                Require(receiptDoc.RootElement.GetProperty("acceptedRuleAdviceCount").GetInt32() == 43,
+                    "Clamped receipt JSON must preserve full acceptedRuleAdviceCount=43");
+            }
+
+            // 验证单字符串盘符已正确规范化为 ["C:", "D:"]
+            Require(res.ScanActionProposals is { Length: 1 }
+                && res.ScanActionProposals[0].RecommendedDrives.SequenceEqual(["C:", "D:"]),
+                "Single string recommendedDrives 'C:, D:' must normalize to [C:, D:]");
+
+            // 3. 验证真正非法参数（不可解析的 GUID）返回可读中文参数提示，且重复失败触发熔断防止死循环
+            var brokenClient = new ScriptedMockChatClient(
+            [
+                [new FunctionCallContent("e1", "submit_cleanup_proposal", ParseJsonArgs("""{"clientRequestId":"bad-1","scanId":"not-a-guid","items":[]}"""))],
+                [new FunctionCallContent("e2", "submit_cleanup_proposal", ParseJsonArgs("""{"clientRequestId":"bad-2","scanId":"not-a-guid","items":[]}"""))],
+                [new FunctionCallContent("e3", "submit_cleanup_proposal", ParseJsonArgs("""{"clientRequestId":"bad-3","scanId":"not-a-guid","items":[]}"""))],
+                [new FunctionCallContent("e4", "submit_cleanup_proposal", ParseJsonArgs("""{"clientRequestId":"bad-4","scanId":"not-a-guid","items":[]}"""))],
+                [new FunctionCallContent("e5", "submit_cleanup_proposal", ParseJsonArgs("""{"clientRequestId":"bad-5","scanId":"not-a-guid","items":[]}"""))],
+                [new TextContent("已停止重试并直接总结。")]
+            ]);
+            var brokenAgent = new BuiltInAiAgentService(toolset, (_, _) => brokenClient);
+            AiAgentAnalysisResult brokenRes = await brokenAgent.RunAnalysisAsync(
+                baseSettings,
+                plainApiKey: null,
+                new AiAgentAnalysisRequest(snapshot.ScanId, "测试非法参数熔断", ActiveCleanupScanId: cleanupSnap.CleanupScanId));
+
+            Require(brokenRes.Succeeded && brokenRes.ToolTraces.Length == 5,
+                $"Expected 5 error traces before clean finish, got {brokenRes.ToolTraces.Length}");
+            Require(brokenRes.ToolTraces[0].ResultPayload!.Contains("必填参数", StringComparison.Ordinal)
+                && brokenRes.ToolTraces[0].ResultPayload!.Contains("可选参数", StringComparison.Ordinal),
+                $"First argument error should include parameter format hint, got: {brokenRes.ToolTraces[0].ResultPayload}");
+            Require(brokenRes.ToolTraces[4].ResultSummary.Contains("已熔断", StringComparison.Ordinal),
+                $"5th consecutive failure of same tool must trigger circuit breaker, got: {brokenRes.ToolTraces[4].ResultSummary}");
+        });
+
+        await test("LiveStreamingTokenSpeed-SlidingWindow-TTFT-and-ServerTimings", async () =>
+        {
+            // 1. AiStreamingSpeedMeter：扣除 3000ms 首字等待 + 2 秒滑动窗口实时响应速度变化
+            var meter = new BuiltInAiAgentService.AiStreamingSpeedMeter();
+            // 3000ms 时到达首个 token（TTFT = 3000ms），随后以 100 tok/s 输出 3 秒（每 100ms 10 tokens）
+            for (int step = 0; step <= 30; step++)
+            {
+                meter.RecordDelta(3000 + step * 100L, step == 0 ? 1.0 : 10.0);
+            }
+            Require(meter.FirstTokenMs == 3000, $"Expected TTFT=3000ms, got {meter.FirstTokenMs}");
+            Require(meter.CurrentLiveTps >= 85 && meter.CurrentLiveTps <= 115,
+                $"Expected steady live speed ~100 tok/s (excluding 3s TTFT), got {meter.CurrentLiveTps:F1}");
+
+            // 速度骤降到 40 tok/s 持续 2.5 秒（每 100ms 4 tokens），2 秒滑动窗口应快速降至 ~40 tok/s（非全轮平均）
+            for (int step = 1; step <= 25; step++)
+            {
+                meter.RecordDelta(6000 + step * 100L, 4.0);
+            }
+            Require(meter.CurrentLiveTps >= 32 && meter.CurrentLiveTps <= 48,
+                $"Expected live sliding-window speed to drop to ~40 tok/s, got {meter.CurrentLiveTps:F1}");
+
+            // 服务端 timings.predicted_per_second 优先，其次为扣除 TTFT 后的本轮纯解码速度
+            double srvFinal = meter.ComputeFinalDecodeTps(exactCompletionTokens: 400, turnEndElapsedMs: 8500, serverPredictedTps: 92.4);
+            Require(Math.Abs(srvFinal - 92.4) < 0.01, $"Expected server predicted_per_second 92.4, got {srvFinal}");
+
+            // exactCompletionTokens=550, turnEnd=8500, FirstTokenMs=3000 => decodeMs=5500 => 100.0 tok/s（扣除 3000ms TTFT）
+            double pureDecodeFinal = meter.ComputeFinalDecodeTps(exactCompletionTokens: 550, turnEndElapsedMs: 8500, serverPredictedTps: null);
+            Require(Math.Abs(pureDecodeFinal - 100.0) < 0.1, $"Expected pure decode speed 100.0 tok/s, got {pureDecodeFinal}");
+
+            // 2. 端到端流式遥测：流式输出期间实时推送 IsStreaming=true 遥测事件（含实时速度与首字延迟），结束后切换 IsStreaming=false
+            var (snapshot, env, _) = BuildAiTestSnapshot();
+            var toolset = new ReadOnlyAiAnalysisToolset(new ApplicationCatalog(BuiltInApplicationRules.All, []), env);
+            toolset.AuthorizeSnapshot(snapshot);
+
+            var streamTelemetryEvents = new List<AiCallTelemetry>();
+            var progress = new SyncProgress<AiAgentRunEvent>(ev =>
+            {
+                if (ev.Kind == AiAgentEventKind.TelemetryUpdated && ev.Telemetry is not null)
+                {
+                    streamTelemetryEvents.Add(ev.Telemetry);
+                }
+            });
+
+            var timedClient = new TimedStreamChatClient(chunkCount: 12, delayBetweenChunksMs: 55, stallAfterChunk: -1, stallMs: 0);
+            var agent = new BuiltInAiAgentService(toolset, (_, _) => timedClient);
+            var settings = new AiProviderSettings
+            {
+                Preset = AiProviderPreset.Ollama,
+                Endpoint = "http://localhost:11434/v1",
+                ModelName = "mock-live-speed",
+                MaxToolSteps = 4
+            };
+
+            AiAgentAnalysisResult runRes = await agent.RunAnalysisAsync(
+                settings,
+                plainApiKey: null,
+                new AiAgentAnalysisRequest(snapshot.ScanId, "测试流式实时速度"),
+                progress);
+
+            Require(runRes.Succeeded, $"Expected streaming run success, got: {runRes.ErrorMessage}");
+            Require(streamTelemetryEvents.Any(t => t.IsStreaming && t.FirstTokenMilliseconds > 0),
+                "Must emit live TelemetryUpdated event with IsStreaming=true and valid TTFT during streaming");
+            Require(streamTelemetryEvents.Any(t => t.IsStreaming && t.TokensPerSecond > 0),
+                "Must emit live non-zero TokensPerSecond during streaming");
+            Require(streamTelemetryEvents[^1].IsStreaming == false && streamTelemetryEvents[^1].TokensPerSecond > 0,
+                "Final TelemetryUpdated must mark IsStreaming=false with positive decode speed");
+
+            // 3. OpenAiCompatibleChatClient 正确解析 llama.cpp / Halogen timings.predicted_per_second 与 tool_calls 流式分片
+            string sseBody = string.Join("\n",
+            [
+                """data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c_t1","function":{"name":"list_scans","arguments":"{\"pageSize\":"}}]}}]}""",
+                """data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"20}"}}]}}]}""",
+                """data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":120,"completion_tokens":18,"total_tokens":138},"timings":{"predicted_per_second":84.6}}""",
+                "data: [DONE]"
+            ]);
+            using var mockHttp = new HttpClient(new SingleSseResponseHandler(sseBody));
+            using var compat = new OpenAiCompatibleChatClient("http://localhost:8731/v1", "halogen/qwen3.8-flash-next", httpClient: mockHttp);
+
+            bool sawToolDeltaProp = false;
+            double? parsedServerTps = null;
+            await foreach (ChatResponseUpdate u in compat.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "hi")]))
+            {
+                if (u.AdditionalProperties is not null)
+                {
+                    if (u.AdditionalProperties.TryGetValue("tool_args_delta_text", out object? dt) && dt is string s && s.Length > 0)
+                    {
+                        sawToolDeltaProp = true;
+                    }
+                    if (u.AdditionalProperties.TryGetValue("server_predicted_tps", out object? st) && st is double d)
+                    {
+                        parsedServerTps = d;
+                    }
+                }
+            }
+            Require(sawToolDeltaProp, "OpenAiCompatibleChatClient must expose tool_args_delta_text for live streaming speed during tool calls");
+            Require(parsedServerTps is double stps && Math.Abs(stps - 84.6) < 0.01,
+                $"Expected server_predicted_tps=84.6 from timings, got {parsedServerTps}");
+
+            // 4. AiChatSessionViewModel 首次收到遥测时，首字延迟与实时速度必须立刻刷新（绝不卡在 "—"）
+            string tempDir = Path.Combine(Path.GetTempPath(), "MoveFolder_TelemetryVm_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                var cfgStore = new AiProviderConfigStore(tempDir);
+                cfgStore.Save(settings with { CloudPrivacyAcknowledged = true }, plainApiKey: null);
+                var aiVm = new AiAssistantViewModel(toolset: toolset, configStore: cfgStore, agentService: agent);
+                AiChatSessionViewModel session = aiVm.GeneralSession;
+
+                var applyMethod = typeof(AiChatSessionViewModel).GetMethod(
+                    "ApplyTelemetryUpdate",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+                var changedProps = new HashSet<string>(StringComparer.Ordinal);
+                session.PropertyChanged += (_, e) => { if (e.PropertyName is not null) changedProps.Add(e.PropertyName); };
+
+                applyMethod.Invoke(session, [new AiCallTelemetry(
+                    LastPromptTokens: 1000,
+                    LastCompletionTokens: 50,
+                    LastTotalTokens: 1050,
+                    TotalInputTokensThisRun: 1000,
+                    TotalOutputTokensThisRun: 50,
+                    EstimatedContextWindowTokens: 262_144,
+                    IsExactUsageFromApi: true,
+                    ModelRequestCount: 1,
+                    ToolCallCount: 0,
+                    ElapsedMilliseconds: 1850,
+                    FirstTokenMilliseconds: 620,
+                    TokensPerSecond: 78.5,
+                    IsStreaming: true,
+                    AverageTokensPerSecond: 75.0)]);
+
+                Require(session.FirstTokenLatencyText == "620 ms",
+                    $"First telemetry update must immediately populate FirstTokenLatencyText, got '{session.FirstTokenLatencyText}'");
+                Require(session.LastSpeedText == "78.5 tok/s",
+                    $"First telemetry update must immediately populate LastSpeedText, got '{session.LastSpeedText}'");
+                Require(session.SpeedCardLabel == "实时速度",
+                    $"Streaming telemetry must show '实时速度', got '{session.SpeedCardLabel}'");
+                Require(changedProps.Contains(nameof(AiChatSessionViewModel.FirstTokenLatencyText))
+                    && changedProps.Contains(nameof(AiChatSessionViewModel.LastSpeedText)),
+                    "PropertyChanged must fire for FirstTokenLatencyText and LastSpeedText on initial telemetry");
+
+                applyMethod.Invoke(session, [new AiCallTelemetry(
+                    LastPromptTokens: 1000,
+                    LastCompletionTokens: 120,
+                    LastTotalTokens: 1120,
+                    TotalInputTokensThisRun: 1000,
+                    TotalOutputTokensThisRun: 120,
+                    EstimatedContextWindowTokens: 262_144,
+                    IsExactUsageFromApi: true,
+                    ModelRequestCount: 1,
+                    ToolCallCount: 0,
+                    ElapsedMilliseconds: 2500,
+                    FirstTokenMilliseconds: 620,
+                    TokensPerSecond: 82.1,
+                    IsStreaming: false,
+                    AverageTokensPerSecond: 82.1)]);
+
+                Require(session.SpeedCardLabel == "生成速度" && session.LastSpeedText == "82.1 tok/s",
+                    $"Completed telemetry must switch to '生成速度', got '{session.SpeedCardLabel}' / '{session.LastSpeedText}'");
             }
             finally
             {
@@ -1628,6 +2268,157 @@ internal static class Phase2AiCases
             var mainVm = new MainViewModel();
             Require(mainVm.CurrentStep == 1, $"Manual mode should start cleanly on Step 1 when not in TestLab, got Step {mainVm.CurrentStep}");
 
+            // 6c. 验证统一建议摘要卡 + AiProposalReviewViewModel + AiProposalReviewWindow（方案 2A：疑似残留确认后才入池，3档谨慎与红线拦截不可勾选）
+            var checkedCleanupRuleIds = new List<string>();
+            var reviewToolset = new ReadOnlyAiAnalysisToolset();
+            reviewToolset.AuthorizeSnapshot(snapshot);
+            var reviewAiVm = new AiAssistantViewModel(
+                toolset: reviewToolset,
+                adoptToPlanCallback: (sid, nid, tgt) => diskVm.TryAddAiProposalToPlan(sid, nid, tgt),
+                checkCleanupRuleCallback: rid =>
+                {
+                    checkedCleanupRuleIds.Add(rid);
+                    return (true, $"已勾选 {rid}");
+                });
+
+            Guid residualCandId = Guid.NewGuid();
+            Guid blockedCandId = Guid.NewGuid();
+            var residualReceipt = new AiCleanupProposalReceipt(
+                ProposalId: Guid.NewGuid(),
+                ClientRequestId: "review-modal-cln-001",
+                ScanId: snapshot.ScanId,
+                CleanupScanId: Guid.NewGuid(),
+                PolicyVersion: MigrationSafetyPolicy.CurrentPolicyVersion,
+                ReceivedAtUtc: DateTimeOffset.UtcNow,
+                Status: AiProposalStatus.Received,
+                IsIdempotentReplay: false,
+                AcceptedRuleAdviceCount: 2,
+                AcceptedResidualCount: 1,
+                HardBlockedCount: 1,
+                RejectedCount: 0,
+                Items:
+                [
+                    new AiCleanupProposalItemRecord(
+                        residualCandId, "AiSuspectedResidual", null, ids.UnknownCache,
+                        "UnknownCache", @"C:\Users\<USER>\AppData\Local\UnknownCache", snapshot.GetFullPath(ids.UnknownCache),
+                        256L * 1024 * 1024, 12, null, "QuarantineSameVolume", 1, "疑似废弃缓存目录", "请先核实再隔离",
+                        AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly, null, null, "待审阅确认"),
+                    new AiCleanupProposalItemRecord(
+                        Guid.NewGuid(), "RuleMatched", "sys-temp-24h", null,
+                        "系统临时文件", @"C:\Windows\Temp", @"C:\Windows\Temp",
+                        64L * 1024 * 1024, 8, CleanupRecommendationTier.Recommended, "QuarantineSameVolume", 1, "1档安全可清", "无。仅清 >24h 临时文件",
+                        AiCleanupProposalItemVerdict.AcceptedRuleAdvice, null, null, "建议清理"),
+                    new AiCleanupProposalItemRecord(
+                        Guid.NewGuid(), "RuleMatched", "dev-npm-cache", null,
+                        "npm 包下载缓存", @"C:\Users\<USER>\AppData\Local\npm-cache", @"C:\Users\Alice\AppData\Local\npm-cache",
+                        128L * 1024 * 1024, 20, CleanupRecommendationTier.OnDemand, "QuarantineSameVolume", 2, "2档按需开发缓存", string.Empty,
+                        AiCleanupProposalItemVerdict.AcceptedRuleAdvice, null, null, "按需清理"),
+                    new AiCleanupProposalItemRecord(
+                        Guid.NewGuid(), "RuleMatched", "caution-orphaned-installer", null,
+                        "孤立安装包", @"C:\Windows\Installer", @"C:\Windows\Installer",
+                        512L * 1024 * 1024, 3, CleanupRecommendationTier.Caution, "QuarantineSameVolume", 3, "3档谨慎参考", "谨慎清理",
+                        AiCleanupProposalItemVerdict.AcceptedRuleAdvice, null, null, "谨慎项"),
+                    new AiCleanupProposalItemRecord(
+                        blockedCandId, "AiSuspectedResidual", null, ids.WindowsSystem32,
+                        "System32", @"C:\Windows\System32", snapshot.GetFullPath(ids.WindowsSystem32),
+                        2L * 1024 * 1024 * 1024, 100, null, "Blocked", 1, "系统目录", string.Empty,
+                        AiCleanupProposalItemVerdict.HardBlockedByExclusion, "SYSTEM_DIR", "系统目录", "命中永久排除区已自动拦截")
+                ],
+                Disclaimer: "AI 建议仅供参考");
+            reviewToolset.Inbox.RecordCleanupProposal(residualReceipt, "digest-review-001");
+
+            var reviewTurn = new AiConversationTurnItem { UserPrompt = "混合建议测试" };
+            reviewAiVm.AppendCleanupProposalCards(reviewTurn, residualReceipt);
+            reviewTurn.ProposalCards.Add(new AiProposalCardItem
+            {
+                ProposalId = Guid.NewGuid(),
+                ScanId = snapshot.ScanId,
+                NodeId = ids.ComfyModels,
+                DisplayName = "models",
+                SanitizedPath = @"C:\Users\<USER>\Apps\ComfyUI\models",
+                ActualLocalPath = snapshot.GetFullPath(ids.ComfyModels),
+                SizeBytes = 1024L * 1024 * 1024,
+                SizeText = "1.00 GB",
+                Reason = "可安全迁移",
+                AdmissionLevel = MigrationAdmissionLevel.VerifiedEligible,
+                Verdict = AiProposalItemVerdict.Accepted,
+                IsAdoptableToMigrationPlan = true,
+                IsAdopted = false
+            });
+            reviewAiVm.GeneralSession.ConversationTurns.Add(reviewTurn);
+
+            Require(reviewTurn.HasProposalCards && reviewTurn.ProposalTotalCount == 6,
+                $"Summary turn should aggregate all 6 mixed cards, got {reviewTurn.ProposalTotalCount}");
+            Require(reviewTurn.ProposalPreviewItems.Count == 3 && reviewTurn.HiddenProposalPreviewCount == 3,
+                $"Summary card should cap inline preview to 3 items with 3 hidden, got {reviewTurn.ProposalPreviewItems.Count}/{reviewTurn.HiddenProposalPreviewCount}");
+            Require(reviewToolset.Inbox.GetCleanupResidualCandidates().All(c => c.Status == AiCleanupCandidateStatus.HardBlockedByExclusion),
+                "Before confirming in review modal, AI suspected residual must NOT appear in active residual list");
+
+            var reviewModalVm = new AiProposalReviewViewModel(reviewAiVm, reviewTurn.ProposalCards, "AI 建议统一审阅与添加", "混合测试");
+            Require(reviewModalVm.SelectedCount == 0 && !reviewModalVm.CanConfirmSelected,
+                "Review modal must start with zero items selected");
+            Require(reviewModalVm.VisibleRows.Count == 6, $"All tab should list 6 rows, got {reviewModalVm.VisibleRows.Count}");
+            Require(reviewModalVm.HasRuleTierTabs && reviewModalVm.HasRuleRecommendedTab && reviewModalVm.HasRuleOnDemandTab && reviewModalVm.HasRuleCautionTab,
+                "Review modal should expose distinct Tier 1/2/3 tabs when multiple cleanup tiers are present");
+
+            AiProposalReviewRowItem cautionRow = reviewModalVm.VisibleRows.Single(r => r.Card.RuleId == "caution-orphaned-installer");
+            AiProposalReviewRowItem blockedRow = reviewModalVm.VisibleRows.Single(r => r.IsBlockedByPolicy);
+            Require(!cautionRow.CanSelect && !blockedRow.CanSelect,
+                "Tier-3 Caution rule and HardBlocked items must NEVER be batch-selectable in review modal");
+
+            AiProposalReviewRowItem residualRow = reviewModalVm.VisibleRows.Single(r => r.Card.CandidateId == residualCandId);
+            AiProposalReviewRowItem tier1RuleRow = reviewModalVm.VisibleRows.Single(r => r.Card.RuleId == "sys-temp-24h");
+            AiProposalReviewRowItem tier2RuleRow = reviewModalVm.VisibleRows.Single(r => r.Card.RuleId == "dev-npm-cache");
+            Require(tier1RuleRow.CategoryBadgeFg == "#0F7B4B" && tier1RuleRow.AccentStripeColor == "#10B981" && !tier1RuleRow.HasRiskWarning,
+                $"Tier-1 recommended rule must use green palette and suppress '无。' boilerplate risk warning, got fg={tier1RuleRow.CategoryBadgeFg}");
+            Require(tier2RuleRow.CategoryBadgeFg == "#0078D4" && tier2RuleRow.AccentStripeColor == "#0078D4",
+                $"Tier-2 on-demand rule must use blue palette, got fg={tier2RuleRow.CategoryBadgeFg}");
+            Require(cautionRow.CategoryBadgeFg == "#B45309" && cautionRow.AccentStripeColor == "#F59E0B" && cautionRow.HasRiskWarning,
+                $"Tier-3 caution rule must use amber palette and keep risk warning, got fg={cautionRow.CategoryBadgeFg}");
+            Require(residualRow.CanSelect && tier1RuleRow.CanSelect && tier2RuleRow.CanSelect,
+                "Awaiting residual and Tier-1/2 rule advices should be selectable in review modal");
+
+            residualRow.IsSelected = true;
+            tier1RuleRow.IsSelected = true;
+            Require(reviewModalVm.SelectedCount == 2 && reviewModalVm.CanConfirmSelected,
+                "Selecting 2 actionable items should enable confirm button");
+
+            reviewModalVm.ConfirmSelectedCommand.Execute(null);
+            Require(residualRow.Card.IsResidualAdopted && !residualRow.CanSelect,
+                "Confirmed AI residual must transition to IsResidualAdopted=true and become non-selectable");
+            Require(reviewToolset.Inbox.GetCleanupResidualCandidates().Any(c => c.CandidateId == residualCandId && c.Status == AiCleanupCandidateStatus.PendingManualReview),
+                "Confirmed AI residual must now enter CleanupAiResidual active list as PendingManualReview");
+            Require(tier1RuleRow.Card.IsCleanupRuleSelected && checkedCleanupRuleIds.Contains("sys-temp-24h"),
+                "Confirmed Tier-1 rule advice must invoke cleanup rule check callback");
+            Require(reviewTurn.ShowJumpToCleanupResidualQuickLink,
+                "Turn summary card should expose quick jump link to AI residual review after adoption");
+
+            var reviewWindow = new AiProposalReviewWindow(reviewModalVm);
+            var reviewRoot = reviewWindow.Content as FrameworkElement;
+            Require(reviewRoot is not null, "AiProposalReviewWindow must have a FrameworkElement root");
+            reviewRoot!.Measure(new Size(880, 640));
+            reviewRoot.Arrange(new Rect(0, 0, 880, 640));
+            reviewRoot.UpdateLayout();
+            assertButtonsSafe(reviewRoot);
+            reviewModalVm.CleanupSubscriptions();
+
+            // 6d. 验证底部限时延长提示栏与吸底建议汇总条在抽屉中布局与按钮安全，以及延长/忽略命令交互
+            Require(reviewAiVm.GeneralSession.HasSessionProposalCards && reviewAiVm.GeneralSession.SessionProposalCount == 6,
+                $"Session sticky bar should reflect 6 proposals, got {reviewAiVm.GeneralSession.SessionProposalCount}");
+            Require(reviewAiVm.GeneralSession.SessionPendingProposalCount == 2,
+                $"After confirming residual + tier-1 rule, 2 pending items (migration + tier-2 rule) should remain, got {reviewAiVm.GeneralSession.SessionPendingProposalCount}");
+            reviewAiVm.GeneralSession.ShowTimeoutExtensionPrompt = true;
+            reviewAiVm.GeneralSession.TimeoutCountdownBadgeText = "剩余 01:45";
+            reviewAiVm.GeneralSession.TimeoutPromptDescription = "当前单次分析限时 20 分钟即将到达，是否需要延长本次限时？";
+            var drawerWithBanner = new AiAssistantDrawerControl { DataContext = reviewAiVm.GeneralSession };
+            drawerWithBanner.Measure(new Size(374, 620));
+            drawerWithBanner.Arrange(new Rect(0, 0, 374, 620));
+            drawerWithBanner.UpdateLayout();
+            assertButtonsSafe(drawerWithBanner);
+            reviewAiVm.GeneralSession.DismissTimeoutExtensionPromptCommand.Execute(null);
+            Require(!reviewAiVm.GeneralSession.ShowTimeoutExtensionPrompt,
+                "DismissTimeoutExtensionPromptCommand should hide bottom extension prompt");
+
             // 7. 验证 SafeMarkdownViewer 安全渲染（支持标题/列表/加粗/代码/表格，物理上零 Hyperlink）
             const string sampleMd = """
                 ## 空间分析结论
@@ -1689,6 +2480,43 @@ internal static class Phase2AiCases
             Require(textBlockCount >= 8, $"SafeMarkdownViewer should render structured blocks, got only {textBlockCount} TextBlocks");
             Require(!foundHyperlink, "SafeMarkdownViewer MUST NEVER create Hyperlink controls in elevated WPF process");
             Require(!foundRawFileUri, "SafeMarkdownViewer MUST scrub dangerous file:/// URIs");
+
+            // 8. 验证 ReasoningEffortSlider（Fluent 亮色融冰能量滑块）与 EffortEnergyRenderer 纯原生 WPF 渲染及按钮安全性
+            var renderer = new EffortEnergyRenderer();
+            foreach (AiReasoningEffort level in Enum.GetValues<AiReasoningEffort>())
+            {
+                renderer.Reignite(0.65);
+                int lit = renderer.RenderFrame(1.25, 0.016, level == AiReasoningEffort.None ? 0.0 : 0.85, level, isDragging: false);
+                if (level is AiReasoningEffort.Default or AiReasoningEffort.High or AiReasoningEffort.XHigh or AiReasoningEffort.Max)
+                {
+                    Require(lit > 0, $"EffortEnergyRenderer should render lit energy cells for {level}, got {lit}");
+                }
+            }
+
+            var slider = new ReasoningEffortSlider
+            {
+                SelectedEffort = AiReasoningEffort.Default,
+                SelectEffortCommand = aiVm.SelectReasoningEffortCommand,
+                IsActive = true
+            };
+            slider.Measure(new Size(340, 260));
+            slider.Arrange(new Rect(0, 0, 340, 260));
+            slider.UpdateLayout();
+            assertButtonsSafe(slider);
+
+            aiVm.SelectReasoningEffortCommand.Execute("Max");
+            Require(aiVm.ReasoningEffort == AiReasoningEffort.Max
+                && aiVm.ReasoningEffortPillFg == EffortEnergyRenderer.GetVisualSpec(AiReasoningEffort.Max).PillFgHex
+                && aiVm.ReasoningEffortPillDot == EffortEnergyRenderer.GetVisualSpec(AiReasoningEffort.Max).PillDotHex,
+                "AiAssistantViewModel pill colors must track ReasoningEffort visual spec");
+
+            var autoBtn = (Button)slider.FindName("AutoDefaultButton")!;
+            slider.SelectedEffort = AiReasoningEffort.Max;
+            slider.UpdateLayout();
+            autoBtn.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Require(aiVm.ReasoningEffort == AiReasoningEffort.Default,
+                "Clicking AutoDefaultButton from Max must restore AiReasoningEffort.Default");
+            slider.IsActive = false;
         }
         finally
         {
@@ -1928,6 +2756,12 @@ internal static class Phase2AiCases
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.RequestUri is null
+                || !request.RequestUri.AbsolutePath.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+
             _turn++;
             string sse = _turn switch
             {
@@ -2049,4 +2883,20 @@ internal static class Phase2AiCases
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
+    private sealed class SingleSseResponseHandler(string sseBody) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri is null
+                || !request.RequestUri.AbsolutePath.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(sseBody, Encoding.UTF8, "text/event-stream")
+            });
+        }
+    }
 }

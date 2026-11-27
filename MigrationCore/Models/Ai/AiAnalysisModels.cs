@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using MigrationCore.Models.Safety;
 using MigrationCore.Models.Scanning;
 
@@ -309,11 +310,17 @@ public sealed record AiPolicyLevelDescription(
 /// AI 提交的迁移建议单项（严格白名单：仅允许 nodeId 与服务端 targetCandidateId，严禁任意绝对路径或 approved=true）。
 /// </summary>
 public sealed record AiMigrationProposalItemInput(
+    [property: Description("待迁移目录节点整数 ID（必须取自扫描工具返回的真实 nodeId）。")]
     int NodeId,
-    string? TargetCandidateId,
-    int Priority,
-    string Reason,
+    [property: Description("可选：服务端颁发的迁移目标卷 ID（取自 targetCandidates[].targetCandidateId，如 'target-vol-d'）；NativeGuideAdvisory 或无目标盘时可省略或传 null，服务端会自动匹配推荐目标卷。")]
+    string? TargetCandidateId = null,
+    [property: Description("优先级整数（1～99，数字越小越优先，默认 1）。")]
+    int Priority = 1,
+    [property: Description("简明中文迁移或诊断理由。")]
+    string Reason = "",
+    [property: Description("可选：兼容性注意事项或需提前关闭的进程提示。")]
     string? CompatibilityNotes = null,
+    [property: Description("可选分类：'Migration'（默认，符号链接迁移建议）/ 'NativeGuideAdvisory'（L2 厂商原生迁移引导，不加入符号链接清单）/ 'SuspectedCacheAdvisory'（疑似缓存只读诊断提示）。")]
     string? SuggestedCategory = null);
 
 /// <summary>

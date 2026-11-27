@@ -48,18 +48,36 @@ public sealed class AiContextHotspotRow
 }
 
 /// <summary>
-/// 抽屉中渲染的结构化建议卡片（绿色迁移建议 / 琥珀色疑似残留或原生引导 / 红色 L0 自动拦截）。
+/// AI 建议条目的统一分类（用于对话摘要卡徽章与统一审阅弹框分类标签）。
+/// </summary>
+public enum AiProposalCategoryKind
+{
+    Migration = 0,
+    CleanupResidual = 1,
+    CleanupRule = 2,
+    NativeGuide = 3,
+    Blocked = 4
+}
+
+/// <summary>
+/// AI 建议条目视图模型（用于对话摘要卡预览与「AI 建议统一审阅」弹框中的多选批量操作）。
 /// </summary>
 public partial class AiProposalCardItem : ObservableObject
 {
     public Guid ProposalId { get; init; }
+    public Guid CandidateId { get; init; }
     public Guid ScanId { get; init; }
+    public Guid CleanupScanId { get; init; }
     public int NodeId { get; init; }
+    public string? RuleId { get; init; }
+    public CleanupRecommendationTier? OriginalRuleTier { get; init; }
     public string DisplayName { get; init; } = string.Empty;
     public string SanitizedPath { get; init; } = string.Empty;
     public string ActualLocalPath { get; init; } = string.Empty;
+    public long SizeBytes { get; init; }
     public string SizeText { get; init; } = string.Empty;
     public string Reason { get; init; } = string.Empty;
+    public string RiskWarning { get; init; } = string.Empty;
     public string VerdictMessage { get; init; } = string.Empty;
     public string? SuggestedTargetPath { get; init; }
     public MigrationAdmissionLevel AdmissionLevel { get; init; }
@@ -71,17 +89,85 @@ public partial class AiProposalCardItem : ObservableObject
     public bool IsCleanupResidualProposal { get; init; }
     public bool IsCleanupRuleAdvice { get; init; }
     public bool IsL2NativeGuide => !IsBlockedByPolicy && (AdmissionLevel == MigrationAdmissionLevel.VendorNativeRecommended || IsNativeGuideAdvisory);
+    public bool HasRiskWarning => !string.IsNullOrWhiteSpace(RiskWarning);
+
+    public AiProposalCategoryKind CategoryKind => IsBlockedByPolicy
+        ? AiProposalCategoryKind.Blocked
+        : IsAdoptableToMigrationPlan
+            ? AiProposalCategoryKind.Migration
+            : (IsCleanupResidualProposal || IsSuspectedCacheAdvisory)
+                ? AiProposalCategoryKind.CleanupResidual
+                : IsCleanupRuleAdvice
+                    ? AiProposalCategoryKind.CleanupRule
+                    : AiProposalCategoryKind.NativeGuide;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AdoptButtonText))]
     [NotifyPropertyChangedFor(nameof(CanAdopt))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(IsActionCompleted))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
     private bool _isAdopted;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAdoptResidual))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(IsActionCompleted))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
+    private bool _isResidualAdopted;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAdoptResidual))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(IsActionCompleted))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
+    private bool _isResidualQuarantined;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSelectCleanupRuleInModal))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(IsActionCompleted))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
+    private bool _isCleanupRuleSelected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AdoptButtonText))]
     [NotifyPropertyChangedFor(nameof(CanAdopt))]
+    [NotifyPropertyChangedFor(nameof(CanAdoptResidual))]
+    [NotifyPropertyChangedFor(nameof(CanSelectCleanupRuleInModal))]
+    [NotifyPropertyChangedFor(nameof(CanBatchSelectInModal))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusText))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBg))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusBorder))]
+    [NotifyPropertyChangedFor(nameof(CompactStatusFg))]
     private bool _isInvalidated;
 
     public bool CanAdopt => IsAdoptableToMigrationPlan && !IsAdopted && !IsInvalidated;
+    public bool CanAdoptResidual => !IsBlockedByPolicy && IsCleanupResidualProposal && !IsResidualAdopted && !IsResidualQuarantined && !IsInvalidated;
+    public bool CanSelectCleanupRuleInModal => !IsBlockedByPolicy
+        && IsCleanupRuleAdvice
+        && OriginalRuleTier != CleanupRecommendationTier.Caution
+        && !string.IsNullOrWhiteSpace(RuleId)
+        && !IsCleanupRuleSelected
+        && !IsInvalidated;
+
+    public bool CanBatchSelectInModal => CanAdopt || CanAdoptResidual || CanSelectCleanupRuleInModal;
+    public bool IsActionableCategory => IsAdoptableToMigrationPlan
+        || (!IsBlockedByPolicy && IsCleanupResidualProposal)
+        || (!IsBlockedByPolicy && IsCleanupRuleAdvice && OriginalRuleTier != CleanupRecommendationTier.Caution && !string.IsNullOrWhiteSpace(RuleId));
+    public bool IsActionCompleted => IsAdopted || IsResidualAdopted || IsResidualQuarantined || IsCleanupRuleSelected;
 
     public string CardTitle => IsBlockedByPolicy
         ? $"已自动拦截高危建议 · {DisplayName}"
@@ -93,20 +179,104 @@ public partial class AiProposalCardItem : ObservableObject
                     ? $"L2 原生引导 · {DisplayName}"
                     : $"建议迁移 · {DisplayName}";
 
-    public string CardBg => IsBlockedByPolicy ? "#FEF2F2"
-        : (IsSuspectedCacheAdvisory || IsCleanupResidualProposal || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#FFFBEB"
-        : IsCleanupRuleAdvice ? "#EBF5FF"
-        : "#ECFDF5";
+    public string CompactCategoryBadgeText => IsBlockedByPolicy
+        ? "已拦截"
+        : IsAdoptableToMigrationPlan
+            ? (AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm ? "迁移·L3需确认" : "建议迁移")
+            : IsCleanupResidualProposal
+                ? "AI 疑似残留"
+                : IsSuspectedCacheAdvisory
+                    ? "疑似缓存参考"
+                    : IsCleanupRuleAdvice
+                        ? OriginalRuleTier switch
+                        {
+                            CleanupRecommendationTier.Recommended => "清理·1档建议",
+                            CleanupRecommendationTier.OnDemand => "清理·2档按需",
+                            CleanupRecommendationTier.Caution => "清理·3档谨慎",
+                            _ => "清理规则建议"
+                        }
+                        : IsL2NativeGuide
+                            ? "L2 原生引导"
+                            : "只读参考";
 
-    public string CardBorder => IsBlockedByPolicy ? "#FECACA"
-        : (IsSuspectedCacheAdvisory || IsCleanupResidualProposal || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#FDE68A"
-        : IsCleanupRuleAdvice ? "#BFDBFE"
-        : "#A7F3D0";
+    public string CompactStatusText => IsBlockedByPolicy
+        ? "永久拦截"
+        : IsInvalidated
+            ? "快照已失效"
+            : IsResidualQuarantined
+                ? "已同卷隔离"
+                : IsAdopted
+                    ? "✓ 已加迁移清单"
+                    : IsResidualAdopted
+                        ? "✓ 已加疑似残留"
+                        : IsCleanupRuleSelected
+                            ? "✓ 已勾清理规则"
+                            : CanAdopt
+                                ? "待加入迁移"
+                                : CanAdoptResidual
+                                    ? "待确认加入"
+                                    : CanSelectCleanupRuleInModal
+                                        ? "可勾选清理"
+                                        : (IsCleanupRuleAdvice && OriginalRuleTier == CleanupRecommendationTier.Caution)
+                                            ? "需至清理页核对"
+                                            : "仅作参考";
 
-    public string CardAccentFg => IsBlockedByPolicy ? "#C42B1C"
-        : (IsSuspectedCacheAdvisory || IsCleanupResidualProposal || IsL2NativeGuide || AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm) ? "#B45309"
-        : IsCleanupRuleAdvice ? "#0078D4"
-        : "#0F7B4B";
+    public string CompactStatusBg => IsBlockedByPolicy ? "#FEF2F2"
+        : IsInvalidated ? "#F1F5F9"
+        : IsActionCompleted ? "#ECFDF5"
+        : CanBatchSelectInModal ? "#FFFFFF"
+        : "#F8FAFC";
+
+    public string CompactStatusBorder => IsBlockedByPolicy ? "#FECACA"
+        : IsInvalidated ? "#CBD5E1"
+        : IsActionCompleted ? "#A7F3D0"
+        : CanBatchSelectInModal ? CardBorder
+        : "#E2E8F0";
+
+    public string CompactStatusFg => IsBlockedByPolicy ? "#C42B1C"
+        : IsInvalidated ? "#64748B"
+        : IsActionCompleted ? "#0F7B4B"
+        : CanBatchSelectInModal ? CardAccentFg
+        : "#64748B";
+
+    public string CardBg => CategoryKind switch
+    {
+        AiProposalCategoryKind.Blocked => "#FEF2F2",
+        AiProposalCategoryKind.Migration => AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm ? "#FFFBEB" : "#ECFDF5",
+        AiProposalCategoryKind.CleanupRule => OriginalRuleTier switch
+        {
+            CleanupRecommendationTier.Recommended => "#ECFDF5",
+            CleanupRecommendationTier.Caution => "#FFFBEB",
+            _ => "#EBF5FF"
+        },
+        _ => "#FFFBEB"
+    };
+
+    public string CardBorder => CategoryKind switch
+    {
+        AiProposalCategoryKind.Blocked => "#FECACA",
+        AiProposalCategoryKind.Migration => AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm ? "#FDE68A" : "#A7F3D0",
+        AiProposalCategoryKind.CleanupRule => OriginalRuleTier switch
+        {
+            CleanupRecommendationTier.Recommended => "#A7F3D0",
+            CleanupRecommendationTier.Caution => "#FDE68A",
+            _ => "#BFDBFE"
+        },
+        _ => "#FDE68A"
+    };
+
+    public string CardAccentFg => CategoryKind switch
+    {
+        AiProposalCategoryKind.Blocked => "#C42B1C",
+        AiProposalCategoryKind.Migration => AdmissionLevel == MigrationAdmissionLevel.ManualRiskConfirm ? "#B45309" : "#0F7B4B",
+        AiProposalCategoryKind.CleanupRule => OriginalRuleTier switch
+        {
+            CleanupRecommendationTier.Recommended => "#0F7B4B",
+            CleanupRecommendationTier.Caution => "#B45309",
+            _ => "#0078D4"
+        },
+        _ => "#B45309"
+    };
 
     public string AdoptButtonText => IsInvalidated
         ? "快照已变更（建议失效）"
@@ -118,6 +288,9 @@ public partial class AiProposalCardItem : ObservableObject
 
     public bool ShowOpenCleanupResidualButton => !IsBlockedByPolicy && (IsCleanupResidualProposal || IsSuspectedCacheAdvisory);
     public bool ShowLocateButton => !IsBlockedByPolicy && !IsAdoptableToMigrationPlan && !ShowOpenCleanupResidualButton && NodeId > 0;
+    public bool CanLocateInTree => !IsBlockedByPolicy && ScanId != Guid.Empty && NodeId > 0;
+    public bool CanOpenInExplorer => !IsBlockedByPolicy && !string.IsNullOrWhiteSpace(ActualLocalPath);
+    public bool CanLocateCleanupRule => !IsBlockedByPolicy && IsCleanupRuleAdvice && !string.IsNullOrWhiteSpace(RuleId);
 }
 
 /// <summary>
@@ -350,8 +523,10 @@ public partial class AiToolBatchStepItem : AiTimelineStepItem
             int detailCount = Items.Count(i => i.ToolName == "get_candidate_details");
             int inspectCount = Items.Count(i => i.ToolName == "inspect_unknown_directory_metadata");
             int policyCount = Items.Count(i => i.ToolName == "get_migration_policy");
-            int proposalCount = Items.Count(i => i.ToolName is "submit_migration_proposal" or "get_proposal_status");
-            int otherCount = Items.Count - (envCount + summaryCount + drillCount + candidateCount + detailCount + inspectCount + policyCount + proposalCount);
+            int cleanupReadCount = Items.Count(i => i.ToolName is "get_cleanup_scan_summary" or "list_cleanup_items" or "get_cleanup_item_details");
+            int proposalCount = Items.Count(i => i.ToolName is "submit_migration_proposal" or "get_proposal_status" or "submit_cleanup_proposal");
+            int scanGuideCount = Items.Count(i => i.ToolName == "request_user_scan_action");
+            int otherCount = Items.Count - (envCount + summaryCount + drillCount + candidateCount + detailCount + inspectCount + policyCount + cleanupReadCount + proposalCount + scanGuideCount);
 
             if (envCount > 0) parts.Add(envCount == 1 ? "获取系统环境" : $"查询环境 {envCount} 次");
             if (summaryCount > 0) parts.Add(summaryCount == 1 ? "获取扫描概览" : $"获取概览 {summaryCount} 次");
@@ -360,7 +535,9 @@ public partial class AiToolBatchStepItem : AiTimelineStepItem
             if (drillCount > 0) parts.Add($"钻入 {drillCount} 个目录");
             if (detailCount > 0) parts.Add($"查看 {detailCount} 项详情");
             if (inspectCount > 0) parts.Add($"画像 {inspectCount} 个未知目录");
+            if (cleanupReadCount > 0) parts.Add(cleanupReadCount == 1 ? "读取清理规则" : $"查看清理规则 {cleanupReadCount} 次");
             if (proposalCount > 0) parts.Add($"提交 {proposalCount} 项建议");
+            if (scanGuideCount > 0) parts.Add("弹出扫描确认卡片");
             if (otherCount > 0) parts.Add($"调用 {otherCount} 次工具");
 
             string body = "已" + string.Join("、", parts);
@@ -447,6 +624,86 @@ public partial class AiConversationTurnItem : ObservableObject
 
     public bool HasTimelineItems => TimelineItems.Count > 0;
     public bool HasScanActionCards => ScanActionCards.Count > 0;
+    public bool HasProposalCards => ProposalCards.Count > 0;
+    public int ProposalTotalCount => ProposalCards.Count;
+
+    public int MigrationProposalCount => ProposalCards.Count(c => c.CategoryKind == AiProposalCategoryKind.Migration);
+    public int CleanupResidualProposalCount => ProposalCards.Count(c => c.CategoryKind == AiProposalCategoryKind.CleanupResidual);
+    public int CleanupRuleProposalCount => ProposalCards.Count(c => c.CategoryKind == AiProposalCategoryKind.CleanupRule);
+    public int NativeGuideProposalCount => ProposalCards.Count(c => c.CategoryKind == AiProposalCategoryKind.NativeGuide);
+    public int BlockedProposalCount => ProposalCards.Count(c => c.CategoryKind == AiProposalCategoryKind.Blocked);
+
+    public bool HasMigrationProposals => MigrationProposalCount > 0;
+    public bool HasCleanupResidualProposals => CleanupResidualProposalCount > 0;
+    public bool HasCleanupRuleProposals => CleanupRuleProposalCount > 0;
+    public bool HasNativeGuideProposals => NativeGuideProposalCount > 0;
+    public bool HasBlockedProposals => BlockedProposalCount > 0;
+
+    public string MigrationBadgeText => $"迁移 {MigrationProposalCount}";
+    public string CleanupResidualBadgeText => $"疑似残留 {CleanupResidualProposalCount}";
+    public string CleanupRuleBadgeText => $"清理规则 {CleanupRuleProposalCount}";
+    public string NativeGuideBadgeText => $"原生引导 {NativeGuideProposalCount}";
+    public string BlockedBadgeText => $"已拦截 {BlockedProposalCount}";
+
+    public int ActionableProposalCount => ProposalCards.Count(c => c.IsActionableCategory && !c.IsInvalidated);
+    public int CompletedActionableProposalCount => ProposalCards.Count(c => c.IsActionableCategory && c.IsActionCompleted);
+    public int PendingActionableProposalCount => ProposalCards.Count(c => c.CanBatchSelectInModal);
+    public bool HasProposalProgressDone => ActionableProposalCount > 0 && PendingActionableProposalCount == 0;
+    public bool ShowJumpToCleanupResidualQuickLink => ProposalCards.Any(c =>
+        c.IsCleanupResidualProposal && c.IsResidualAdopted && !c.IsResidualQuarantined && !c.IsInvalidated);
+
+    public string ProposalSummaryHeadline
+    {
+        get
+        {
+            if (ProposalCards.Count == 0) return string.Empty;
+            long totalBytes = ProposalCards.Where(c => !c.IsBlockedByPolicy && c.SizeBytes > 0).Sum(c => c.SizeBytes);
+            return totalBytes > 0
+                ? $"本轮生成 {ProposalCards.Count} 条建议 · 涉及约 {FileStatsService.FormatBytes(totalBytes)}"
+                : $"本轮生成 {ProposalCards.Count} 条建议";
+        }
+    }
+
+    public string ProposalSummaryProgressText
+    {
+        get
+        {
+            if (ProposalCards.Count == 0) return string.Empty;
+            int actionable = ActionableProposalCount;
+            int completed = CompletedActionableProposalCount;
+            int pending = PendingActionableProposalCount;
+
+            if (actionable == 0)
+            {
+                return BlockedProposalCount == ProposalCards.Count
+                    ? "全部命中安全红线已自动拦截，仅作审计记录"
+                    : "仅包含说明或需前往对应页面手动核对的建议";
+            }
+            if (pending == 0 && completed > 0)
+            {
+                return $"全部 {completed} 项可添加建议均已确认加入 ✓";
+            }
+            if (completed > 0)
+            {
+                return $"已确认加入 {completed}/{actionable} 项 · 还有 {pending} 项待审阅添加";
+            }
+            return $"共 {pending} 项待审阅，点击下方弹窗统一核实并勾选添加";
+        }
+    }
+
+    public IReadOnlyList<AiProposalCardItem> ProposalPreviewItems => ProposalCards
+        .OrderBy(c => c.IsBlockedByPolicy ? 2 : (c.IsActionableCategory ? 0 : 1))
+        .ThenByDescending(c => c.SizeBytes)
+        .Take(3)
+        .ToArray();
+
+    public int HiddenProposalPreviewCount => Math.Max(0, ProposalCards.Count - 3);
+    public bool HasHiddenProposalPreview => HiddenProposalPreviewCount > 0;
+    public string HiddenProposalPreviewText => $"… 其余 {HiddenProposalPreviewCount} 项请在弹窗中统一查看";
+
+    public string ReviewModalButtonText => PendingActionableProposalCount > 0
+        ? $"统一查看与添加 ({ProposalCards.Count}) ↗"
+        : $"统一查看建议详情 ({ProposalCards.Count}) ↗";
 
     public string TraceHeaderText
     {
@@ -470,6 +727,71 @@ public partial class AiConversationTurnItem : ObservableObject
     {
         TimelineItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTimelineItems));
         ScanActionCards.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasScanActionCards));
+        ProposalCards.CollectionChanged += OnProposalCardsCollectionChanged;
+    }
+
+    private void OnProposalCardsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+        {
+            foreach (AiProposalCardItem oldItem in e.OldItems)
+            {
+                oldItem.PropertyChanged -= OnProposalCardPropertyChanged;
+            }
+        }
+        if (e.NewItems is not null)
+        {
+            foreach (AiProposalCardItem newItem in e.NewItems)
+            {
+                newItem.PropertyChanged += OnProposalCardPropertyChanged;
+            }
+        }
+        NotifyProposalSummaryChanged();
+    }
+
+    private void OnProposalCardPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AiProposalCardItem.IsAdopted)
+            or nameof(AiProposalCardItem.IsResidualAdopted)
+            or nameof(AiProposalCardItem.IsResidualQuarantined)
+            or nameof(AiProposalCardItem.IsCleanupRuleSelected)
+            or nameof(AiProposalCardItem.IsInvalidated))
+        {
+            NotifyProposalSummaryChanged();
+        }
+    }
+
+    public void NotifyProposalSummaryChanged()
+    {
+        OnPropertyChanged(nameof(HasProposalCards));
+        OnPropertyChanged(nameof(ProposalTotalCount));
+        OnPropertyChanged(nameof(MigrationProposalCount));
+        OnPropertyChanged(nameof(CleanupResidualProposalCount));
+        OnPropertyChanged(nameof(CleanupRuleProposalCount));
+        OnPropertyChanged(nameof(NativeGuideProposalCount));
+        OnPropertyChanged(nameof(BlockedProposalCount));
+        OnPropertyChanged(nameof(HasMigrationProposals));
+        OnPropertyChanged(nameof(HasCleanupResidualProposals));
+        OnPropertyChanged(nameof(HasCleanupRuleProposals));
+        OnPropertyChanged(nameof(HasNativeGuideProposals));
+        OnPropertyChanged(nameof(HasBlockedProposals));
+        OnPropertyChanged(nameof(MigrationBadgeText));
+        OnPropertyChanged(nameof(CleanupResidualBadgeText));
+        OnPropertyChanged(nameof(CleanupRuleBadgeText));
+        OnPropertyChanged(nameof(NativeGuideBadgeText));
+        OnPropertyChanged(nameof(BlockedBadgeText));
+        OnPropertyChanged(nameof(ActionableProposalCount));
+        OnPropertyChanged(nameof(CompletedActionableProposalCount));
+        OnPropertyChanged(nameof(PendingActionableProposalCount));
+        OnPropertyChanged(nameof(HasProposalProgressDone));
+        OnPropertyChanged(nameof(ShowJumpToCleanupResidualQuickLink));
+        OnPropertyChanged(nameof(ProposalSummaryHeadline));
+        OnPropertyChanged(nameof(ProposalSummaryProgressText));
+        OnPropertyChanged(nameof(ProposalPreviewItems));
+        OnPropertyChanged(nameof(HiddenProposalPreviewCount));
+        OnPropertyChanged(nameof(HasHiddenProposalPreview));
+        OnPropertyChanged(nameof(HiddenProposalPreviewText));
+        OnPropertyChanged(nameof(ReviewModalButtonText));
     }
 }
 
@@ -518,8 +840,28 @@ public partial class AiScanDriveOptionItem : ObservableObject
     public bool IsSystemDrive { get; init; }
     public bool SupportsRawMft { get; init; }
     public bool IsAiRecommended { get; init; }
-    public bool HasFreshSnapshot { get; init; }
-    public string FreshSnapshotAgeText { get; init; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeBorder))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeFg))]
+    [NotifyPropertyChangedFor(nameof(SecondaryUrgencyText))]
+    [NotifyPropertyChangedFor(nameof(HasSecondaryUrgency))]
+    private bool _hasFreshSnapshot;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeText))]
+    private string _freshSnapshotAgeText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeText))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeBorder))]
+    [NotifyPropertyChangedFor(nameof(PrimaryBadgeFg))]
+    [NotifyPropertyChangedFor(nameof(SecondaryUrgencyText))]
+    [NotifyPropertyChangedFor(nameof(HasSecondaryUrgency))]
+    private bool _isCurrentlyScanning;
 
     [ObservableProperty]
     private bool _isChecked;
@@ -532,32 +874,37 @@ public partial class AiScanDriveOptionItem : ObservableObject
 
     public string CapacityText => $"剩 {FileStatsService.FormatBytes(FreeBytes)} / {FileStatsService.FormatBytes(TotalBytes)}";
 
-    public string PrimaryBadgeText => HasFreshSnapshot
-        ? (string.IsNullOrEmpty(FreshSnapshotAgeText) ? "已有快照 ✓" : $"已有快照·{FreshSnapshotAgeText}")
-        : IsAiRecommended
-            ? "AI 推荐"
-            : UsedPercent >= 85
-                ? $"已用 {UsedPercent:F0}%"
-                : SupportsRawMft
-                    ? "NTFS·MFT"
-                    : "目录扫描";
+    public string PrimaryBadgeText => IsCurrentlyScanning
+        ? "扫描中…"
+        : HasFreshSnapshot
+            ? (string.IsNullOrEmpty(FreshSnapshotAgeText) ? "已有快照 ✓" : $"已有快照·{FreshSnapshotAgeText}")
+            : IsAiRecommended
+                ? "AI 推荐"
+                : UsedPercent >= 85
+                    ? $"已用 {UsedPercent:F0}%"
+                    : SupportsRawMft
+                        ? "NTFS·MFT"
+                        : "目录扫描";
 
-    public string PrimaryBadgeBg => HasFreshSnapshot ? "#ECFDF5"
+    public string PrimaryBadgeBg => IsCurrentlyScanning ? "#EBF5FF"
+        : HasFreshSnapshot ? "#ECFDF5"
         : IsAiRecommended ? "#EBF5FF"
         : UsedPercent >= 85 ? "#FEF2F2"
         : "#F1F5F9";
 
-    public string PrimaryBadgeBorder => HasFreshSnapshot ? "#A7F3D0"
+    public string PrimaryBadgeBorder => IsCurrentlyScanning ? "#93C5FD"
+        : HasFreshSnapshot ? "#A7F3D0"
         : IsAiRecommended ? "#BFDBFE"
         : UsedPercent >= 85 ? "#FECACA"
         : "#E2E8F0";
 
-    public string PrimaryBadgeFg => HasFreshSnapshot ? "#0F7B4B"
+    public string PrimaryBadgeFg => IsCurrentlyScanning ? "#0078D4"
+        : HasFreshSnapshot ? "#0F7B4B"
         : IsAiRecommended ? "#0078D4"
         : UsedPercent >= 85 ? "#C42B1C"
         : "#475569";
 
-    public string SecondaryUrgencyText => !HasFreshSnapshot && IsAiRecommended && UsedPercent >= 85
+    public string SecondaryUrgencyText => !IsCurrentlyScanning && !HasFreshSnapshot && IsAiRecommended && UsedPercent >= 85
         ? $"已用 {UsedPercent:F0}%"
         : string.Empty;
 
@@ -593,6 +940,16 @@ public partial class AiScanActionCardItem : ObservableObject
     private bool _includeCleanupScan;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StartScanButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanStartScan))]
+    [NotifyPropertyChangedFor(nameof(HasFreshCleanupSummary))]
+    private bool _hasFreshCleanupSnapshot;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFreshCleanupSummary))]
+    private string _freshCleanupSummaryText = string.Empty;
+
+    [ObservableProperty]
     private bool _autoContinueAfterScan = true;
 
     [ObservableProperty]
@@ -603,7 +960,9 @@ public partial class AiScanActionCardItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanStartScan))]
     [NotifyPropertyChangedFor(nameof(ShowIdleActions))]
     [NotifyPropertyChangedFor(nameof(ShowRunningActions))]
+    [NotifyPropertyChangedFor(nameof(ShowExternalRunningActions))]
     [NotifyPropertyChangedFor(nameof(ShowCompletedActions))]
+    [NotifyPropertyChangedFor(nameof(ShowIdleStatusNotice))]
     [NotifyPropertyChangedFor(nameof(CardBorder))]
     [NotifyPropertyChangedFor(nameof(CardBg))]
     private bool _isScanning;
@@ -611,7 +970,29 @@ public partial class AiScanActionCardItem : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanStartScan))]
     [NotifyPropertyChangedFor(nameof(ShowIdleActions))]
+    [NotifyPropertyChangedFor(nameof(ShowRunningActions))]
+    [NotifyPropertyChangedFor(nameof(ShowExternalRunningActions))]
     [NotifyPropertyChangedFor(nameof(ShowCompletedActions))]
+    [NotifyPropertyChangedFor(nameof(ShowIdleStatusNotice))]
+    [NotifyPropertyChangedFor(nameof(CardBorder))]
+    [NotifyPropertyChangedFor(nameof(CardBg))]
+    private bool _isExternalScanRunning;
+
+    [ObservableProperty]
+    private double _externalScanProgressPercent;
+
+    [ObservableProperty]
+    private string _externalScanStatusMessage = string.Empty;
+
+    internal bool ExternalScanIsCleanup { get; private set; }
+    internal bool ExternalScanIsDisk { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanStartScan))]
+    [NotifyPropertyChangedFor(nameof(ShowIdleActions))]
+    [NotifyPropertyChangedFor(nameof(ShowExternalRunningActions))]
+    [NotifyPropertyChangedFor(nameof(ShowCompletedActions))]
+    [NotifyPropertyChangedFor(nameof(ShowIdleStatusNotice))]
     [NotifyPropertyChangedFor(nameof(CardBorder))]
     [NotifyPropertyChangedFor(nameof(CardBg))]
     private bool _isCompleted;
@@ -626,6 +1007,7 @@ public partial class AiScanActionCardItem : ObservableObject
     private bool _progressIsIndeterminate = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowIdleStatusNotice))]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -633,17 +1015,22 @@ public partial class AiScanActionCardItem : ObservableObject
     private string _errorMessage = string.Empty;
 
     public bool HasErrorMessage => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool HasFreshCleanupSummary => ShowCleanupOption && HasFreshCleanupSnapshot && !string.IsNullOrWhiteSpace(FreshCleanupSummaryText);
     public bool HasOverflowDrives => AllDrives.Count >= CollapseThreshold;
     public bool ShowQuickDrivePresets => ShowDrivePicker && AllDrives.Count >= 3;
     public int CheckedDriveCount => AllDrives.Count(d => d.IsChecked);
     public bool HasAnyFreshReusableSnapshot => AllDrives.Any(d => d.HasFreshSnapshot);
 
-    public bool ShowIdleActions => !IsScanning && !IsCompleted;
+    public bool ShowIdleActions => !IsScanning && !IsExternalScanRunning && !IsCompleted;
     public bool ShowRunningActions => IsScanning;
+    public bool ShowExternalRunningActions => IsExternalScanRunning && !IsScanning && !IsCompleted;
     public bool ShowCompletedActions => IsCompleted && !IsScanning;
+    public bool ShowIdleStatusNotice => ShowIdleActions && !string.IsNullOrWhiteSpace(StatusMessage);
 
-    public bool CanStartScan => !IsScanning && !IsCompleted
-        && (CheckedDriveCount > 0 || (ShowCleanupOption && IncludeCleanupScan) || (ShowDrivePicker && HasAnyFreshReusableSnapshot));
+    public bool CanStartScan => !IsScanning && !IsExternalScanRunning && !IsCompleted
+        && (CheckedDriveCount > 0
+            || (ShowCleanupOption && (IncludeCleanupScan || HasFreshCleanupSnapshot))
+            || (ShowDrivePicker && HasAnyFreshReusableSnapshot));
 
     public string CardTitle => Kind switch
     {
@@ -681,12 +1068,109 @@ public partial class AiScanActionCardItem : ObservableObject
             if (runCleanup && driveCount > 0) return $"开始扫描（清理 + {driveCount} 块盘）";
             if (runCleanup) return "立即执行垃圾清理扫描";
             if (driveCount > 0) return $"开始扫描（{driveCount} 块盘）";
-            if (ShowDrivePicker && HasAnyFreshReusableSnapshot) return "复用已有快照继续分析";
+            if ((ShowDrivePicker && HasAnyFreshReusableSnapshot) || (ShowCleanupOption && HasFreshCleanupSnapshot))
+            {
+                return "复用已有快照继续分析";
+            }
             return "请至少勾选 1 项";
         }
     }
 
     public CancellationTokenSource? ActiveScanCts { get; set; }
+
+    public void ApplyExternalCleanupScanState(bool isScanning, double percent, string message)
+    {
+        if (!ShowCleanupOption || IsScanning || IsCompleted) return;
+
+        if (isScanning)
+        {
+            ExternalScanIsCleanup = true;
+            IsExternalScanRunning = true;
+            ExternalScanProgressPercent = Math.Clamp(percent, 0, 100);
+            ExternalScanStatusMessage = string.IsNullOrWhiteSpace(message)
+                ? "已联动左侧垃圾清理扫描中…"
+                : $"已联动左侧：{message}";
+        }
+        else if (ExternalScanIsCleanup)
+        {
+            ExternalScanIsCleanup = false;
+            if (!ExternalScanIsDisk)
+            {
+                IsExternalScanRunning = false;
+                ExternalScanProgressPercent = 0;
+                ExternalScanStatusMessage = string.Empty;
+            }
+        }
+    }
+
+    public void ApplyExternalDiskScanState(string driveRoot, bool isScanning, double percent, string message)
+    {
+        if (!ShowDrivePicker || IsScanning || IsCompleted) return;
+
+        string normRoot = MigrationCore.Services.Scanning.VolumeSnapshotCache.NormalizeDriveRoot(driveRoot);
+        AiScanDriveOptionItem? matched = AllDrives.FirstOrDefault(d =>
+            MigrationCore.Services.Scanning.VolumeSnapshotCache.NormalizeDriveRoot(d.DriveRoot)
+                .Equals(normRoot, StringComparison.OrdinalIgnoreCase));
+
+        if (matched is not null)
+        {
+            matched.IsCurrentlyScanning = isScanning;
+        }
+
+        if (isScanning && matched is not null)
+        {
+            ExternalScanIsDisk = true;
+            IsExternalScanRunning = true;
+            ExternalScanProgressPercent = Math.Clamp(percent, 0, 100);
+            ExternalScanStatusMessage = string.IsNullOrWhiteSpace(message)
+                ? $"已联动主界面扫描 {matched.DriveLetter}…"
+                : $"已联动主界面扫描 {matched.DriveLetter}：{message}";
+        }
+        else if (!isScanning && ExternalScanIsDisk)
+        {
+            ExternalScanIsDisk = false;
+            if (!ExternalScanIsCleanup)
+            {
+                IsExternalScanRunning = false;
+                ExternalScanProgressPercent = 0;
+                ExternalScanStatusMessage = string.Empty;
+            }
+        }
+    }
+
+    public void ApplyExternalCleanupSnapshot(CleanupScanSnapshot snapshot)
+    {
+        if (!ShowCleanupOption || IsScanning || IsCompleted) return;
+
+        string reclaimable = FileStatsService.FormatBytes(snapshot.TotalReclaimableBytes);
+        HasFreshCleanupSnapshot = true;
+        FreshCleanupSummaryText = $"已有最新快照 · 可清理 {reclaimable}";
+        IncludeCleanupScan = false;
+        StatusMessage = $"✓ 主界面已完成最新垃圾清理扫描（可清理 {reclaimable}），可直接点击下方按钮继续分析。";
+        NotifySelectionChanged();
+    }
+
+    public void ApplyExternalDiskSnapshot(ScanSnapshot snapshot)
+    {
+        if (!ShowDrivePicker || IsScanning || IsCompleted) return;
+
+        string normRoot = MigrationCore.Services.Scanning.VolumeSnapshotCache.NormalizeDriveRoot(snapshot.Volume.DriveRoot);
+        AiScanDriveOptionItem? matched = AllDrives.FirstOrDefault(d =>
+            MigrationCore.Services.Scanning.VolumeSnapshotCache.NormalizeDriveRoot(d.DriveRoot)
+                .Equals(normRoot, StringComparison.OrdinalIgnoreCase));
+        if (matched is null) return;
+
+        matched.IsCurrentlyScanning = false;
+        matched.HasFreshSnapshot = true;
+        matched.FreshSnapshotAgeText = "刚刚";
+        matched.IsChecked = false;
+        NotifySelectionChanged();
+
+        if (CheckedDriveCount == 0 && (!ShowCleanupOption || !IncludeCleanupScan))
+        {
+            StatusMessage = $"✓ 主界面已完成 {matched.DriveLetter} 扫描，可直接复用快照继续分析。";
+        }
+    }
 
     public void PopulateDrives(IEnumerable<AiScanDriveOptionItem> orderedDrives)
     {

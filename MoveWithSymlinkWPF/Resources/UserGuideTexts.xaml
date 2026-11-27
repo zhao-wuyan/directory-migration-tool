@@ -2,220 +2,290 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- ========== 模式说明 ========== -->
+    <!-- ========== 主窗口共用：模式说明（MainWindow.xaml 引用，Key 请勿改动） ========== -->
 
-    <!-- 迁移模式标题 -->
     <sys:String x:Key="MigrationModeTitle">迁移模式</sys:String>
+    <sys:String x:Key="MigrationModeDescription">将源目录数据复制到目标本地 NTFS 位置，将原目录改名保留为备份，并在源路径创建符号链接指向新位置。应用程序可透明访问，无需修改配置。</sys:String>
 
-    <!-- 迁移模式说明 -->
-    <sys:String x:Key="MigrationModeDescription">将源目录的数据迁移到目标位置，并在源位置创建符号链接指向新位置。程序可以透明访问，无需修改配置。</sys:String>
-
-    <!-- 还原模式标题 -->
     <sys:String x:Key="RestoreModeTitle">还原模式</sys:String>
+    <sys:String x:Key="RestoreModeDescription">将符号链接恢复为真实目录。数据会从目标位置复制回源位置，并将原目标目录保留为还原备份；验证使用正常后，可在「备份管理」经双确认处理备份。</sys:String>
 
-    <!-- 还原模式说明 -->
-    <sys:String x:Key="RestoreModeDescription">将符号链接恢复为真实目录。数据将从目标位置复制回源位置,删除符号链接。还原后可选择是否删除目标位置的数据。</sys:String>
+    <sys:String x:Key="MigrationModeTip1">• 确保目标本地 NTFS 磁盘有足够剩余空间（建议至少预留源目录 1.1 倍）</sys:String>
+    <sys:String x:Key="MigrationModeTip2">• 建议提前关闭正在使用该目录的程序，避免文件被占用</sys:String>
+    <sys:String x:Key="MigrationModeTip3">• 迁移后原目录自动保留为备份，绝不自动删除；失败时自动回滚并如实汇报状态</sys:String>
 
-    <!-- ========== 快速提示 ========== -->
+    <sys:String x:Key="RestoreModeTip1">• 确保源磁盘有足够空间存放还原数据</sys:String>
+    <sys:String x:Key="RestoreModeTip2">• 工具会自动识别符号链接及其指向的目标路径</sys:String>
+    <sys:String x:Key="RestoreModeTip3">• 还原改为独立事务，原目标会改名为 .bak_ 备份保留，验证后再手动双确认清理</sys:String>
 
-    <!-- 迁移模式快速提示 -->
-    <sys:String x:Key="MigrationModeTip1">• 确保目标磁盘有足够空间</sys:String>
-    <sys:String x:Key="MigrationModeTip2">• 建议关闭正在使用该目录的程序</sys:String>
-    <sys:String x:Key="MigrationModeTip3">• 迁移前会自动创建备份，失败时自动回滚</sys:String>
+    <!-- ========== 弹窗头部与导航文案 ========== -->
 
-    <!-- 还原模式快速提示 -->
-    <sys:String x:Key="RestoreModeTip1">• 确保源磁盘有足够空间存放数据</sys:String>
-    <sys:String x:Key="RestoreModeTip2">• 工具会自动检测符号链接指向的目标路径</sys:String>
-    <sys:String x:Key="RestoreModeTip3">• 还原完成后可选择删除目标位置的数据</sys:String>
+    <sys:String x:Key="GuideWindowTitle">使用说明 - 目录迁移工具</sys:String>
+    <sys:String x:Key="GuideHeaderTitle">目录迁移工具 · 使用说明</sys:String>
+    <sys:String x:Key="GuideHeaderSubtitle">透明符号链接迁移 · 磁盘扫描分析 · 安全垃圾清理 · 只读 AI 助手 · 全局备份管理</sys:String>
+    <sys:String x:Key="GuideSafetyPillText">L0–L3 安全准入 · 备份绝不自动删除</sys:String>
 
-    <!-- ========== 软件概述 ========== -->
+    <!-- ========== 第 1 节：软件概述 ========== -->
+
+    <sys:String x:Key="OverviewTitle">软件概述</sys:String>
+    <sys:String x:Key="OverviewSubtitle">一站式 Windows 本地目录透明迁移、空间分析与安全清理工具，所有高风险操作均以数据安全与可恢复为第一原则。</sys:String>
 
     <sys:String x:Key="WhatIsThisTool">什么是目录迁移工具？</sys:String>
-    <sys:String x:Key="ToolIntroduction">目录迁移工具是一款专业的文件迁移软件，使用 Windows 符号链接（SymbolicLink）技术，帮助您无缝迁移大型目录到新位置，而不影响原有程序的运行。</sys:String>
+    <sys:String x:Key="ToolIntroduction">目录迁移工具基于 Windows 目录符号链接（Symbolic Link）与事务化备份机制，帮助您将大型软件数据、AI 模型、开发缓存与个人目录无缝迁移至其他本地 NTFS 磁盘，同时集成只读 MFT 磁盘扫描、三档安全垃圾清理、只读 AI 空间诊断与全局备份管理中心。</sys:String>
 
-    <sys:String x:Key="CoreAdvantageTitle">💡 核心优势</sys:String>
-    <sys:String x:Key="CoreAdvantage1">• 零中断：迁移过程中原程序继续正常访问文件（若提示被占用，请关闭相关原程序）</sys:String>
-    <sys:String x:Key="CoreAdvantage2">• 透明性：应用程序无需任何修改即可访问新位置的文件</sys:String>
-    <sys:String x:Key="CoreAdvantage3">• 可恢复：支持还原模式，可以将符号链接恢复为真实目录</sys:String>
-    <sys:String x:Key="CoreAdvantage4">• 安全性：自动备份、错误回滚，确保数据安全</sys:String>
+    <sys:String x:Key="CoreAdvantageTitle">核心设计原则</sys:String>
+    <sys:String x:Key="CoreAdvantage1">• 对程序完全透明：文件系统层重定向，迁移后原有软件无需重新安装或修改配置路径</sys:String>
+    <sys:String x:Key="CoreAdvantage2">• 统一 L0–L3 安全准入：手动、一键、磁盘扫描共用同一套安全策略，系统核心与高危目录一律硬拦截</sys:String>
+    <sys:String x:Key="CoreAdvantage3">• 先验证、再双确认处理：迁移与还原完成后一律保留原始备份，绝不自动删除，按 VolumeGuid + FileId 精确绑定身份</sys:String>
+    <sys:String x:Key="CoreAdvantage4">• 权限与硬链接无损保留：冻结根目录 ACL 权限规则；自动识别目录内闭环硬链接并在目标盘无损重建</sys:String>
 
-    <sys:String x:Key="UseCasesTitle">适用场景</sys:String>
-    <sys:String x:Key="UseCase0">✓ C盘空间不足，迁移玲珑星核语言模型和comfyui目录（可使用一键迁移快速操作）</sys:String>
-    <sys:String x:Key="UseCase1">✓ C盘空间不足，需要迁移大型游戏或软件到其他盘符</sys:String>
-    <sys:String x:Key="UseCase2">✓ 迁移用户文档、下载、桌面等系统文件夹</sys:String>
-    <sys:String x:Key="UseCase3">✓ 开发环境迁移（如 node_modules、.git 等大型目录）</sys:String>
-    <sys:String x:Key="UseCase4">✓ 数据库文件迁移</sys:String>
-    <sys:String x:Key="UseCase5">✓ 虚拟机镜像迁移</sys:String>
+    <sys:String x:Key="ModulesOverviewTitle">六大功能模块一览</sys:String>
+    <sys:String x:Key="ModuleManualTitle">手动模式</sys:String>
+    <sys:String x:Key="ModuleManualDesc">四步向导迁移单个目录，自动检测符号链接进入「还原模式」或触发「修复链接」。</sys:String>
+    <sys:String x:Key="ModuleQuickTitle">一键迁移</sys:String>
+    <sys:String x:Key="ModuleQuickDesc">基于 quick-migrate.json 批量迁移与还原预置目录，支持状态分组筛选与失败不阻塞。</sys:String>
+    <sys:String x:Key="ModuleScanTitle">磁盘扫描</sys:String>
+    <sys:String x:Key="ModuleScanDesc">只读解析 NTFS 原始 MFT 定位大软件与大目录，勾选加入待迁移清单并串行安全执行。</sys:String>
+    <sys:String x:Key="ModuleCleanupTitle">垃圾清理</sys:String>
+    <sys:String x:Key="ModuleCleanupDesc">三档建议度 + 双通道清理：文件缓存默认移入可恢复同卷隔离区，系统项走官方接口。</sys:String>
+    <sys:String x:Key="ModuleAiTitle">AI 助手</sys:String>
+    <sys:String x:Key="ModuleAiDesc">支持 BYOK 与本地模型，只读分析脱敏目录元数据，零执行权，所有建议须人工采纳。</sys:String>
+    <sys:String x:Key="ModuleBackupTitle">备份管理</sys:String>
+    <sys:String x:Key="ModuleBackupDesc">集中收口所有迁移/还原记录与中断待恢复事务，先实际使用验证再经双确认清理备份。</sys:String>
 
-    <sys:String x:Key="TechnicalPrincipleTitle">技术原理</sys:String>
-    <sys:String x:Key="TechnicalPrinciple">符号链接是 Windows 文件系统的一个特性，它在文件系统层面创建一个快捷方式，但这个快捷方式对应用程序完全透明。当程序访问符号链接时，系统会自动将请求重定向到实际的目标位置，程序无需知道文件已经被移动。</sys:String>
+    <sys:String x:Key="UseCasesTitle">典型适用场景</sys:String>
+    <sys:String x:Key="UseCase0">• C 盘告急，一键迁移玲珑星核语言模型、ComfyUI 或常见大型软件数据目录</sys:String>
+    <sys:String x:Key="UseCase1">• 借助「磁盘扫描」快速定位未知空间大户（大软件、缓存、游戏、虚拟机镜像）并批量迁移</sys:String>
+    <sys:String x:Key="UseCase2">• 使用「垃圾清理」安全回收系统更新缓存、浏览器/开发工具缓存，先隔离验证再释放空间</sys:String>
+    <sys:String x:Key="UseCase3">• 迁移开发环境目录（如 node_modules、.gradle、容器/模型缓存）或个人文档与素材库</sys:String>
 
-    <!-- ========== 手动模式步骤 ========== -->
+    <sys:String x:Key="TechnicalPrincipleTitle">技术原理简介</sys:String>
+    <sys:String x:Key="TechnicalPrinciple">符号链接（mklink /D）是 Windows NTFS 文件系统的原生特性。迁移完成后，原位置会变为指向新目标目录的目录符号链接，几乎不占空间；应用程序继续访问原路径时，系统在底层透明重定向到目标磁盘，从而在释放源盘空间的同时保持软件正常运行。</sys:String>
 
-    <sys:String x:Key="ManualModeTitle">手动模式使用步骤</sys:String>
+    <!-- ========== 第 2 节：手动模式 / 还原 / 修复 ========== -->
 
-    <sys:String x:Key="Step1Title">步骤 1：选择路径</sys:String>
+    <sys:String x:Key="ManualSectionTitle">手动模式、还原与修复</sys:String>
+    <sys:String x:Key="ManualSectionSubtitle">适合精确指定单个目录的迁移、将已迁移链接还原为真实目录，或重建受损的符号链接。</sys:String>
+
+    <sys:String x:Key="ManualModeTitle">手动迁移四步流程</sys:String>
+
+    <sys:String x:Key="Step1Title">步骤 1：选择路径与高级选项</sys:String>
     <sys:String x:Key="Step1SourceLabel">源目录：</sys:String>
-    <sys:String x:Key="Step1SourceExample">要迁移的目录，例如 C:\Games\MyGame</sys:String>
+    <sys:String x:Key="Step1SourceExample">要迁移的本地 NTFS 目录，例如 C:\Games\MyGame</sys:String>
     <sys:String x:Key="Step1TargetLabel">目标目录：</sys:String>
-    <sys:String x:Key="Step1TargetExample">迁移到的新位置，例如 D:\Games\MyGame</sys:String>
-    <sys:String x:Key="Step1Action1">• 点击 [浏览...] 按钮选择目录</sys:String>
-    <sys:String x:Key="Step1Action2">• 设置高级选项（可选）：大文件阈值和复制线程数</sys:String>
+    <sys:String x:Key="Step1TargetExample">目标本地 NTFS 盘新位置，例如 D:\Games\MyGame</sys:String>
+    <sys:String x:Key="Step1Action1">• 可按需调整「大文件阈值（默认 1024 MB）」与「复制线程数（默认 8）」</sys:String>
+    <sys:String x:Key="Step1Action2">• 可勾选「完整内容哈希（SHA-256）」进行逐字节核对；默认使用快速核对以兼顾速度</sys:String>
 
-    <sys:String x:Key="Step2Title">步骤 2：扫描分析</sys:String>
-    <sys:String x:Key="Step2Description">点击 [开始扫描] 后，工具会：</sys:String>
-    <sys:String x:Key="Step2Action1">• 统计源目录的文件数量和总大小</sys:String>
-    <sys:String x:Key="Step2Action2">• 分析大文件分布</sys:String>
-    <sys:String x:Key="Step2Action3">• 检查目标磁盘空间是否充足</sys:String>
-    <sys:String x:Key="Step2Action4">• 验证路径的有效性</sys:String>
+    <sys:String x:Key="Step2Title">步骤 2：扫描分析与安全准入</sys:String>
+    <sys:String x:Key="Step2Description">点击「开始扫描」后，工具会执行只读预检：</sys:String>
+    <sys:String x:Key="Step2Action1">• 统计文件数量、总体积与大文件分布，核查目标盘剩余空间（至少需 1.1 倍余量）</sys:String>
+    <sys:String x:Key="Step2Action2">• 执行 L0–L3 统一安全准入校验：L0 系统/高危目录直接拦截，L2 云盘等目录给出警告</sys:String>
+    <sys:String x:Key="Step2Action3">• 检测外部硬链接与路径合法性，提前暴露文件占用风险</sys:String>
 
-    <sys:String x:Key="Step3Title">步骤 3：执行迁移</sys:String>
-    <sys:String x:Key="Step3Description">点击 [开始迁移] 后，工具会按以下阶段执行：</sys:String>
-    <sys:String x:Key="Step3Phase1">1️ 备份：创建源目录的安全备份</sys:String>
-    <sys:String x:Key="Step3Phase2">2️ 复制小文件：快速复制小文件到目标位置</sys:String>
-    <sys:String x:Key="Step3Phase3">3️ 复制大文件：使用 Robocopy 高效复制大文件</sys:String>
-    <sys:String x:Key="Step3Phase4">4️ 验证：校验文件完整性</sys:String>
-    <sys:String x:Key="Step3Phase5">5️ 清理：删除源目录的旧文件</sys:String>
-    <sys:String x:Key="Step3Phase6">6️ 创建符号链接：在源位置创建指向目标的链接</sys:String>
+    <sys:String x:Key="Step3Title">步骤 3：事务化执行迁移</sys:String>
+    <sys:String x:Key="Step3Description">点击「开始迁移」后，工具按安全事务顺序执行并实时汇报进度、速度与日志：</sys:String>
+    <sys:String x:Key="Step3Phase1">1. 写入本地事务记录并冻结源目录根目录 ACL 权限快照</sys:String>
+    <sys:String x:Key="Step3Phase2">2. 使用 Robocopy 多线程镜像复制文件到目标位置，目录内闭环硬链接无损去重重建</sys:String>
+    <sys:String x:Key="Step3Phase3">3. 执行目录完整性核对（快速核对或完整内容哈希 + ACL/硬链接拓扑核对）</sys:String>
+    <sys:String x:Key="Step3Phase4">4. 将源目录安全改名为 .bak_&lt;事务ID&gt; 原始备份（绝不直接删除），在原路径创建目录符号链接</sys:String>
+    <sys:String x:Key="Step3Phase5">5. 执行符号链接健康检查，进入「待用户验证」状态</sys:String>
 
-    <sys:String x:Key="Step3WarningTitle">⚠️ 迁移过程注意事项</sys:String>
-    <sys:String x:Key="Step3Warning1">• 迁移过程可能需要较长时间，请耐心等待</sys:String>
-    <sys:String x:Key="Step3Warning2">• 建议在迁移前关闭正在使用该目录的程序</sys:String>
-    <sys:String x:Key="Step3Warning3">• 确保目标磁盘有足够的剩余空间</sys:String>
-    <sys:String x:Key="Step3Warning4">• 不要在迁移过程中关闭程序或断电</sys:String>
+    <sys:String x:Key="Step3WarningTitle">迁移过程注意事项</sys:String>
+    <sys:String x:Key="Step3Warning1">• 建议迁移前关闭正在使用该目录的软件，避免因文件句柄占用导致复制或改名失败</sys:String>
+    <sys:String x:Key="Step3Warning2">• 迁移中可点击「取消」安全中止；尚未切换原路径前不会破坏原目录，已切换则尝试回滚</sys:String>
+    <sys:String x:Key="Step3Warning3">• 请勿强行断电或强制结束进程；若发生意外中断，重启后顶部将出现红色恢复横幅保护双副本</sys:String>
 
-    <sys:String x:Key="Step4Title">步骤 4：完成</sys:String>
-    <sys:String x:Key="Step4Description">迁移完成后：</sys:String>
-    <sys:String x:Key="Step4Result1">• 查看迁移结果和统计信息</sys:String>
-    <sys:String x:Key="Step4Result2">• 源路径现在是一个符号链接，指向新位置</sys:String>
-    <sys:String x:Key="Step4Result3">• 程序可以继续透明访问文件，无需任何修改</sys:String>
+    <sys:String x:Key="Step4Title">步骤 4：验证迁移并管理备份</sys:String>
+    <sys:String x:Key="Step4Description">技术迁移完成后，原始备份仍保留在源盘，不会立即释放源盘空间：</sys:String>
+    <sys:String x:Key="Step4Result1">• 请先启动文件夹所属软件并实际打开项目/数据，确认功能完全正常</sys:String>
+    <sys:String x:Key="Step4Result2">• 点击「验证迁移并管理备份…」进入验证窗口，勾选确认后再自行决定保留备份或双确认清理</sys:String>
+    <sys:String x:Key="Step4Result3">• 也可暂不处理，随时前往顶栏「备份管理」中心统一验证与清理</sys:String>
 
-    <!-- ========== 一键迁移 ========== -->
-
-    <sys:String x:Key="QuickMigrateTitle">一键迁移模式</sys:String>
-    <sys:String x:Key="QuickMigrateDescription">一键迁移模式专为批量迁移设计，可以通过配置文件一次性迁移多个目录，适合系统配置迁移、批量游戏迁移等场景。</sys:String>
-
-    <sys:String x:Key="QuickStartTitle">💡 快速上手</sys:String>
-    <sys:String x:Key="QuickStart1">1. 点击主界面右上角的 [⏩ 一键迁移] 按钮</sys:String>
-    <sys:String x:Key="QuickStart2">2. 在一键迁移界面，软件会自动扫描预配置的迁移任务</sys:String>
-    <sys:String x:Key="QuickStart3">3. 选择要迁移的目录，点击 [开始扫描]</sys:String>
-    <sys:String x:Key="QuickStart4">4. 确认后点击 [开始迁移]，等待完成</sys:String>
-
-    <sys:String x:Key="ConfigFileTitle">配置文件说明</sys:String>
-    <sys:String x:Key="ConfigFileLocation">配置文件位置：</sys:String>
-    <sys:String x:Key="ConfigFileName">quick-migrate-config.json</sys:String>
-    <sys:String x:Key="ConfigTypes">配置文件支持两种迁移源类型：</sys:String>
-    <sys:String x:Key="ConfigType1">• Profiles：基于规则的批量迁移（如迁移某个文件夹下的所有子目录）</sys:String>
-    <sys:String x:Key="ConfigType2">• StandaloneSources：单独指定的迁移源</sys:String>
-
-    <sys:String x:Key="AdvancedFeaturesTitle">高级功能</sys:String>
-    <sys:String x:Key="AdvancedFeature1">✓ 自动跳过已迁移的目录（检测符号链接）</sys:String>
-    <sys:String x:Key="AdvancedFeature2">✓ 支持自定义迁移规则和过滤条件</sys:String>
-    <sys:String x:Key="AdvancedFeature3">✓ 批量操作进度追踪</sys:String>
-    <sys:String x:Key="AdvancedFeature4">✓ 迁移完成后自动验证</sys:String>
-
-    <!-- ========== 还原模式 ========== -->
-
-    <sys:String x:Key="RestoreModeGuideTitle">还原模式</sys:String>
-    <sys:String x:Key="RestoreModeGuideDescription">还原模式用于将符号链接恢复为真实目录，数据会从目标位置复制回源位置。</sys:String>
-
-    <sys:String x:Key="RestoreTriggerTitle">触发条件：</sys:String>
-    <sys:String x:Key="RestoreTrigger1">• 当选择的源目录是一个符号链接时，自动切换到还原模式</sys:String>
-    <sys:String x:Key="RestoreTrigger2">• 工具会自动读取符号链接指向的目标路径</sys:String>
-
-    <sys:String x:Key="RestoreProcessTitle">还原过程：</sys:String>
-    <sys:String x:Key="RestoreProcess1">1. 验证符号链接和目标数据的有效性</sys:String>
-    <sys:String x:Key="RestoreProcess2">2. 将数据从目标位置复制回源位置</sys:String>
-    <sys:String x:Key="RestoreProcess3">3. 删除符号链接，恢复为真实目录</sys:String>
-    <sys:String x:Key="RestoreProcess4">4. 询问是否删除目标位置的数据（可选）</sys:String>
-
-    <sys:String x:Key="RestoreWarningTitle">⚠️ 还原注意事项</sys:String>
-    <sys:String x:Key="RestoreWarning1">• 还原需要源磁盘有足够的空间</sys:String>
-    <sys:String x:Key="RestoreWarning2">• 建议先备份重要数据</sys:String>
-    <sys:String x:Key="RestoreWarning3">• 还原后可选择删除目标位置的数据以释放空间</sys:String>
-
-    <!-- ========== 修复模式 ========== -->
+    <sys:String x:Key="RestoreModeGuideTitle">还原模式（独立安全事务）</sys:String>
+    <sys:String x:Key="RestoreModeGuideDescription">将已迁移的符号链接恢复为真实目录。选择源路径为符号链接时自动进入橙色「还原模式」，目标路径只读显示当前链接指向。</sys:String>
+    <sys:String x:Key="RestoreProcess1">1. 验证符号链接、目标数据完整性以及源盘剩余空间</sys:String>
+    <sys:String x:Key="RestoreProcess2">2. 将数据从目标位置镜像复制回源路径，并移除符号链接</sys:String>
+    <sys:String x:Key="RestoreProcess3">3. 原目标目录自动改名为 .bak_&lt;事务ID&gt; 保留为「还原备份」，绝不自动删除</sys:String>
+    <sys:String x:Key="RestoreProcess4">4. 实际使用软件确认还原无误后，前往「备份管理」经双确认处理还原备份</sys:String>
 
     <sys:String x:Key="RepairModeTitle">修复模式（修复链接）</sys:String>
-    <sys:String x:Key="RepairModeDescription">修复模式用于修复损坏的符号链接或重新建立符号链接关系。</sys:String>
+    <sys:String x:Key="RepairModeDescription">基于现有目标目录直接重建符号链接，不复制数据，适合快速修复失效或丢失的链接。</sys:String>
+    <sys:String x:Key="RepairScenariosTitle">适用场景（步骤 1 自动智能检测）：</sys:String>
+    <sys:String x:Key="RepairScenario1">• 符号链接被意外删除，但目标目录数据完整存在</sys:String>
+    <sys:String x:Key="RepairScenario2">• 符号链接指向了错误的目标位置，需要重新绑定</sys:String>
+    <sys:String x:Key="RepairScenario3">• 源路径被还原或重建为普通非空目录，但目标数据仍在（原目录将备份并写入 .xinghe-repair.info 标记文件，确认无误后再清理）</sys:String>
+    <sys:String x:Key="RepairMethodNote">满足条件时步骤 1 会自动显示绿色「修复链接」按钮；修复完成后会询问是否将源路径备份移入回收站（可恢复）。</sys:String>
 
-    <sys:String x:Key="RepairScenariosTitle">适用场景：</sys:String>
-    <sys:String x:Key="RepairScenario1">• 符号链接指向错误的目标</sys:String>
-    <sys:String x:Key="RepairScenario2">• 符号链接被意外删除，需要重建</sys:String>
-    <sys:String x:Key="RepairScenario3">• 源路径被还原为普通目录，但目标数据仍然存在（注意若源路径为普通目录，原数据将被备份，为防止误操作需手动删除备份，请确认修复效果再删除）</sys:String>
+    <!-- ========== 第 3 节：一键迁移 ========== -->
 
-    <sys:String x:Key="RepairMethodTitle">使用方法：</sys:String>
-    <sys:String x:Key="RepairMethod1">1. 在步骤1中，工具会自动检测是否可以修复</sys:String>
-    <sys:String x:Key="RepairMethod2">2. 如果满足修复条件，会显示 [修复链接] 按钮</sys:String>
-    <sys:String x:Key="RepairMethod3">3. 点击修复按钮，工具会自动重建符号链接</sys:String>
+    <sys:String x:Key="QuickMigrateTitle">一键迁移模式</sys:String>
+    <sys:String x:Key="QuickMigrateSubtitle">基于配置文件自动发现并批量迁移常见大型目录，适合快速释放 C 盘空间或复现标准化迁移清单。</sys:String>
 
-    <sys:String x:Key="SmartDetectionTitle">💡 智能检测</sys:String>
-    <sys:String x:Key="SmartDetection">工具会智能检测以下情况并自动提供修复选项：</sys:String>
-    <sys:String x:Key="SmartDetection1">• 源路径不存在，但目标路径有数据</sys:String>
-    <sys:String x:Key="SmartDetection2">• 源是普通目录（非空），目标路径也有数据</sys:String>
-    <sys:String x:Key="SmartDetection3">• 符号链接指向错误的目标路径</sys:String>
+    <sys:String x:Key="QuickStartTitle">快速上手步骤</sys:String>
+    <sys:String x:Key="QuickStart1">1. 点击顶栏中央的「一键迁移」切换到批量迁移页面</sys:String>
+    <sys:String x:Key="QuickStart2">2. 工具自动加载内置默认配置或同目录的 quick-migrate.json，并按「待迁移 / 已迁移」分组扫描</sys:String>
+    <sys:String x:Key="QuickStart3">3. 在顶部选择「统一目标目录」或使用各任务自定义目标，可按需开启完整内容哈希核对</sys:String>
+    <sys:String x:Key="QuickStart4">4. 勾选需要处理的任务，点击「开始一键迁移」；单个任务失败不会阻塞后续任务</sys:String>
 
-    <!-- ========== 注意事项 ========== -->
+    <sys:String x:Key="ConfigFileTitle">配置文件机制</sys:String>
+    <sys:String x:Key="ConfigFileLocation">自定义配置文件名（放置于可执行文件同目录）：</sys:String>
+    <sys:String x:Key="ConfigFileName">quick-migrate.json</sys:String>
+    <sys:String x:Key="ConfigType1">• 优先读取程序同目录的外部 quick-migrate.json，未提供时自动回退至程序内置默认规则</sys:String>
+    <sys:String x:Key="ConfigType2">• 页面支持点击「导出示例配置」快速生成可编辑模板，配置支持 Profiles（规则扫描）与 StandaloneSources（独立目录）</sys:String>
 
-    <sys:String x:Key="ImportantNoticesTitle">重要注意事项</sys:String>
+    <sys:String x:Key="AdvancedFeaturesTitle">页面增强特性</sys:String>
+    <sys:String x:Key="AdvancedFeature1">• 「已迁移」页签支持按「全部 / 待验证 / 保留备份 / 异常」快速筛选，状态徽章一目了然</sys:String>
+    <sys:String x:Key="AdvancedFeature2">• 每个已迁移卡片均支持直接点击「验证与处理备份」或单任务「一键还原」</sys:String>
+    <sys:String x:Key="AdvancedFeature3">• 统一错误分类提示与底部可展开实时日志抽屉，排查权限或文件占用原因更直观</sys:String>
+    <sys:String x:Key="AdvancedFeature4">• 支持中断续传（Robocopy /Z /ZB），同样遵守 L0–L3 安全准入与备份零自动删除原则</sys:String>
 
-    <sys:String x:Key="PermissionWarningTitle">⚠️ 权限要求</sys:String>
-    <sys:String x:Key="PermissionWarning">创建符号链接需要管理员权限或启用开发者模式。</sys:String>
-    <sys:String x:Key="PermissionMethod1">• 方式1（推荐）：以管理员身份运行本程序</sys:String>
-    <sys:String x:Key="PermissionMethod2">• 方式2：启用 Windows 开发者模式（设置 → 更新和安全 → 开发者选项）</sys:String>
+    <!-- ========== 第 4 节：磁盘扫描与批量迁移 ========== -->
 
-    <sys:String x:Key="DataSafetyTitle">⚠️ 数据安全</sys:String>
-    <sys:String x:Key="DataSafety1">• 迁移前请确保重要数据已备份</sys:String>
-    <sys:String x:Key="DataSafety2">• 建议先用小目录测试，熟悉流程后再迁移大型目录</sys:String>
-    <sys:String x:Key="DataSafety3">• 工具提供自动备份和回滚功能，但不能替代手动备份</sys:String>
-    <sys:String x:Key="DataSafety4">• 迁移过程中不要强制关闭程序或断电</sys:String>
+    <sys:String x:Key="DiskScanSectionTitle">磁盘扫描与批量迁移</sys:String>
+    <sys:String x:Key="DiskScanSectionSubtitle">全盘只读分析目录空间占用，结合目录用途说明、硬链接检测与安全准入策略，精准勾选并批量迁移大目录。</sys:String>
 
-    <sys:String x:Key="DiskSpaceTitle">💾 磁盘空间</sys:String>
-    <sys:String x:Key="DiskSpace1">• 目标磁盘需要有足够的空间（至少是源目录大小的 1.1 倍）</sys:String>
-    <sys:String x:Key="DiskSpace2">• 迁移完成前，源磁盘仍需保留原始数据</sys:String>
-    <sys:String x:Key="DiskSpace3">• 验证完成后才会清理源目录的数据</sys:String>
+    <sys:String x:Key="DiskScanEngineTitle">只读高速扫描引擎与卷快照缓存</sys:String>
+    <sys:String x:Key="DiskScanEngine1">• 全程严格只读：不修改任何卷数据、不修改文件权限，对原系统零侵入</sys:String>
+    <sys:String x:Key="DiskScanEngine2">• NTFS 卷优先直读原始 MFT 生成紧凑快照；若不可用自动降级为低占用并发遍历（SSD 多线程、HDD 单线程，后台低 I/O 优先级）</sys:String>
+    <sys:String x:Key="DiskScanEngine3">• ReFS 卷（含 Dev Drive）支持只读浏览空间分布，但暂不可作为迁移源盘或目标盘</sys:String>
+    <sys:String x:Key="DiskScanEngine4">• 支持卷快照缓存与陈旧变动温和提示，切换页面或重入无需反复全盘重扫</sys:String>
 
-    <sys:String x:Key="FileOccupationTitle">🔒 文件占用</sys:String>
-    <sys:String x:Key="FileOccupation1">• 建议在迁移前关闭正在使用目标目录的程序</sys:String>
-    <sys:String x:Key="FileOccupation2">• 如果有文件被占用，工具会提示您处理</sys:String>
-    <sys:String x:Key="FileOccupation3">• 可以在任务管理器中检查哪些进程正在使用该目录</sys:String>
+    <sys:String x:Key="DiskScanViewsTitle">双视角分析与目录用途说明</sys:String>
+    <sys:String x:Key="DiskScanViews1">• 「目录树」视角：按唯一分配空间降序逐层展开（默认仅显示目录，可切换「显示文件」），右侧实时呈现四级安全结论与明细</sys:String>
+    <sys:String x:Key="DiskScanViews2">• 「大软件目录」视角：提供「直达列表」与「按路径」两种视图，热点目录互不嵌套、杜绝空间重复统计</sys:String>
+    <sys:String x:Key="DiskScanViews3">• 内置目录用途说明：为系统目录、用户文件夹及常见软件/开发/AI 模型目录提供中文用途与迁移建议（蓝标为用途说明，琥珀标为迁移提醒）</sys:String>
 
-    <sys:String x:Key="SpecialCasesTitle">🎮 特殊情况</sys:String>
-    <sys:String x:Key="SpecialCase1">• 某些游戏或软件可能不支持符号链接，迁移后可能需要重新配置</sys:String>
-    <sys:String x:Key="SpecialCase2">• 系统保护目录（如 System32）不建议迁移</sys:String>
-    <sys:String x:Key="SpecialCase3">• 云同步文件夹（OneDrive、Dropbox等）迁移可能导致同步问题</sys:String>
+    <sys:String x:Key="DiskScanHardlinkTitle">硬链接拓扑感知与边界保护</sys:String>
+    <sys:String x:Key="DiskScanHardlink1">• 目录内闭环硬链接（允许迁移）：复制阶段去重只复制一份实体文件，再于目标盘重建全部硬链接，不产生空间膨胀</sys:String>
+    <sys:String x:Key="DiskScanHardlink2">• 指向目录外部的硬链接（拦截保护）：展示外部关联路径示例并阻止加入清单，防止强行迁移断开共享关系或源盘无法释放空间</sys:String>
+    <sys:String x:Key="DiskScanHardlink3">• 无法核实归属的硬链接或扫描不完整的目录同样禁止加入迁移队列；迁移核对阶段会校验目标盘硬链接组 FileId</sys:String>
 
-    <!-- ========== 常见问题 ========== -->
+    <sys:String x:Key="DiskScanQueueTitle">待迁移清单、安全预检与串行执行</sys:String>
+    <sys:String x:Key="DiskScanQueue1">• 勾选目录仅将其加入「待迁移清单」，勾选本身不会触发任何迁移操作；L0 禁止勾选，L2 展示官方迁移步骤，L3 需先勾选风险确认</sys:String>
+    <sys:String x:Key="DiskScanQueue2">• 进入「待迁移清单与安全预检」后可设置统一目标根目录与核对级别（快速核对 / 完整 SHA-256），执行前冻结计划摘要并定向复核目录身份、进程占用与目标空间</sys:String>
+    <sys:String x:Key="DiskScanQueue3">• 队列严格串行执行，单项失败即自动暂停，绝不破坏源目录或删除已完成项的原始备份</sys:String>
+
+    <!-- ========== 第 5 节：安全垃圾清理 ========== -->
+
+    <sys:String x:Key="CleanupSectionTitle">独立安全垃圾清理</sys:String>
+    <sys:String x:Key="CleanupSectionSubtitle">基于声明式内嵌规则、永久排除安全红线与同卷可恢复隔离区，安全回收系统与应用缓存空间。</sys:String>
+
+    <sys:String x:Key="CleanupTiersTitle">三档建议度分级模型</sys:String>
+    <sys:String x:Key="CleanupTier1Badge">建议清理</sys:String>
+    <sys:String x:Key="CleanupTier1Desc">低风险可再生临时文件与常规缓存（如系统/用户临时目录、缩略图缓存、崩溃转储等），常规清理首选。</sys:String>
+    <sys:String x:Key="CleanupTier2Badge">按需清理</sys:String>
+    <sys:String x:Key="CleanupTier2Desc">开发构建缓存、包管理器缓存、浏览器/应用缓存或旧版更新残留，清理后对应软件可能需重新拉取或预热缓存。</sys:String>
+    <sys:String x:Key="CleanupTier3Badge">谨慎清理</sys:String>
+    <sys:String x:Key="CleanupTier3Desc">影响较广或不可逆项目（如系统组件存储、休眠/旧驱动等），附详细风险说明，执行前强制要求手动输入确认短语（如「确认清理」）。</sys:String>
+
+    <sys:String x:Key="CleanupChannelsTitle">双执行通道与同卷隔离区</sys:String>
+    <sys:String x:Key="CleanupChannelATitle">通道 A：文件级缓存（默认同卷隔离 · 可一键恢复）</sys:String>
+    <sys:String x:Key="CleanupChannelADesc">默认移入当前磁盘的同卷隔离区（采用长路径与短 ID 映射防超长路径报错），无自动过期删除；也可选择移入 Windows 回收站，回收站失败时自动中止保留原文件，绝不退化为永久删除。注：移入隔离区不会立即释放物理空间，确认软件运行无碍后请进入「清理隔离区」手动二次确认永久删除。</sys:String>
+    <sys:String x:Key="CleanupChannelBTitle">通道 B：Windows 官方系统接口（不可恢复）</sys:String>
+    <sys:String x:Key="CleanupChannelBDesc">如 DISM 组件清理、传递优化缓存、Windows 更新缓存、pnputil 旧驱动等，直接调用 Windows 官方系统组件回收物理空间，不进入隔离区且不可恢复。</sys:String>
+
+    <sys:String x:Key="CleanupAiResidualTitle">「AI 疑似残留」受限分组与永久排除保护</sys:String>
+    <sys:String x:Key="CleanupAiResidual1">• 永久排除区（硬红线）：系统关键目录、个人文档/密钥、工具自身、活动迁移事务及已登记迁移备份均受底层硬拦截，任何规则或 AI 建议都不可越界</sys:String>
+    <sys:String x:Key="CleanupAiResidual2">• 「AI 疑似残留」分组默认折叠且全不勾选，提供「打开目录核实」入口，仅允许走通道 A 同卷隔离并须勾选免责声明与独立二次确认</sys:String>
+    <sys:String x:Key="CleanupAiResidual3">• 支持跨盘缓存源探测（自动追踪已迁移符号链接目标）与全盘空间态势概览，多盘设备可通过「查看全部」弹框搜索与排序</sys:String>
+
+    <!-- ========== 第 6 节：AI 助手 ========== -->
+
+    <sys:String x:Key="AiSectionTitle">内置 AI 空间诊断助手</sys:String>
+    <sys:String x:Key="AiSectionSubtitle">BYOK 自带模型或本地私有模型，基于脱敏目录元数据提供全局腾空间规划、迁移建议与残留排查，严格零执行权。</sys:String>
+
+    <sys:String x:Key="AiEntryTitle">两种使用入口与三会话隔离</sys:String>
+    <sys:String x:Key="AiEntry1">• 顶栏「AI 助手」独立驾驶舱：统筹本机各盘空间余量、磁盘扫描多盘快照、垃圾清理快照与备份/隔离区占用，做全局腾空间规划</sys:String>
+    <sys:String x:Key="AiEntry2">• 「磁盘扫描」与「垃圾清理」页右侧「AI 助手 / AI 诊断」抽屉：边看目录或规则边就地问答，也可切到独立页宽屏续聊</sys:String>
+    <sys:String x:Key="AiEntry3">• 全局诊断、磁盘扫描、垃圾清理三个场景会话相互隔离，上下文清晰不串线</sys:String>
+
+    <sys:String x:Key="AiModelTitle">模型配置与凭据安全（BYOK / 本地模型）</sys:String>
+    <sys:String x:Key="AiModel1">• 内置 DeepSeek、通义千问、OpenAI、本地 Ollama、LM Studio 等预设，并支持任意 OpenAI 兼容端点</sys:String>
+    <sys:String x:Key="AiModel2">• API Key 使用 Windows DPAPI 绑定当前用户加密保存在本机，不写入明文配置</sys:String>
+    <sys:String x:Key="AiModel3">• 首次使用云端模型前会展示隐私授权提示；若接入本机 Ollama / LM Studio，所有分析数据完全不出本机</sys:String>
+
+    <sys:String x:Key="AiPrivacyTitle">只读安全边界与透明审计</sys:String>
+    <sys:String x:Key="AiPrivacy1">• 零执行权：AI 只能调用只读分析工具，不能读取任何文件内容，也绝不能直接执行迁移、清理或删除</sys:String>
+    <sys:String x:Key="AiPrivacy2">• 路径脱敏与可控授权：传输给模型的路径会自动将用户名替换为 &lt;USER&gt;，并支持随时点击「撤销共享」回收扫描快照授权</sys:String>
+    <sys:String x:Key="AiPrivacy3">• 透明可查：每一步工具调用均可点击展开，并在「AI 工具返回数据明细」弹窗中查看实际发送给模型的完整脱敏 JSON</sys:String>
+    <sys:String x:Key="AiPrivacy4">• 人工采纳与复核：AI 提出的迁移或疑似残留建议会先经本地安全策略逐条复核，仅在您手动采纳后才进入待迁移清单或受限隔离分组</sys:String>
+
+    <!-- ========== 第 7 节：备份管理与安全机制 ========== -->
+
+    <sys:String x:Key="SafetySectionTitle">备份管理与安全机制</sys:String>
+    <sys:String x:Key="SafetySectionSubtitle">所有模式共用同一套安全底座：统一四级准入、事务级身份绑定、先使用验证再双确认处理，守住数据底线。</sys:String>
+
+    <sys:String x:Key="SafetyPolicyTitle">统一四级安全准入策略（L0–L3）</sys:String>
+    <sys:String x:Key="SafetyL0Badge">L0 硬拒绝</sys:String>
+    <sys:String x:Key="SafetyL0Desc">Windows 系统核心、启动/恢复目录、卷元数据、驱动与安全软件、凭据目录（.ssh/.gnupg）、系统容器根（C:\Users、AppData 根等）、工具自身与活动事务目录、非本地固定 NTFS 卷。一律拦截，任何配置或确认均不可绕过。</sys:String>
+    <sys:String x:Key="SafetyL1Badge">L1 推荐迁移</sys:String>
+    <sys:String x:Key="SafetyL1Desc">命中内置已验证规则库的常见软件与模型数据目录，校验通过后直接放行。</sys:String>
+    <sys:String x:Key="SafetyL2Badge">L2 原生引导</sys:String>
+    <sys:String x:Key="SafetyL2Desc">自带官方迁移机制或直接建链存在同步风险的软件（如 Docker/WSL2、OneDrive/Dropbox 等云盘同步目录）。磁盘扫描不可勾选并展示官方步骤；手动与一键模式给出警示后由用户决定。</sys:String>
+    <sys:String x:Key="SafetyL3Badge">L3 人工确认</sys:String>
+    <sys:String x:Key="SafetyL3Desc">不属于 L0 的普通个人目录或未收录软件目录。放行迁移，在磁盘扫描勾选时需先确认了解风险。</sys:String>
+
+    <sys:String x:Key="BackupCenterTitle">全局备份管理与使用验证流程</sys:String>
+    <sys:String x:Key="BackupCenter1">• 顶栏「备份管理」集中收口手动、一键、磁盘扫描的迁移与还原事务；有待验证备份时会显示琥珀色数量角标</sys:String>
+    <sys:String x:Key="BackupCenter2">• 身份绑定：每份备份通过 VolumeGuid + FileId 精确绑定，绝不靠目录名猜测或误删同名目录</sys:String>
+    <sys:String x:Key="BackupCenter3">• 先实际使用、再处理备份：程序核对（含 SHA-256）不能替代启动对应软件验证功能正常；确认验证后方可选择保留、移入回收站或永久删除（均需独立双确认，永久删除须输入原目录名）</sys:String>
+    <sys:String x:Key="BackupCenter4">• 中断恢复保护（RecoveryRequired）：若操作中途因断电/强制退出中断，重启后顶部会出现红色恢复横幅并暂停新任务，保全全部副本供您核验现场</sys:String>
+
+    <sys:String x:Key="AclAndRollbackTitle">ACL 权限冻结与如实回滚</sys:String>
+    <sys:String x:Key="AclAndRollback1">• 目录权限保留：迁移与还原会冻结源目录根目录的 Owner、Group、访问与审计规则，防止被目标父目录权限覆盖</sys:String>
+    <sys:String x:Key="AclAndRollback2">• 如实回滚策略：未切换原路径时明确提示无需回滚；已完成回滚时核对原状态；若无法确认恢复完成，则保留全部副本并提示人工核验，绝不掩盖异常或擅自删库</sys:String>
+
+    <!-- ========== 第 8 节：注意事项与常见问题 ========== -->
+
+    <sys:String x:Key="NoticesFaqTitle">注意事项与常见问题（FAQ）</sys:String>
+    <sys:String x:Key="NoticesFaqSubtitle">运行环境要求、关键红线提醒以及日常使用中的高频问题解答。</sys:String>
+
+    <sys:String x:Key="ImportantNoticesTitle">环境与运行注意事项</sys:String>
+
+    <sys:String x:Key="PermissionWarningTitle">权限与运行环境</sys:String>
+    <sys:String x:Key="PermissionWarning">创建符号链接及读取 NTFS 原始 MFT 需要管理员权限（应用内置 UAC 清单会自动请求提权）。</sys:String>
+    <sys:String x:Key="PermissionMethod1">• 推荐方式：直接运行程序并允许 UAC 管理员提权，可启用 MFT 极速扫描与完整符号链接能力</sys:String>
+    <sys:String x:Key="PermissionMethod2">• 备选方式：启用 Windows 开发者模式（设置 → 系统/隐私和安全性 → 开发者选项）以允许普通权限建链</sys:String>
+    <sys:String x:Key="PermissionMethod3">• 运行时要求：完整自包含版开箱即用；轻量版需安装 .NET 10.0 Desktop Runtime (x64)</sys:String>
+
+    <sys:String x:Key="DiskSpaceTitle">文件系统、磁盘空间与回收站机制</sys:String>
+    <sys:String x:Key="DiskSpace1">• 文件系统限制：迁移的源盘和目标盘都必须是本地固定 NTFS 卷；暂不支持 UNC 网络路径、exFAT、FAT32 及可移动磁盘，ReFS 卷仅支持只读扫描浏览</sys:String>
+    <sys:String x:Key="DiskSpace2">• 空间余量：迁移目标盘需至少预留源目录大小的 1.1 倍空间；迁移完成后原始备份仍在源盘，只有确认验证并清理备份（且清空回收站）后才会释放源盘物理空间</sys:String>
+    <sys:String x:Key="DiskSpace3">• 回收站保护：移入回收站由 Windows Shell 判断卷是否支持与容量是否允许；若回收站禁用、空间不足或失败，会保留未回收项，绝不自动降级为永久删除</sys:String>
+
+    <sys:String x:Key="FileOccupationTitle">文件占用与特殊目录</sys:String>
+    <sys:String x:Key="FileOccupation1">• 执行迁移、还原或清理前，请先退出正在读写该目录的软件及后台托盘进程</sys:String>
+    <sys:String x:Key="FileOccupation2">• 云盘同步目录（OneDrive、Dropbox、iCloud 等）与 Docker/WSL2 建议使用软件自带的迁移设置，避免直接建链导致同步冲突</sys:String>
+    <sys:String x:Key="FileOccupation3">• 尽管工具具备备份、隔离区与自动回滚保护，迁移核心重要个人数据前仍建议做好异地/额外备份</sys:String>
 
     <sys:String x:Key="FAQTitle">常见问题解答（FAQ）</sys:String>
 
-    <sys:String x:Key="FAQ1Q">Q1: 什么是符号链接？</sys:String>
-    <sys:String x:Key="FAQ1A">符号链接（Symbolic Link）是一种特殊的文件系统对象，它指向另一个文件或目录。对于应用程序来说，访问符号链接就像访问真实的文件或目录一样，系统会自动将请求重定向到目标位置。这使得我们可以将文件移动到其他位置，而不影响程序的正常运行。</sys:String>
+    <sys:String x:Key="FAQ1Q">Q1. 为什么迁移完成或移入垃圾清理隔离区后，C 盘可用空间没有立刻变大？</sys:String>
+    <sys:String x:Key="FAQ1A">这是刻意的安全设计。迁移完成后原目录会改名为 .bak_ 备份留在源盘；垃圾清理默认将文件移入同卷隔离区。请先启动对应软件确认一切正常，再到「备份管理」或「清理隔离区」手动确认清理（如选择了移入回收站，还需清空回收站），物理空间才会正式释放。</sys:String>
 
-    <sys:String x:Key="FAQ2Q">Q2: 迁移后程序还能正常运行吗？</sys:String>
-    <sys:String x:Key="FAQ2A">是的。符号链接对应用程序完全透明，程序访问符号链接时会自动重定向到实际的文件位置。大多数程序都支持符号链接，无需任何修改即可继续正常运行。</sys:String>
+    <sys:String x:Key="FAQ2Q">Q2. 磁盘扫描里为什么有些目录勾选不了？</sys:String>
+    <sys:String x:Key="FAQ2A">通常有四种原因：(1) 属于 L0 系统/高危目录被硬拦截；(2) 属于 L2 建议走软件官方迁移方式（可在右侧详情查看官方步骤）；(3) 包含指向目录外部的硬链接，强行迁移会破坏共享关系或无法释放源盘空间；(4) 当前磁盘为 ReFS 卷（仅只读浏览）或目录扫描不完整。</sys:String>
 
-    <sys:String x:Key="FAQ3Q">Q3: 迁移失败会丢失数据吗？</sys:String>
-    <sys:String x:Key="FAQ3A">不会。本工具具有完善的安全机制：迁移前会自动创建备份，如果迁移过程中出现错误，会自动回滚到原始状态。但仍然建议您在迁移重要数据前手动进行备份。</sys:String>
+    <sys:String x:Key="FAQ3Q">Q3. AI 助手会读取我的私人文件内容，或者自己动手删文件吗？</sys:String>
+    <sys:String x:Key="FAQ3A">不会。内置 AI 助手严格零执行权，只能通过只读工具读取脱敏后的目录结构与大小统计（用户名替换为 &lt;USER&gt;），绝不读取文件内容，也不能执行迁移、清理或删除。每一步发给模型的 JSON 均可在「AI 工具返回数据明细」中查看；使用本地 Ollama / LM Studio 时数据完全不出本机。</sys:String>
 
-    <sys:String x:Key="FAQ4Q">Q4: 可以迁移正在运行的程序目录吗？</sys:String>
-    <sys:String x:Key="FAQ4A">不建议。虽然理论上可以，但如果文件被占用，迁移可能会失败。建议先关闭相关程序，迁移完成后再重新打开。工具会在迁移前进行文件占用检测，并给出相应提示。</sys:String>
+    <sys:String x:Key="FAQ4Q">Q4. 垃圾清理的「通道 A」和「通道 B」有什么区别？</sys:String>
+    <sys:String x:Key="FAQ4A">通道 A 处理文件级缓存，默认移入同卷隔离区并支持一键恢复（也可选择回收站，失败绝不直删）；通道 B 调用 Windows 官方系统接口（如 DISM、传递优化、更新缓存、pnputil 旧驱动）直接回收系统空间，不进入隔离区且不可恢复，请按需勾选。</sys:String>
 
-    <sys:String x:Key="FAQ5Q">Q5: 如何恢复到迁移前的状态？</sys:String>
-    <sys:String x:Key="FAQ5A">使用还原模式可以将符号链接恢复为真实目录。只需选择要还原的符号链接目录作为源路径，工具会自动检测并切换到还原模式，然后执行还原操作。</sys:String>
+    <sys:String x:Key="FAQ5Q">Q5. 还原模式和修复模式有什么区别？</sys:String>
+    <sys:String x:Key="FAQ5A">还原模式会将数据从目标盘完整复制回源盘，删除符号链接，并把原目标保留为还原备份；修复模式不复制任何数据，仅基于已经存在的目标目录在源路径重建或修正符号链接。</sys:String>
 
-    <sys:String x:Key="FAQ6Q">Q6: 迁移需要多长时间？</sys:String>
-    <sys:String x:Key="FAQ6A">迁移时间取决于目录大小、文件数量和磁盘速度。一般来说：小文件多的目录耗时较长（受文件数量影响），大文件多的目录耗时较短（受传输速度影响）。工具会显示实时进度和预计剩余时间。</sys:String>
+    <sys:String x:Key="FAQ6Q">Q6. 迁移失败或中途取消会丢失数据吗？</sys:String>
+    <sys:String x:Key="FAQ6A">不会。源目录在复制与核对通过前不会被改动；切换阶段也仅改名为备份而绝不直接删除。若中途取消或出错，工具会按实际进度自动回滚并如实汇报；若遇断电等极端中断，重启后会通过顶部红色恢复横幅保全所有副本，供您核验恢复。</sys:String>
 
-    <sys:String x:Key="FAQ7Q">Q7: 可以取消正在进行的迁移吗？</sys:String>
-    <sys:String x:Key="FAQ7A">可以。点击 [取消] 按钮可以中止迁移。工具会自动执行回滚操作，恢复到迁移前的状态。但是，建议尽量避免取消操作，让迁移正常完成。</sys:String>
+    <sys:String x:Key="FAQ7Q">Q7. 迁移后程序还能正常运行吗？符号链接占多少空间？</sys:String>
+    <sys:String x:Key="FAQ7A">绝大多数程序完全无感知，可照常读写。符号链接本身只是一个文件系统指针，几乎不占用磁盘空间；真实文件存储在目标盘中。</sys:String>
 
-    <sys:String x:Key="FAQ8Q">Q8: 符号链接会占用磁盘空间吗？</sys:String>
-    <sys:String x:Key="FAQ8A">几乎不占用。符号链接本身只是一个指针，通常只占用几个字节。数据实际存储在目标位置，因此迁移后源磁盘会释放出原目录占用的空间。</sys:String>
-
-    <sys:String x:Key="NeedHelpTitle">💬 需要帮助？</sys:String>
-    <sys:String x:Key="NeedHelpDescription">如果遇到其他问题或需要技术支持，请联系开发者：</sys:String>
+    <sys:String x:Key="NeedHelpTitle">关于与技术支持</sys:String>
+    <sys:String x:Key="NeedHelpDescription">如在使用中遇到问题、规则建议或功能反馈，欢迎联系开发者或在仓库提交 Issue：</sys:String>
     <sys:String x:Key="AuthorInfo">• 作者：诏无言</sys:String>
-    <sys:String x:Key="ProjectInfo">• 项目：玲珑星核 - Windows 符号链接迁移方案</sys:String>
+    <sys:String x:Key="ProjectInfo">• 项目：目录迁移工具 · Windows 符号链接目录迁移与空间管理工具</sys:String>
+    <sys:String x:Key="DisclaimerInfo">• 声明：由玲珑星核用户社区爱好者独立开发，非官方出品，与品牌方无隶属关系。</sys:String>
 
 </ResourceDictionary>

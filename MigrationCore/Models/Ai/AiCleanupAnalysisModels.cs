@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using MigrationCore.Models.Cleanup;
 
 namespace MigrationCore.Models.Ai;
@@ -93,12 +94,19 @@ public sealed record AiCleanupItemDetailsResponse(
 /// submit_cleanup_proposal 单项输入（仅接受服务端 ruleId 或 scanId+nodeId，严禁任意路径、命令或永久删除请求）。
 /// </summary>
 public sealed record AiCleanupProposalItemInput(
-    string Kind,
+    [property: Description("建议类型：'RuleMatched'（内置垃圾清理规则排序/解读，须填 ruleId）或 'AiSuspectedResidual'（规则外疑似残留目录隔离候选，须填 nodeId）；可省略，将按 ruleId/nodeId 自动推断。")]
+    string Kind = "",
+    [property: Description("内置清理规则 ID（取自 list_cleanup_items 返回的 ruleId，如 'sys-temp-24h'）；kind='RuleMatched' 时必填，提交疑似残留时省略或传 null。")]
     string? RuleId = null,
+    [property: Description("磁盘扫描目录节点整数 ID（取自磁盘扫描工具返回的 nodeId）；kind='AiSuspectedResidual' 时必填，提交内置规则时省略或传 null。")]
     int? NodeId = null,
+    [property: Description("建议动作（可选）：'QuarantineSameVolume'（默认，同卷隔离）或 'RuleReviewOnly'；服务端强制受限，禁止永久删除。")]
     string? SuggestedAction = "QuarantineSameVolume",
+    [property: Description("优先级整数（1～99，数字越小越优先，默认 1）。")]
     int Priority = 1,
+    [property: Description("简明中文推荐或风险解读理由。")]
     string Reason = "",
+    [property: Description("可选：风险提示或人工核实要点。")]
     string? RiskWarning = null);
 
 /// <summary>

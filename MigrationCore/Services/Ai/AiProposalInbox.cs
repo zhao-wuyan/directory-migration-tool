@@ -307,7 +307,9 @@ public sealed class AiProposalInbox
                     bool alreadyPresent = _cleanupResidualCandidates.Any(c =>
                         c.ScanId == scanId
                         && c.NodeId == nodeId
-                        && c.Status is AiCleanupCandidateStatus.PendingManualReview or AiCleanupCandidateStatus.HardBlockedByExclusion);
+                        && c.Status is AiCleanupCandidateStatus.ProposedAwaitingAdoption
+                            or AiCleanupCandidateStatus.PendingManualReview
+                            or AiCleanupCandidateStatus.HardBlockedByExclusion);
                     if (!alreadyPresent)
                     {
                         _cleanupResidualCandidates.Add(new AiCleanupCandidateRecord(
@@ -324,7 +326,7 @@ public sealed class AiProposalInbox
                             RiskWarning: item.RiskWarning,
                             Status: item.Verdict == AiCleanupProposalItemVerdict.HardBlockedByExclusion
                                 ? AiCleanupCandidateStatus.HardBlockedByExclusion
-                                : AiCleanupCandidateStatus.PendingManualReview,
+                                : AiCleanupCandidateStatus.ProposedAwaitingAdoption,
                             ExclusionReasonCode: item.ExclusionReasonCode,
                             ExclusionCategoryTitle: item.ExclusionCategoryTitle,
                             ExclusionMessage: item.Verdict == AiCleanupProposalItemVerdict.HardBlockedByExclusion ? item.VerdictMessage : null,
@@ -354,15 +356,98 @@ public sealed class AiProposalInbox
         CleanupProposalsChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public IReadOnlyList<AiCleanupCandidateRecord> GetCleanupResidualCandidates()
+    public IReadOnlyList<AiCleanupCandidateRecord> GetCleanupResidualCandidates(bool includeUnadopted = false)
     {
         lock (_sync)
         {
             return _cleanupResidualCandidates
+                .Where(c => includeUnadopted || c.Status != AiCleanupCandidateStatus.ProposedAwaitingAdoption)
                 .OrderBy(c => c.Status == AiCleanupCandidateStatus.HardBlockedByExclusion ? 1 : 0)
                 .ThenByDescending(c => c.SizeBytes)
                 .ToArray();
         }
+    }
+
+    /// <summary>
+    /// 用户在审阅弹框中确认后，将单条「AI 疑似残留」候选从待采纳状态加入「AI 疑似残留」复核列表。
+    /// </summary>
+    public bool AdoptCleanupResidualCandidate(Guid candidateId, Guid? scanId = null, int? nodeId = null) =>
+        AdoptCleanupResidualCandidates([(candidateId, scanId, nodeId)]) > 0;
+
+    /// <summary>
+    /// 用户在审阅弹框中批量确认后，将所选「AI 疑似残留」候选加入「AI 疑似残留」复核列表（单次触发事件）。
+    /// </summary>
+    public int AdoptCleanupResidualCandidates(IEnumerable<(Guid CandidateId, Guid? ScanId, int? NodeId)> targets)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+
+        int adoptedCount = 0;
+        lock (_sync)
+        {
+            foreach ((Guid candidateId, Guid? scanId, int? nodeId) in targets)
+            {
+                int idx = FindCleanupResidualIndexLocked(candidateId, scanId, nodeId);
+                if (idx < 0) continue;
+
+                AiCleanupCandidateRecord current = _cleanupResidualCandidates[idx];
+                if (current.Status == AiCleanupCandidateStatus.ProposedAwaitingAdoption)
+                {
+                    _cleanupResidualCandidates[idx] = current with { Status = AiCleanupCandidateStatus.PendingManualReview };
+                    adoptedCount++;
+                }
+            }
+        }
+
+        if (adoptedCount > 0)
+        {
+            CleanupProposalsChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return adoptedCount;
+    }
+
+    public AiCleanupCandidateStatus? GetCleanupResidualCandidateStatus(Guid candidateId, Guid? scanId = null, int? nodeId = null)
+    {
+        lock (_sync)
+        {
+            int idx = FindCleanupResidualIndexLocked(candidateId, scanId, nodeId);
+            return idx >= 0 ? _cleanupResidualCandidates[idx].Status : null;
+        }
+    }
+
+    public int GetPendingUnadoptedResidualCount()
+    {
+        lock (_sync)
+        {
+            return _cleanupResidualCandidates.Count(c => c.Status == AiCleanupCandidateStatus.ProposedAwaitingAdoption);
+        }
+    }
+
+    private int FindCleanupResidualIndexLocked(Guid candidateId, Guid? scanId, int? nodeId)
+    {
+        if (candidateId != Guid.Empty)
+        {
+            for (int i = 0; i < _cleanupResidualCandidates.Count; i++)
+            {
+                if (_cleanupResidualCandidates[i].CandidateId == candidateId)
+                {
+                    return i;
+                }
+            }
+        }
+
+        if (scanId is Guid sid && sid != Guid.Empty && nodeId is int nid && nid > 0)
+        {
+            for (int i = _cleanupResidualCandidates.Count - 1; i >= 0; i--)
+            {
+                AiCleanupCandidateRecord c = _cleanupResidualCandidates[i];
+                if (c.ScanId == sid && c.NodeId == nid)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
     }
 
     public IReadOnlyList<AiCleanupRuleAdviceRecord> GetCleanupRuleAdvices(Guid? cleanupScanId = null)
@@ -406,7 +491,8 @@ public sealed class AiProposalInbox
             for (int i = 0; i < _cleanupResidualCandidates.Count; i++)
             {
                 AiCleanupCandidateRecord c = _cleanupResidualCandidates[i];
-                if (c.ScanId == scanId && c.Status == AiCleanupCandidateStatus.PendingManualReview)
+                if (c.ScanId == scanId
+                    && c.Status is AiCleanupCandidateStatus.PendingManualReview or AiCleanupCandidateStatus.ProposedAwaitingAdoption)
                 {
                     _cleanupResidualCandidates[i] = c with { Status = AiCleanupCandidateStatus.Invalidated };
                     count++;

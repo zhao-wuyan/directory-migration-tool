@@ -1183,18 +1183,26 @@
         </Grid>
         
         <!-- Footer -->
-        <Border Grid.Row="2" Background="#F8F8F8" Padding="5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#F8F8F8" Padding="8,5" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
             <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <TextBlock Text="© 2025 " Foreground="Gray" FontSize="11"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="© 2025–2026 " Foreground="Gray" FontSize="11"/>
                     <TextBlock Text="诏无言" Foreground="#0078D4" FontWeight="SemiBold" FontSize="11"/>
                     <TextBlock Text=" | 目录迁移工具 " Foreground="Gray" FontSize="11"/>
                     <TextBlock Text="{Binding VersionText}" Foreground="Gray" FontSize="11"/>
                 </StackPanel>
-                <TextBlock Text="玲珑星核 | Windows 符号链接迁移方案" 
-                          HorizontalAlignment="Right" 
+                <TextBlock Grid.Column="1"
+                          Text="Windows 符号链接迁移与空间管理方案 · 玲珑星核用户社区爱好者自研"
+                          ToolTip="由玲珑星核用户社区爱好者独立开发，非官方出品，与品牌方无隶属关系。"
+                          HorizontalAlignment="Right"
                           VerticalAlignment="Center"
-                          Foreground="Gray" 
+                          Margin="16,0,0,0"
+                          TextTrimming="CharacterEllipsis"
+                          Foreground="Gray"
                           FontSize="11"/>
             </Grid>
         </Border>

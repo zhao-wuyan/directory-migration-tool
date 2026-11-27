@@ -132,6 +132,11 @@ public partial class AiAssistantDrawerControl : UserControl
         return (stillAtBottom, false);
     }
 
+    private void ReasoningEffortSlider_OnCloseRequested(object? sender, EventArgs e)
+    {
+        ReasoningEffortToggle.IsChecked = false;
+    }
+
     private void PromptInput_OnKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None)

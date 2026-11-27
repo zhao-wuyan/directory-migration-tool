@@ -338,11 +338,35 @@ internal static class Phase3CleanupCases
                 AiCleanupProposalReceipt conflict = toolset.SubmitCleanupProposal(propReq with { Items = [propReq.Items[0]] });
                 Require(conflict.RejectionMessage is not null, "Same clientRequestId with different body must be rejected");
 
-                // 5. 执行 AI 疑似残留同卷隔离：缺任一勾选必报错，双勾选后移入 ai- 隔离批次且可恢复
+                // 5. 验证方案 2A：AI 提交疑似残留后默认停留在 ProposedAwaitingAdoption 待采纳态，
+                //    未在审阅弹框确认加入前绝不进入「AI 疑似残留」列表且不可直接隔离；
+                //    确认加入后才进入 PendingManualReview，随后执行同卷隔离仍强制校验双勾选且可恢复
                 var qStore = new QuarantineStore(customQuarantineRootOverride: quarantineRoot);
                 var cleanupService = new CleanupService(qStore, policyEnvironment: env);
+
+                var beforeAdoptCandidates = toolset.Inbox.GetCleanupResidualCandidates();
+                Require(beforeAdoptCandidates.Count == 1
+                    && beforeAdoptCandidates[0].Status == AiCleanupCandidateStatus.HardBlockedByExclusion,
+                    $"Unadopted AI residual must NOT enter active residual list before user confirmation, got {beforeAdoptCandidates.Count}");
+
+                var allRawCandidates = toolset.Inbox.GetCleanupResidualCandidates(includeUnadopted: true);
+                Require(allRawCandidates.Count == 2
+                    && allRawCandidates.Any(c => c.Status == AiCleanupCandidateStatus.ProposedAwaitingAdoption),
+                    $"Raw inbox should track 1 awaiting-adoption residual + 1 hard-blocked audit, got {allRawCandidates.Count}");
+
+                // 未确认加入的 ProposedAwaitingAdoption 候选即使误传入执行器也必须被跳过
+                CleanupExecutionResult unadoptedRes = await cleanupService.ExecuteAiSuspectedResidualQuarantineAsync(allRawCandidates, true, true);
+                Require(unadoptedRes.Items.Length == 0 && Directory.Exists(residualDir),
+                    "Unadopted ProposedAwaitingAdoption candidate must NEVER be quarantined");
+
+                // 模拟用户在统一审阅弹窗中勾选确认加入「AI 疑似残留」列表
+                bool adoptedOk = toolset.Inbox.AdoptCleanupResidualCandidate(residualRec.ProposalItemId);
+                Require(adoptedOk, "Adopting awaiting residual candidate should succeed");
+
                 var inboxCandidates = toolset.Inbox.GetCleanupResidualCandidates();
-                Require(inboxCandidates.Count == 2, $"Expected 2 inbox residual records (1 pending + 1 hard-blocked), got {inboxCandidates.Count}");
+                Require(inboxCandidates.Count == 2
+                    && inboxCandidates.Any(c => c.Status == AiCleanupCandidateStatus.PendingManualReview),
+                    $"Expected 2 inbox residual records (1 pending + 1 hard-blocked) after user adoption, got {inboxCandidates.Count}");
 
                 bool doubleCheckEnforced = false;
                 try { await cleanupService.ExecuteAiSuspectedResidualQuarantineAsync(inboxCandidates, true, false); }

@@ -26,6 +26,7 @@ public sealed partial class ReadOnlyAiAnalysisToolset : IAiAnalysisToolset
 
     public const int MaxPageSize = 50;
     public const int MaxProposalItems = 20;
+    public const int MaxCleanupProposalItems = 100;
     public const int MaxReasonLength = 400;
 
     public static readonly string[] Phase2ToolNames =

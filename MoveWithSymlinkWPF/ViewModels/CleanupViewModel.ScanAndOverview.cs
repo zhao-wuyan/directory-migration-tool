@@ -521,87 +521,201 @@ public partial class CleanupViewModel
     [RelayCommand]
     private void CancelScan()
     {
-        _scanCts?.Cancel();
+        CancellationTokenSource? cts;
+        lock (_scanSync)
+        {
+            cts = _scanCts;
+        }
+        try { cts?.Cancel(); } catch (ObjectDisposedException) { }
     }
 
     /// <summary>
-    /// 供 AI 交互式扫描卡片触发的只读垃圾清理扫描（用户手动点击确认后调用；完成后同步回填垃圾清理页三档列表）。
+    /// 供 AI 交互式扫描卡片触发的只读垃圾清理扫描（与左侧垃圾清理页共享单一扫描任务、实时进度、实时大项榜与双向取消）。
+    /// 若左侧已在扫描中，直接挂载复用进行中的任务而绝不重复扫盘。
     /// </summary>
-    public async Task<CleanupScanSnapshot?> ScanForAiCardAsync(IProgress<string>? progress, CancellationToken ct)
+    public async Task<CleanupScanSnapshot?> ScanForAiCardAsync(IProgress<(double Percent, string Message)>? progress, CancellationToken ct)
     {
         if (IsExecuting)
         {
             throw new InvalidOperationException("当前正在执行清理任务，请等待完成后再扫描。");
         }
 
-        var detailedProgress = new Progress<CleanupScanProgress>(p =>
+        ct.ThrowIfCancellationRequested();
+
+        Task<CleanupScanSnapshot> scanTask;
+        CancellationTokenSource activeCts;
+        TaskCompletionSource<CleanupScanSnapshot>? tcsToRun = null;
+        Action<(double Percent, string Message)>? listener = progress is null ? null : p => progress.Report(p);
+        (double Percent, string Message)? initialBroadcast = null;
+
+        lock (_scanSync)
         {
-            string label = p.TotalSteps > 0
-                ? $"清理扫描 ({p.CompletedSteps}/{p.TotalSteps})：{p.Message}"
-                : p.Message;
-            progress?.Report(label);
+            if (listener is not null)
+            {
+                _externalScanProgressListeners.Add(listener);
+            }
+
+            if (_activeScanTask is not null && _scanCts is not null && !_activeScanTask.IsCompleted)
+            {
+                scanTask = _activeScanTask;
+                activeCts = _scanCts;
+                initialBroadcast = _lastScanProgressBroadcast;
+            }
+            else
+            {
+                activeCts = new CancellationTokenSource();
+                _scanCts = activeCts;
+                _lastScanProgressBroadcast = (0, "正在只读扫描可清理项（不修改任何文件）…");
+                tcsToRun = new TaskCompletionSource<CleanupScanSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+                scanTask = tcsToRun.Task;
+                _activeScanTask = scanTask;
+            }
+        }
+
+        if (tcsToRun is not null)
+        {
+            _ = RunUnifiedScanCoreAsync(activeCts, tcsToRun);
+        }
+        else if (initialBroadcast is { } initProg)
+        {
+            progress?.Report(initProg);
+        }
+
+        using CancellationTokenRegistration cancelReg = ct.Register(() =>
+        {
+            try { activeCts.Cancel(); } catch (ObjectDisposedException) { }
         });
 
-        CleanupScanSnapshot snapshot = await _cleanupService.ScanAsync(detailedProgress: detailedProgress, ct: ct).ConfigureAwait(false);
-        DispatchToUi(() =>
+        try
         {
-            ApplyScanSnapshot(snapshot);
-            StatusMessage = $"只读扫描完成：共识别 {FileStatsService.FormatBytes(snapshot.TotalReclaimableBytes)}（所有项目默认未勾选）。";
-            _overviewDirty = true;
-            _ = OnEnteredCleanupPageAsync(force: true);
-        });
-        return snapshot;
+            return await scanTask.WaitAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (listener is not null)
+            {
+                lock (_scanSync)
+                {
+                    _externalScanProgressListeners.Remove(listener);
+                }
+            }
+        }
     }
 
     [RelayCommand]
     public async Task ScanAsync()
     {
-        if (IsScanning || IsExecuting) return;
+        if (IsExecuting) return;
 
-        IsScanning = true;
-        HasExecutionReceipt = false;
-        SelectedRule = null;
-        ResetLiveScanFeed();
-        ScanProgressPercent = 0;
-        ScanProgressBadgeText = "0%";
-        StatusMessage = "正在只读扫描可清理项（不修改任何文件）…";
+        CancellationTokenSource cts;
+        TaskCompletionSource<CleanupScanSnapshot> tcs;
+        lock (_scanSync)
+        {
+            if (_activeScanTask is not null && !_activeScanTask.IsCompleted)
+            {
+                return;
+            }
 
-        _scanCts?.Cancel();
-        _scanCts?.Dispose();
-        _scanCts = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
+            _scanCts = cts;
+            _lastScanProgressBroadcast = (0, "正在只读扫描可清理项（不修改任何文件）…");
+            tcs = new TaskCompletionSource<CleanupScanSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _activeScanTask = tcs.Task;
+        }
+
+        _ = RunUnifiedScanCoreAsync(cts, tcs);
 
         try
         {
-            var detailedProgress = new Progress<CleanupScanProgress>(p => DispatchToUi(() =>
-            {
-                ScanProgressPercent = p.Percent;
-                ScanProgressBadgeText = p.TotalSteps > 0
-                    ? $"{p.CompletedSteps} / {p.TotalSteps} · {Math.Round(p.Percent):0}%"
-                    : $"{Math.Round(p.Percent):0}%";
-                StatusMessage = p.Message;
+            await tcs.Task;
+        }
+        catch (OperationCanceledException)
+        {
+            // UI 取消态已由 RunUnifiedScanCoreAsync 统一更新
+        }
+        catch
+        {
+            // UI 错误态已由 RunUnifiedScanCoreAsync 统一更新
+        }
+    }
 
-                if (p.CompletedRuleHit is not null)
+    private async Task RunUnifiedScanCoreAsync(CancellationTokenSource scanCts, TaskCompletionSource<CleanupScanSnapshot> tcs)
+    {
+        const string initialMessage = "正在只读扫描可清理项（不修改任何文件）…";
+
+        DispatchToUi(() =>
+        {
+            IsScanning = true;
+            HasExecutionReceipt = false;
+            SelectedRule = null;
+            ResetLiveScanFeed();
+            ScanProgressPercent = 0;
+            ScanProgressBadgeText = "0%";
+            StatusMessage = initialMessage;
+            _aiAssistant?.NotifyExternalCleanupScanState(isScanning: true, percent: 0, message: initialMessage);
+        });
+
+        try
+        {
+            var detailedProgress = new Progress<CleanupScanProgress>(p =>
+            {
+                double clampedPercent = Math.Clamp(p.Percent, 0, 100);
+                string aiLabel = p.TotalSteps > 0
+                    ? $"清理扫描 ({p.CompletedSteps}/{p.TotalSteps})：{p.Message}"
+                    : p.Message;
+
+                Action<(double Percent, string Message)>[] listeners;
+                lock (_scanSync)
                 {
-                    ApplyLiveScanHit(p.CompletedRuleHit);
+                    _lastScanProgressBroadcast = (clampedPercent, aiLabel);
+                    listeners = _externalScanProgressListeners.Count > 0
+                        ? _externalScanProgressListeners.ToArray()
+                        : [];
                 }
-            }));
-            CleanupScanSnapshot snapshot = await _cleanupService.ScanAsync(detailedProgress: detailedProgress, ct: _scanCts.Token);
+
+                foreach (Action<(double Percent, string Message)> cb in listeners)
+                {
+                    cb((clampedPercent, aiLabel));
+                }
+
+                DispatchToUi(() =>
+                {
+                    ScanProgressPercent = p.Percent;
+                    ScanProgressBadgeText = p.TotalSteps > 0
+                        ? $"{p.CompletedSteps} / {p.TotalSteps} · {Math.Round(p.Percent):0}%"
+                        : $"{Math.Round(p.Percent):0}%";
+                    StatusMessage = p.Message;
+
+                    if (p.CompletedRuleHit is not null)
+                    {
+                        ApplyLiveScanHit(p.CompletedRuleHit);
+                    }
+
+                    _aiAssistant?.NotifyExternalCleanupScanState(isScanning: true, percent: clampedPercent, message: aiLabel);
+                });
+            });
+
+            CleanupScanSnapshot snapshot = await _cleanupService.ScanAsync(detailedProgress: detailedProgress, ct: scanCts.Token).ConfigureAwait(false);
 
             DispatchToUi(() =>
             {
                 ScanProgressPercent = 100;
                 ScanProgressBadgeText = "100%";
                 ApplyScanSnapshot(snapshot);
+                _aiAssistant?.NotifyExternalCleanupScanState(isScanning: false, percent: 100, message: string.Empty);
                 _aiAssistant?.SyncCleanupScanSnapshot(snapshot);
                 StatusMessage = $"只读扫描完成：共识别 {FileStatsService.FormatBytes(snapshot.TotalReclaimableBytes)}（所有项目默认未勾选）。";
                 _overviewDirty = true;
                 _ = OnEnteredCleanupPageAsync(force: true);
             });
+
+            tcs.TrySetResult(snapshot);
         }
         catch (OperationCanceledException)
         {
             DispatchToUi(() =>
             {
+                _aiAssistant?.NotifyExternalCleanupScanState(isScanning: false, percent: 0, message: string.Empty);
                 StatusMessage = "已取消垃圾扫描，可随时点击右上角「重新扫描」。";
                 FooterSelectionSummary = StatusMessage;
                 if (!HasScanSnapshot)
@@ -610,18 +724,34 @@ public partial class CleanupViewModel
                     RebuildIdleScopePreviews();
                 }
             });
+            tcs.TrySetCanceled(scanCts.Token);
         }
         catch (Exception ex)
         {
             DispatchToUi(() =>
             {
+                _aiAssistant?.NotifyExternalCleanupScanState(isScanning: false, percent: 0, message: string.Empty);
                 StatusMessage = $"垃圾扫描失败：{ex.Message}";
                 FooterSelectionSummary = StatusMessage;
             });
+            tcs.TrySetException(ex);
         }
         finally
         {
-            IsScanning = false;
+            lock (_scanSync)
+            {
+                if (ReferenceEquals(_scanCts, scanCts))
+                {
+                    _scanCts = null;
+                    _activeScanTask = null;
+                    _lastScanProgressBroadcast = null;
+                }
+            }
+
+            DispatchToUi(() =>
+            {
+                IsScanning = false;
+            });
         }
     }
 

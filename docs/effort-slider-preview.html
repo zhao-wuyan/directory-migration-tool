@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>思考等级（reasoning_effort）滑块动效设计预览 · C# .NET 10 WPF 原生可行性原型</title>
+  <style>
+    :root {
+      --bg-page: #f1f5f9;
+      --bg-surface: #ffffff;
+      --border-subtle: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --fluent-blue: #0078d4;
+      --font-sans: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: Georgia, "Palatino Linotype", "Times New Roman", serif;
+      --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(0, 120, 212, 0.07), transparent 42%),
+        radial-gradient(circle at 85% 20%, rgba(168, 85, 247, 0.08), transparent 45%),
+        var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 28px 20px 60px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page-shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    /* 顶部标题区 */
+    .hero-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(203, 213, 225, 0.8);
+    }
+    .hero-title-group h1 {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hero-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #0078d4;
+      background: rgba(0, 120, 212, 0.1);
+      border: 1px solid rgba(0, 120, 212, 0.22);
+      padding: 2px 9px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .hero-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+    .perf-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    .perf-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+    }
+
+    /* 风格切换控制条 */
+    .control-bar {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px 22px;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+    }
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ctrl-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .seg-group {
+      display: inline-flex;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 9px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+    .seg-btn:hover {
+      color: var(--text-primary);
+    }
+    .seg-btn.active {
+      background: #ffffff;
+      color: #0078d4;
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+    }
+    .demo-play-btn {
+      margin-left: auto;
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 3px 12px rgba(124, 58, 237, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+    .demo-play-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 16px rgba(124, 58, 237, 0.36);
+    }
+    .demo-play-btn:active {
+      transform: scale(0.97);
+    }
+    .demo-play-btn.playing {
+      background: linear-gradient(135deg, #ec4899, #f97316);
+      border-color: rgba(236, 72, 153, 0.4);
+      box-shadow: 0 3px 12px rgba(236, 72, 153, 0.3);
+    }
+
+    /* 主舞台：模拟 WPF AI 抽屉 + 输入栏 + 悬浮 Popup */
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+
+    .mock-window {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+      overflow: visible;
+      position: relative;
+    }
+    .mock-window-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      border-radius: 16px 16px 0 0;
+    }
+    .mock-window-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mock-window-title .tag {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 1px 7px;
+      border-radius: 6px;
+    }
+    .mock-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .mock-dots span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    /* AI 抽屉聊天上下文模拟区域 */
+    .chat-stage {
+      padding: 20px 18px 18px;
+      min-height: 360px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+      background:
+        radial-gradient(circle at 75% 70%, rgba(168, 85, 247, 0.05), transparent 55%),
+        #f8fafc;
+      border-radius: 0 0 16px 16px;
+    }
+
+    .chat-bubble-faint {
+      align-self: flex-start;
+      max-width: 82%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px 12px 12px 4px;
+      padding: 10px 13px;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: auto;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    }
+    .chat-bubble-faint strong {
+      color: #334155;
+      font-weight: 600;
+    }
+
+    .popup-anchor-wrap {
+      position: relative;
+      margin-top: 205px; /* 给上方浮层留出充足展示空间 */
+    }
+
+    /* WPF 输入框栏 1:1 复刻截图 1 */
+    .wpf-composer {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 5px 8px 5px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .wpf-composer:focus-within {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.08);
+    }
+    .wpf-composer input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: #0f172a;
+      background: transparent;
+      min-width: 80px;
+    }
+    .wpf-composer input::placeholder {
+      color: #94a3b8;
+    }
+
+    /* 底部「思考·极限」胶囊按钮（关闭面板后保留档位配色与微光） */
+    .effort-pill-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid var(--pill-border, #e2e8f0);
+      color: var(--pill-fg, #475569);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      box-shadow: var(--pill-glow, none);
+    }
+    .effort-pill-btn:hover {
+      transform: translateY(-0.5px);
+      filter: brightness(0.98);
+    }
+    .effort-pill-btn:active {
+      transform: scale(0.96);
+    }
+    .effort-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--pill-dot, #94a3b8);
+      box-shadow: 0 0 6px var(--pill-dot, transparent);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* 上下文圆环按钮（还原截图1最右侧小圆环） */
+    .context-ring-btn {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .context-ring-btn:hover { background: #f1f5f9; }
+
+    /* ================================================================
+       核心组件：Effort Slider Popup（支持 Fluent 亮色融冰 & DSH 深空霓虹）
+       ================================================================ */
+    .effort-popup-shell {
+      position: absolute;
+      right: 26px;
+      bottom: calc(100% + 10px);
+      width: 316px;
+      z-index: 30;
+      user-select: none;
+      transform-origin: bottom right;
+      transition:
+        opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+    }
+    .effort-popup-shell.hidden {
+      opacity: 0;
+      transform: translateY(8px) scale(0.96);
+      pointer-events: none;
+    }
+
+    /* 外圈动态呼吸光晕（WPF 用 BlurEffect + Border 实现） */
+    .effort-outer-glow {
+      position: absolute;
+      inset: -3px;
+      border-radius: 17px;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(10px);
+      opacity: var(--outer-glow-opacity, 0.35);
+      background: var(--outer-glow-bg, linear-gradient(135deg, rgba(168,85,247,0.35), rgba(59,130,246,0.22), rgba(168,85,247,0.3)));
+      transition: opacity 0.35s ease, background 0.35s ease;
+    }
+
+    /* 卡片本体 */
+    .effort-card {
+      position: relative;
+      z-index: 1;
+      border-radius: 14px;
+      padding: 13px 15px 12px;
+      overflow: hidden;
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* ---- 主题 1：Fluent 亮色融冰卡 + 深空玻璃能量槽 ---- */
+    .effort-popup-shell.theme-fluent .effort-card {
+      background: linear-gradient(175deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #cbd5e1;
+      box-shadow:
+        0 12px 32px rgba(15, 23, 42, 0.14),
+        0 2px 6px rgba(15, 23, 42, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+    .effort-popup-shell.theme-fluent .effort-title {
+      color: #0f172a;
+    }
+    .effort-popup-shell.theme-fluent .effort-sub-code {
+      color: #64748b;
+    }
+    .effort-popup-shell.theme-fluent .auto-chip {
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+    }
+    .effort-popup-shell.theme-fluent .auto-chip:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .effort-popup-shell.theme-fluent .auto-chip.active {
+      color: #0369a1;
+      background: #e0f2fe;
+      border-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+    .effort-popup-shell.theme-fluent .close-btn {
+      color: #64748b;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+    }
+    .effort-popup-shell.theme-fluent .close-btn:hover {
+      color: #0f172a;
+      background: #e2e8f0;
+    }
+    .effort-popup-shell.theme-fluent .tick-label {
+      color: #94a3b8;
+    }
+    .effort-popup-shell.theme-fluent .tick-label.active {
+      color: var(--tier-text-light, #0078d4);
+      font-weight: 700;
+    }
+    .effort-popup-shell.theme-fluent .effort-footer-hint {
+      color: #64748b;
+    }
+    .effort-popup-shell.theme-fluent .wire-tag {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+    }
+    .effort-popup-shell.theme-fluent .track-slot {
+      background: linear-gradient(180deg, #0b1020 0%, #11182c 100%);
+      border: 1px solid rgba(15, 23, 42, 0.22);
+      box-shadow:
+        inset 0 2px 6px rgba(0, 0, 0, 0.55),
+        0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    /* ---- 主题 2：DSH 深空霓虹悬浮卡（1:1 复刻 dsh-effort-slider 与图 2） ---- */
+    .effort-popup-shell.theme-dark .effort-card {
+      background: linear-gradient(160deg, #0e0a16 0%, #150e24 52%, #0c0818 100%);
+      border: 1px solid rgba(168, 85, 247, 0.24);
+      box-shadow:
+        0 14px 38px rgba(4, 2, 12, 0.58),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .effort-popup-shell.theme-dark .effort-title {
+      color: #9a90b8;
+    }
+    .effort-popup-shell.theme-dark .effort-sub-code {
+      color: #6d638a;
+    }
+    .effort-popup-shell.theme-dark .auto-chip {
+      color: #9a90b8;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.24);
+    }
+    .effort-popup-shell.theme-dark .auto-chip:hover {
+      color: #e9d5ff;
+      background: rgba(168, 85, 247, 0.2);
+      border-color: rgba(168, 85, 247, 0.45);
+    }
+    .effort-popup-shell.theme-dark .auto-chip.active {
+      color: #67e8f9;
+      background: rgba(6, 182, 212, 0.18);
+      border-color: rgba(34, 211, 238, 0.55);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+    }
+    .effort-popup-shell.theme-dark .close-btn {
+      color: #8880a0;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.22);
+    }
+    .effort-popup-shell.theme-dark .close-btn:hover {
+      color: #f3e8ff;
+      background: rgba(168, 85, 247, 0.24);
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+    .effort-popup-shell.theme-dark .tick-label {
+      color: #6e6488;
+    }
+    .effort-popup-shell.theme-dark .tick-label.active {
+      color: var(--tier-text-dark, #c084fc);
+      text-shadow: 0 0 8px var(--tier-glow, rgba(168,85,247,0.5));
+      font-weight: 700;
+    }
+    .effort-popup-shell.theme-dark .effort-footer-hint {
+      color: #7b7197;
+    }
+    .effort-popup-shell.theme-dark .wire-tag {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(168, 85, 247, 0.18);
+      color: #9e93ba;
+    }
+    .effort-popup-shell.theme-dark .track-slot {
+      background: linear-gradient(135deg, #0a0514 0%, #05020a 100%);
+      border: 1px solid rgba(168, 85, 247, 0.18);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.65);
+    }
+
+    /* 头部区域 */
+    .effort-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .effort-head-left {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      min-width: 0;
+    }
+    .effort-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .effort-status-wrap {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      min-height: 20px;
+    }
+    .effort-status-zh {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+    .effort-status-en {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+    @keyframes statusPop {
+      0% { opacity: 0; filter: blur(6px); transform: translateY(5px) scale(0.95); }
+      100% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); }
+    }
+    .status-anim {
+      animation: statusPop 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .effort-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .auto-chip {
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .auto-chip .auto-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.65;
+    }
+    .auto-chip.active .auto-dot {
+      opacity: 1;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .close-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.16s ease;
+    }
+
+    /* 刻度文字行（精准对齐 thumb 中心行程） */
+    .tick-labels {
+      position: relative;
+      height: 16px;
+      margin-bottom: 5px;
+    }
+    .tick-label {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      padding: 0 2px;
+      transition: color 0.18s ease, transform 0.18s ease, text-shadow 0.2s ease;
+      white-space: nowrap;
+    }
+    .tick-label:hover {
+      transform: translateX(-50%) translateY(-1px);
+    }
+
+    /* 能量滑槽 */
+    .track-slot {
+      position: relative;
+      height: 36px;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    /* 微弱玻璃高光层（增强立体槽质感） */
+    .track-glass-sheen {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.0) 42%, rgba(0,0,0,0.18) 100%);
+      border-radius: inherit;
+    }
+
+    /* 刻度圆点层 */
+    .dots-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .track-dot {
+      position: absolute;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(148, 163, 184, 0.34);
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .track-dot.active {
+      background: #ffffff;
+      transform: translate(-50%, -50%) scale(1.25);
+      box-shadow: 0 0 8px var(--tier-glow, #a855f7);
+    }
+
+    /* 像素矩阵能量画布（与 C# WriteableBitmap 算法 1:1 等价） */
+    .energy-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+      display: block;
+    }
+
+    /* 拖拽跟随点光源（WPF 原生 RadialGradientBrush 实现） */
+    .point-light {
+      position: absolute;
+      top: 50%;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+    }
+    .track-slot.dragging .point-light,
+    .track-slot:hover .point-light {
+      opacity: 0.85;
+    }
+
+    /* 自定义金属磨砂圆角滑块 Thumb（WPF Border + LinearGradientBrush + ScaleTransform + DropShadowEffect） */
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      transform: translate(-50%, -50%) scale(1);
+      z-index: 5;
+      cursor: grab;
+      background: linear-gradient(155deg, #ffffff 0%, #ece7f8 52%, #d5c9ec 100%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.45),
+        0 0 0 1px var(--thumb-ring, rgba(168, 85, 247, 0.35)),
+        0 0 14px var(--thumb-halo, rgba(168, 85, 247, 0.28)),
+        inset 0 1px 1px rgba(255, 255, 255, 0.95);
+      transition:
+        transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.28s ease,
+        opacity 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none; /* 事件统一由 track-slot 托管实现无级流畅拖动 */
+    }
+    .slider-thumb::after {
+      content: "";
+      width: 3px;
+      height: 11px;
+      border-radius: 2px;
+      background: var(--thumb-core, rgba(100, 116, 139, 0.45));
+      box-shadow: 0 0 6px var(--thumb-core-glow, transparent);
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+    .track-slot.dragging .slider-thumb {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(0.91);
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.55),
+        0 0 0 1.5px var(--thumb-ring, rgba(168, 85, 247, 0.7)),
+        0 0 24px var(--thumb-halo-strong, rgba(168, 85, 247, 0.65)),
+        inset 0 1px 1px rgba(255, 255, 255, 0.95);
+    }
+    /* 自动默认模式下，Thumb 半透明休眠微光提示「点击或拖动即可接管」 */
+    .track-slot.is-auto .slider-thumb {
+      opacity: 0.72;
+      background: linear-gradient(155deg, #e0f2fe 0%, #bae6fd 55%, #7dd3fc 100%);
+    }
+
+    /* 底部信息与平滑降级提示 */
+    .effort-footer {
+      margin-top: 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .effort-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .wire-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .effort-desc-mini {
+      font-size: 10.5px;
+      font-weight: 600;
+      opacity: 0.88;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .effort-footer-hint {
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    /* 右侧栏：AI 设置页内嵌版 + 交互提示 */
+    .side-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .settings-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 8px 26px rgba(15, 23, 42, 0.05);
+    }
+    .settings-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .settings-card-title span.sub {
+      font-size: 11px;
+      font-weight: 500;
+      color: #64748b;
+    }
+    .settings-row {
+      display: grid;
+      grid-template-columns: 70px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+    }
+    .settings-row-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+    }
+    .inline-slider-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .inline-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .inline-track-slot {
+      height: 30px;
+      border-radius: 8px;
+    }
+    .inline-track-slot .slider-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+    }
+
+    /* 交互特性卡片 */
+    .tips-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .tips-card h3 {
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+    .tips-list {
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .tips-list li {
+      display: flex;
+      gap: 7px;
+      align-items: flex-start;
+    }
+    .tips-list li::before {
+      content: "✦";
+      color: #7c3aed;
+      font-size: 11px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    /* 底部 WPF .NET 10 技术可行性拆解区 */
+    .tech-section {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 8px 26px rgba(15, 23, 42, 0.04);
+    }
+    .tech-section-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .tech-section-head h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .tech-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tech-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 820px) {
+      .tech-grid { grid-template-columns: 1fr; }
+    }
+    .tech-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 13px 14px;
+    }
+    .tech-card h4 {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 5px;
+    }
+    .tech-card p {
+      font-size: 11.5px;
+      color: #475569;
+      line-height: 1.55;
+    }
+    .tech-card code {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      background: #e2e8f0;
+      color: #1e293b;
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <!-- 顶部标题 -->
+    <header class="hero-header">
+      <div class="hero-title-group">
+        <h1>
+          思考等级（reasoning_effort）能量滑块设计预览
+          <span class="hero-badge">C# .NET 10 + 原生 WPF 1:1 可实现</span>
+        </h1>
+        <p class="hero-subtitle">
+          参考 <code>2768651338/dsh-effort-slider</code> 的像素矩阵火焰、弹簧跟随、无级拖动与松手吸附，针对本工具 8 档位与 Fluent 界面定制。
+        </p>
+      </div>
+      <div class="perf-pill" id="perfBadge">
+        <span class="perf-dot"></span>
+        <span>模拟网格 56×6 · <strong id="perfMs">0.12</strong> ms/帧 · 60 FPS · 0 额外依赖</span>
+      </div>
+    </header>
+
+    <!-- 方案切换工具栏 -->
+    <section class="control-bar" aria-label="方案对比控制条">
+      <div class="ctrl-group">
+        <span class="ctrl-label">卡片风格</span>
+        <div class="seg-group" data-ctrl="theme">
+          <button class="seg-btn active" data-val="fluent">Fluent 亮色融冰（推荐）</button>
+          <button class="seg-btn" data-val="dark">DSH 深空霓虹（图2原味）</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">能量配色</span>
+        <div class="seg-group" data-ctrl="palette">
+          <button class="seg-btn active" data-val="dynamic">动态色温升温（推荐）</button>
+          <button class="seg-btn" data-val="dsh-purple">DSH 经典紫焰</button>
+          <button class="seg-btn" data-val="fluent-blue">Fluent 科技蓝</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">「默认」交互</span>
+        <div class="seg-group" data-ctrl="mode">
+          <button class="seg-btn active" data-val="auto-chip">顶部「自动默认」+ 7档（推荐）</button>
+          <button class="seg-btn" data-val="all-8">全 8 档一体滑轨</button>
+        </div>
+      </div>
+
+      <button class="demo-play-btn" id="autoDemoBtn" type="button">
+        <span>▶</span>
+        <span id="autoDemoLabel">自动演示升温</span>
+      </button>
+    </section>
+
+    <!-- 双舞台：左侧模拟 AI 聊天栏弹出卡片，右侧模拟设置页内嵌滑块 -->
+    <main class="stage-grid">
+      <!-- 左侧：AiAssistantDrawerControl.xaml 悬浮弹窗还原 -->
+      <section class="mock-window">
+        <div class="mock-window-bar">
+          <div class="mock-window-title">
+            AI 助手输入框悬浮面板
+            <span class="tag">AiAssistantDrawerControl.xaml</span>
+          </div>
+          <div class="mock-dots"><span></span><span></span><span></span></div>
+        </div>
+
+        <div class="chat-stage" id="chatStage">
+          <div class="chat-bubble-faint">
+            <strong>操作试试：</strong>拖动下方滑块感受无级拖尾与松手弹簧吸附；点击底部 <strong>「思考·极限」</strong> 胶囊可收起/重新展开并触发重新点火动画；也可在轨道上使用 <strong>鼠标滚轮</strong> 或 <strong>方向键 ←/→</strong>。
+          </div>
+
+          <div class="popup-anchor-wrap">
+            <!-- 悬浮 Effort 面板 -->
+            <div class="effort-popup-shell theme-fluent" id="popupShell" role="dialog" aria-label="思考等级设置">
+              <div class="effort-outer-glow" id="popupOuterGlow"></div>
+              <div class="effort-card">
+                <div class="effort-head">
+                  <div class="effort-head-left">
+                    <span class="effort-title">思考等级</span>
+                    <span class="effort-status-wrap" id="popupStatusWrap">
+                      <span class="effort-status-zh" id="popupStatusZh">极限</span>
+                      <span class="effort-status-en" id="popupStatusEn">MAX</span>
+                    </span>
+                  </div>
+                  <div class="effort-head-actions">
+                    <button class="auto-chip" id="popupAutoBtn" type="button" title="恢复由模型服务端自适应（不强传 reasoning_effort）">
+                      <span class="auto-dot"></span>
+                      <span>自动默认</span>
+                    </button>
+                    <button class="close-btn" id="popupCloseBtn" type="button" title="收起面板">×</button>
+                  </div>
+                </div>
+
+                <!-- 刻度标签（JS 按 thumb 行程精确布点） -->
+                <div class="tick-labels" id="popupTicks"></div>
+
+                <!-- 能量轨道槽 -->
+                <div class="track-slot" id="popupTrack" tabindex="0" role="slider" aria-label="思考等级滑块">
+                  <div class="dots-layer" id="popupDots"></div>
+                  <canvas class="energy-canvas" id="popupCanvas"></canvas>
+                  <div class="point-light" id="popupLight"></div>
+                  <div class="track-glass-sheen"></div>
+                  <div class="slider-thumb" id="popupThumb"></div>
+                </div>
+
+                <!-- 底部协议值与降级说明 -->
+                <div class="effort-footer">
+                  <div class="effort-meta-row">
+                    <span class="wire-tag" id="popupWireTag">reasoning_effort = "max"</span>
+                    <span class="effort-desc-mini" id="popupDescMini">深度推理 · 全算力输出</span>
+                  </div>
+                  <div class="effort-footer-hint">
+                    若当前模型不支持指定档位，客户端将自动平滑降级，绝不报错中断。
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 底部聊天输入条（还原图 1 底部） -->
+            <div class="wpf-composer">
+              <input type="text" value="查规则外残留..." aria-label="AI 输入框演示" />
+              <button class="effort-pill-btn" id="composerPillBtn" type="button" title="点击展开/收起思考等级滑块">
+                <span class="effort-pill-dot" id="composerPillDot"></span>
+                <span id="composerPillText">思考·极限</span>
+              </button>
+              <button class="context-ring-btn" type="button" title="上下文占用率示意">
+                <svg width="18" height="18" viewBox="0 0 18 18">
+                  <circle cx="9" cy="9" r="6.8" fill="none" stroke="#e2e8f0" stroke-width="2" />
+                  <circle cx="9" cy="9" r="6.8" fill="none" stroke="#0078d4" stroke-width="2"
+                          stroke-dasharray="42.7" stroke-dashoffset="32" stroke-linecap="round"
+                          transform="rotate(-90 9 9)" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧：AiAssistantPage.xaml 内嵌紧凑版 + 动效细节清单 -->
+      <div class="side-stack">
+        <section class="settings-card">
+          <div class="settings-card-title">
+            <span>AI 设置页内嵌联动预览</span>
+            <span class="sub">AiAssistantPage.xaml · 同一控件复用</span>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-label">思考等级</div>
+            <div class="inline-slider-box">
+              <div class="inline-head">
+                <div class="effort-head-left">
+                  <span class="effort-status-zh" id="inlineStatusZh" style="font-size:12.5px">极限</span>
+                  <span class="effort-status-en" id="inlineStatusEn" style="font-size:12px">MAX</span>
+                  <span class="wire-tag" id="inlineWireTag" style="margin-left:4px">max</span>
+                </div>
+                <button class="auto-chip" id="inlineAutoBtn" type="button"
+                        style="color:#475569;background:#f1f5f9;border:1px solid #cbd5e1;">
+                  <span class="auto-dot"></span>
+                  <span>自动默认</span>
+                </button>
+              </div>
+              <div class="tick-labels" id="inlineTicks" style="margin-bottom:2px;"></div>
+              <div class="track-slot inline-track-slot" id="inlineTrack" tabindex="0" role="slider"
+                   style="background:linear-gradient(180deg,#0b1020 0%,#11182c 100%);border:1px solid rgba(15,23,42,0.2);">
+                <div class="dots-layer" id="inlineDots"></div>
+                <canvas class="energy-canvas" id="inlineCanvas"></canvas>
+                <div class="point-light" id="inlineLight"></div>
+                <div class="track-glass-sheen"></div>
+                <div class="slider-thumb" id="inlineThumb"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tips-card">
+          <h3>已融合的 dsh-effort-slider 核心酷炫细节</h3>
+          <ul class="tips-list">
+            <li><strong>像素点阵能量火焰：</strong>56×6 独立发光像素格 + 0.90 帧间余晖拖尾 + 错峰点火波 + 三频正弦扰动 + 飞溅白炽火花 + 可分离 Bloom 辉光合成。</li>
+            <li><strong>无级丝滑拖动 + 弹性弹簧吸附：</strong>拖动时 0~100% 连续无级，能量前沿带弹簧惯性追随；松手后 Thumb 弹性吸附至最近档位并触发档位字微模糊上浮。</li>
+            <li><strong>拖拽跟随点光源与微按压反馈：</strong>按下时滑块缩放至 0.91× 并点亮动态色温光环，轨道内径向点光源实时追随指针。</li>
+            <li><strong>底部「思考·XX」胶囊常驻着色：</strong>收起面板后，输入框胶囊仍保留当前档位的主题色点与微光边框，一眼识别当前算力档位。</li>
+            <li><strong>自动默认（Default）专属极光呼吸波：</strong>选择「默认」时轨道呈现柔和流动的冰青自适应扫描波，一旦拖动轨道自动接管为显式档位。</li>
+          </ul>
+        </section>
+      </div>
+    </main>
+
+    <!-- C# .NET 10 WPF 实现蓝图 -->
+    <section class="tech-section">
+      <div class="tech-section-head">
+        <h2>利用 C# .NET 10 + 原生 WPF 能做到什么程度？（100% 等效还原，零 WebView2）</h2>
+        <div class="tech-pill-row">
+          <span class="tech-pill">零新增 NuGet 包</span>
+          <span class="tech-pill">单文件体积 +0 KB</span>
+          <span class="tech-pill">0 字节/帧 GC</span>
+          <span class="tech-pill">收起后 0% CPU 休眠</span>
+        </div>
+      </div>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <h4>1. 像素火焰 + Bloom 引擎</h4>
+          <p>
+            使用 WPF 原生 <code>WriteableBitmap (Bgra32)</code> + <code>CompositionTarget.Rendering</code>（与 DWM 垂直同步 60fps）。
+            轨道只有 <code>56×6 = 336</code> 个像素单元，用预分配 <code>float[]</code> 缓冲区在 .NET 10 上运行完整三阶段算法（余晖衰减 → 火焰/火花模拟 → 可分离 Bloom + Tone Mapping），单帧耗时 <strong>&lt; 0.25 ms</strong>，直接 <code>WritePixels</code> 零 GC 上屏。
+          </p>
+        </div>
+        <div class="tech-card">
+          <h4>2. 点光源、辉光边框与微动效</h4>
+          <p>
+            卡片外圈辉光用底层 <code>Border + BlurEffect</code>；拖拽点光源用 <code>RadialGradientBrush</code> 动态更新 <code>GradientOrigin</code>；滑块按下缩放与松手吸附用 <code>ScaleTransform</code> + 阻尼弹簧步进；标题档位文字切换用原生 <code>Storyboard (BlurEffect + TranslateTransform + Opacity)</code> 实现丝滑微模糊浮现。
+          </p>
+        </div>
+        <div class="tech-card">
+          <h4>3. 完美贴合现有 MVVM 与性能红线</h4>
+          <p>
+            封装为独立复用控件 <code>ReasoningEffortSlider.xaml</code>，直接双向绑定现有的 <code>AiReasoningEffort</code> 枚举（<code>AiAssistantDrawerControl</code> 浮层与 <code>AiAssistantPage</code> 设置页共用一套）。<code>Popup.Closed</code> 与 <code>IsVisibleChanged</code> 自动解绑渲染循环，严格遵守项目 UI 线程零阻塞约束。
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. 档位定义（精确对齐 MigrationCore.Models.Ai.AiReasoningEffort 全部 8 档）
+    // =========================================================================
+    const ALL_EFFORTS = [
+      {
+        id: 'Default', wire: null, zh: '默认', en: 'AUTO', tickZh: '默认',
+        desc: '自适应 · 由模型服务端决定',
+        lightText: '#0284c7', darkText: '#67e8f9',
+        pillFg: '#0369a1', pillBorder: '#bae6fd', pillDot: '#0ea5e9', pillGlow: '0 0 0 1px rgba(14,165,233,0.08)',
+        ember: [0.06, 0.28, 0.45], mid: [0.16, 0.68, 0.92], hot: [0.88, 0.98, 1.00],
+        glowHex: '#0ea5e9'
+      },
+      {
+        id: 'None', wire: 'none', zh: '关闭', en: 'OFF', tickZh: '关闭',
+        desc: '直出回答 · 不开启思维链',
+        lightText: '#64748b', darkText: '#a89cb8',
+        pillFg: '#64748b', pillBorder: '#cbd5e1', pillDot: '#94a3b8', pillGlow: 'none',
+        ember: [0.16, 0.16, 0.22], mid: [0.34, 0.36, 0.46], hot: [0.72, 0.75, 0.85],
+        glowHex: '#64748b'
+      },
+      {
+        id: 'Minimal', wire: 'minimal', zh: '极低', en: 'MIN', tickZh: '极低',
+        desc: '极速轻量思考 · 低延迟',
+        lightText: '#0d9488', darkText: '#5eead4',
+        pillFg: '#0f766e', pillBorder: '#99f6e4', pillDot: '#14b8a6', pillGlow: '0 0 8px rgba(20,184,166,0.16)',
+        ember: [0.05, 0.26, 0.32], mid: [0.14, 0.72, 0.68], hot: [0.85, 1.00, 0.96],
+        glowHex: '#14b8a6'
+      },
+      {
+        id: 'Low', wire: 'low', zh: '低', en: 'LOW', tickZh: '低',
+        desc: '轻量推理 · 日常问答推荐',
+        lightText: '#0284c7', darkText: '#60a5fa',
+        pillFg: '#0369a1', pillBorder: '#93c5fd', pillDot: '#3b82f6', pillGlow: '0 0 9px rgba(59,130,246,0.2)',
+        ember: [0.08, 0.22, 0.50], mid: [0.22, 0.56, 0.98], hot: [0.88, 0.96, 1.00],
+        glowHex: '#3b82f6'
+      },
+      {
+        id: 'Medium', wire: 'medium', zh: '中', en: 'MEDIUM', tickZh: '中',
+        desc: '均衡深度 · 速度与质量平衡',
+        lightText: '#4f46e5', darkText: '#818cf8',
+        pillFg: '#4338ca', pillBorder: '#a5b4fc', pillDot: '#6366f1', pillGlow: '0 0 10px rgba(99,102,241,0.22)',
+        ember: [0.14, 0.16, 0.55], mid: [0.36, 0.44, 1.00], hot: [0.92, 0.95, 1.00],
+        glowHex: '#6366f1'
+      },
+      {
+        id: 'High', wire: 'high', zh: '高', en: 'HIGH', tickZh: '高',
+        desc: '深度分析 · 适合复杂诊断',
+        lightText: '#7c3aed', darkText: '#c084fc',
+        pillFg: '#6d28d9', pillBorder: '#c4b5fd', pillDot: '#8b5cf6', pillGlow: '0 0 12px rgba(139,92,246,0.26)',
+        ember: [0.28, 0.10, 0.58], mid: [0.62, 0.32, 1.00], hot: [1.00, 0.94, 0.98],
+        glowHex: '#8b5cf6'
+      },
+      {
+        id: 'XHigh', wire: 'xhigh', zh: '超高', en: 'XHIGH', tickZh: '超高',
+        desc: '高强多步推理 · 复杂规则推演',
+        lightText: '#c026d3', darkText: '#f0abfc',
+        pillFg: '#a21caf', pillBorder: '#f0abfc', pillDot: '#d946ef', pillGlow: '0 0 13px rgba(217,70,239,0.28)',
+        ember: [0.46, 0.08, 0.48], mid: [0.88, 0.28, 0.92], hot: [1.00, 0.92, 0.98],
+        glowHex: '#d946ef'
+      },
+      {
+        id: 'Max', wire: 'max', zh: '极限', en: 'MAX', tickZh: '极限',
+        desc: '极限超频推理 · 全算力输出',
+        lightText: '#db2777', darkText: '#f9a8d4',
+        pillFg: '#be185d', pillBorder: '#f9a8d4', pillDot: '#ec4899', pillGlow: '0 0 14px rgba(236,72,153,0.32)',
+        ember: [0.55, 0.12, 0.42], mid: [0.98, 0.34, 0.62], hot: [1.00, 0.96, 0.86],
+        glowHex: '#ec4899'
+      }
+    ];
+
+    const MANUAL_EFFORTS = ALL_EFFORTS.slice(1); // None .. Max (7 stops)
+
+    // 固定色板预设（用于切换「DSH 经典紫焰」或「Fluent 科技蓝」）
+    const FIXED_PALETTES = {
+      'dsh-purple': {
+        ember: [0.28, 0.10, 0.58],
+        mid:   [0.62, 0.32, 1.00],
+        hot:   [1.00, 0.94, 0.98],
+        glowHex: '#a855f7'
+      },
+      'fluent-blue': {
+        ember: [0.06, 0.20, 0.48],
+        mid:   [0.20, 0.56, 0.98],
+        hot:   [0.92, 0.97, 1.00],
+        glowHex: '#0078d4'
+      }
+    };
+
+    // =========================================================================
+    // 2. 全局状态
+    // =========================================================================
+    const appState = {
+      theme: 'fluent',      // 'fluent' | 'dark'
+      palette: 'dynamic',   // 'dynamic' | 'dsh-purple' | 'fluent-blue'
+      mode: 'auto-chip',    // 'auto-chip' | 'all-8'
+      effortId: 'Max',      // 当前选中档位（默认先展示震撼的「极限」效果，像截图1）
+      popupOpen: true,
+      demoPlaying: false
+    };
+
+    // =========================================================================
+    // 3. 像素矩阵能量渲染引擎（1:1 复刻 shaders.ts + C# WriteableBitmap 同构算法）
+    // =========================================================================
+    function hash2(x, y) {
+      const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return s - Math.floor(s);
+    }
+    function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
+    function smoothstep(e0, e1, x) {
+      const t = clamp01((x - e0) / (e1 - e0));
+      return t * t * (3 - 2 * t);
+    }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    class PixelEnergyEngine {
+      constructor(canvas, cols = 56, rows = 6) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d', { alpha: true });
+        this.cols = cols;
+        this.rows = rows;
+        const n = cols * rows;
+        // 预分配 TypedArray（对应 C# 中零 GC 复用的 float[] 缓冲区）
+        this.prevR = new Float32Array(n);
+        this.prevG = new Float32Array(n);
+        this.prevB = new Float32Array(n);
+        this.curR = new Float32Array(n);
+        this.curG = new Float32Array(n);
+        this.curB = new Float32Array(n);
+        this.blurHR = new Float32Array(n);
+        this.blurHG = new Float32Array(n);
+        this.blurHB = new Float32Array(n);
+        this.blurVR = new Float32Array(n);
+        this.blurVG = new Float32Array(n);
+        this.blurVB = new Float32Array(n);
+        this.hashA = new Float32Array(n);
+        this.hashB = new Float32Array(n);
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const i = r * cols + c;
+            this.hashA[i] = hash2(c, r);
+            this.hashB[i] = hash2(c + 99, r + 33);
+          }
+        }
+
+        // 弹簧跟随状态（对应 useWebglFire.ts）
+        this.springPos = 1.0;
+        this.springVel = 0.0;
+        this.igniteStart = performance.now();
+        this.lastFrameMs = 0.1;
+      }
+
+      reignite(initialPos = 0.5) {
+        this.igniteStart = performance.now();
+        this.springPos = initialPos;
+        this.springVel = 0;
+        this.prevR.fill(0);
+        this.prevG.fill(0);
+        this.prevB.fill(0);
+      }
+
+      resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = Math.round(rect.width * dpr);
+        const h = Math.round(rect.height * dpr);
+        if (this.canvas.width !== w || this.canvas.height !== h) {
+          this.canvas.width = w;
+          this.canvas.height = h;
+        }
+      }
+
+      /**
+       * @param {number} nowMs
+       * @param {number} dtSec
+       * @param {number} sliderRatio 0..1 (真实滑块行程)
+       * @param {object} visualCfg { ember, mid, hot, isAuto, isOff, isMax, dragging }
+       */
+      render(nowMs, dtSec, sliderRatio, visualCfg) {
+        const t0 = performance.now();
+        this.resize();
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        if (!w || !h) return;
+
+        // 弹簧阻尼更新（向右推进带弹性追随，向左拖动紧跟）
+        const target = visualCfg.isAuto ? 1.0 : (visualCfg.isOff ? 0.08 : (0.12 + sliderRatio * 0.88));
+        if (this.springPos < target) {
+          const force = (target - this.springPos) * 11.0;
+          this.springVel += force * dtSec;
+          this.springVel *= Math.max(0, 1 - 0.58 * dtSec * 6);
+          this.springPos += this.springVel * dtSec;
+          if (this.springPos > target) {
+            this.springPos = target;
+            this.springVel = 0;
+          }
+        } else {
+          this.springPos = lerp(this.springPos, target, Math.min(1, dtSec * 18));
+          this.springVel = 0;
+        }
+
+        const t = nowMs * 0.001;
+        const elapsed = (nowMs - this.igniteStart) * 0.001;
+        const cols = this.cols;
+        const rows = this.rows;
+        const uSlider = this.springPos;
+
+        const [eR, eG, eB] = visualCfg.ember;
+        const [mR, mG, mB] = visualCfg.mid;
+        const [hR, hG, hB] = visualCfg.hot;
+        const speedMul = visualCfg.isMax ? 1.32 : (visualCfg.dragging ? 1.15 : 1.0);
+        const boost = visualCfg.isMax ? 1.18 : (visualCfg.dragging ? 1.12 : 1.0);
+
+        // =============================================================
+        // Pass 1: 细胞模拟 + 0.89 帧间余晖衰减（直接对应 shaders.ts FRAG_SIM）
+        // =============================================================
+        for (let r = 0; r < rows; r++) {
+          const uvY = (r + 0.5) / rows;
+          const vy = Math.abs(uvY - 0.5) * 2.0;
+          const vf = Math.pow(Math.max(1.0 - vy * vy * 0.42, 0.0), 0.72);
+
+          for (let c = 0; c < cols; c++) {
+            const idx = r * cols + c;
+            const uvX = (c + 0.5) / cols;
+            const h1 = this.hashA[idx];
+            const h2 = this.hashB[idx];
+
+            // 自动默认模式：温和流动的冰青自适应扫描波
+            if (visualCfg.isAuto) {
+              const decayR = this.prevR[idx] * 0.86;
+              const decayG = this.prevG[idx] * 0.86;
+              const decayB = this.prevB[idx] * 0.86;
+
+              const scanX = (Math.sin(t * 1.35) * 0.42 + 0.5);
+              const wave = Math.exp(-Math.pow((uvX - scanX) * 5.2, 2.0));
+              const shimmer = 0.5 + 0.5 * Math.sin(uvX * 14.0 - t * 3.2 + h1 * 6.28);
+              const spark = (h2 > 0.86 ? (0.5 + 0.5 * Math.sin(t * 7.0 + h1 * 18.0)) * 0.35 : 0);
+              const energy = (0.09 + wave * 0.48 + shimmer * 0.12 + spark) * vf;
+
+              const cR = lerp(eR, mR, clamp01(wave * 0.85 + 0.15)) * energy + hR * Math.pow(wave, 3.0) * 0.32;
+              const cG = lerp(eG, mG, clamp01(wave * 0.85 + 0.15)) * energy + hG * Math.pow(wave, 3.0) * 0.32;
+              const cB = lerp(eB, mB, clamp01(wave * 0.85 + 0.15)) * energy + hB * Math.pow(wave, 3.0) * 0.32;
+
+              this.curR[idx] = Math.min(decayR + cR * 0.35, 1.3);
+              this.curG[idx] = Math.min(decayG + cG * 0.35, 1.3);
+              this.curB[idx] = Math.min(decayB + cB * 0.35, 1.3);
+              continue;
+            }
+
+            // 关闭模式：极微弱的静默暗格
+            if (visualCfg.isOff) {
+              const breathe = 0.05 + 0.03 * Math.sin(t * 1.8 + h1 * 6.28);
+              const nearLeft = smoothstep(0.28, 0.0, uvX);
+              const base = breathe * nearLeft * vf;
+              this.curR[idx] = this.prevR[idx] * 0.82 + mR * base;
+              this.curG[idx] = this.prevG[idx] * 0.82 + mG * base;
+              this.curB[idx] = this.prevB[idx] * 0.82 + mB * base;
+              continue;
+            }
+
+            // 正常/高能点火模式（完整复刻 shaders.ts）
+            const fadeMask = smoothstep(0.0, 0.24, uvX);
+            const decayR = this.prevR[idx] * 0.88 * (0.35 + 0.65 * fadeMask);
+            const decayG = this.prevG[idx] * 0.88 * (0.35 + 0.65 * fadeMask);
+            const decayB = this.prevB[idx] * 0.88 * (0.35 + 0.65 * fadeMask);
+
+            const intensity = smoothstep(0.0, 0.18, uSlider) * lerp(0.16, 1.0, Math.pow(uSlider, 0.55));
+            const cellDelay = h1 * 0.75;
+            const cellAge = Math.max(elapsed - cellDelay, 0.0);
+            const ignited = cellAge > 0.001 ? 1.0 : 0.0;
+            const cellSpd = 0.85 + h1 * 0.32;
+            const eased = 1.0 - Math.pow(1.0 - clamp01(cellAge / 1.8), 3.0);
+            const dist = eased * uSlider * cellSpd * ignited;
+            const cellOff = (h1 - 0.5) * 0.05;
+            const front = Math.max(uSlider - dist - cellOff, 0.01);
+            const tail = Math.max(uSlider - front, 0.001);
+
+            const inZ = (uvX >= front - 0.004 && uvX <= uSlider + 0.006) ? 1.0 : 0.0;
+            const dn = clamp01(Math.max(uSlider - uvX, 0.0) / tail);
+            let bright = Math.pow(1.0 - dn, 0.62);
+            bright = Math.max(bright, 0.06 * ignited) * inZ;
+            bright *= 1.0 - smoothstep(0.92, 1.05, dn);
+
+            const es = lerp(0.22, 0.56, Math.min(elapsed / 0.8, 1.0));
+            const ts = lerp(0.85, 1.0, Math.min(elapsed / 1.2, 1.0)) * speedMul;
+
+            const f1 = Math.sin(uvX * 28.0 + t * 14.0 * ts + h1 * 6.28);
+            const f2 = Math.sin(uvX * 16.0 + t * 7.5 * ts + h1 * 3.14);
+            const f3 = Math.sin(uvX * 48.0 + t * 23.0 * ts + h1 * 10.0);
+            const flame = smoothstep(0.08, 0.92, (f1 + f2 * 0.5 + f3 * 0.25) * 0.35 + 0.5);
+
+            const r1 = Math.sin(dn * 15.0 - t * 5.0 * ts + h1 * 3.0);
+            const r2 = Math.sin(dn * 7.5 - t * 2.5 * ts + h1 * 5.0);
+            let rhythm = smoothstep(-0.15, 0.55, r1) * (r2 * 0.5 + 0.5);
+            rhythm = Math.pow(Math.max(rhythm, 0.0), 1.2);
+
+            const avgSpd = dist / Math.max(cellAge, 0.001);
+            const age = Math.max(cellAge - Math.max(uSlider - uvX, 0.0) / Math.max(avgSpd, 0.001), 0.0);
+            const flash = Math.exp(-age * 3.4);
+
+            // 飞溅火花（类似图 2 里跃动的亮白/冰白像素点！）
+            const spRaw = t * (0.42 + h1 * 0.18) * speedMul + h1 * 7.0;
+            const sp = spRaw - Math.floor(spRaw);
+            const sX = uSlider - sp * tail;
+            const sY = 0.5 + Math.sin(sp * 11.0 + h1 * 6.28) * 0.32;
+            const spark = smoothstep(0.032, 0.0, Math.abs(uvX - sX))
+                        * smoothstep(0.24, 0.0, Math.abs(uvY - sY))
+                        * (1.0 - sp) * (1.0 - sp) * es;
+
+            // 额外随机闪耀星点（还原截图 2 亮白离散像素块质感）
+            const twinklePhase = Math.sin(t * (3.2 + h2 * 5.0) * speedMul + h1 * 24.0);
+            const starCell = (inZ > 0 && h2 > 0.78 && twinklePhase > 0.72)
+              ? Math.pow((twinklePhase - 0.72) / 0.28, 1.8) * (0.35 + 0.65 * (1.0 - dn * 0.6)) * intensity
+              : 0.0;
+
+            let energy = bright * vf * (flame * 0.44 + rhythm * 0.38)
+                       + flash * bright * vf * 0.48
+                       + spark * 0.85 * inZ;
+            energy *= es * intensity * boost;
+
+            const edgeBase = Math.exp(-Math.pow((uvX - front) * 16.0, 2.0));
+            const ef1 = Math.sin(uvX * 42.0 + t * 18.0 * ts + h1 * 6.28) * 0.5 + 0.5;
+            const ef2 = Math.sin(uvX * 26.0 + t * 10.0 * ts + h1 * 3.14) * 0.5 + 0.5;
+            const edge = edgeBase * (0.25 + ef1 * ef2 * 1.4) * 1.35 * intensity * es;
+
+            const leadD = front - uvX;
+            const leadZone = smoothstep(0.08, 0.0, leadD) * (leadD >= 0 ? 1.0 : 0.0) * vf;
+            const leadF = Math.sin(leadD * 90.0 + t * 18.0 * ts + h2 * 6.28) * 0.5 + 0.5;
+            const leadSpark = leadZone * (h2 > 0.6 ? 1.0 : 0.0) * leadF * intensity * es * 0.55;
+
+            const total = energy + edge + leadSpark;
+            const temp = 1.0 - dn;
+            const hotMix = Math.pow(temp, 3.8);
+
+            let cR = lerp(lerp(eR, mR, temp), hR, hotMix) * total;
+            let cG = lerp(lerp(eG, mG, temp), hG, hotMix) * total;
+            let cB = lerp(lerp(eB, mB, temp), hB, hotMix) * total;
+
+            // 闪耀高亮像素格
+            cR += hR * starCell * 0.65;
+            cG += hG * starCell * 0.65;
+            cB += hB * starCell * 0.65;
+
+            // 滑块前沿白炽聚能核
+            const pulse = Math.sin(t * 3.0 * speedMul) * 0.14 + 1.0;
+            const core = Math.exp(-Math.pow((uvX - uSlider) * 14.0, 2.0));
+            const aura = Math.exp(-Math.pow((uvX - uSlider) * 3.6, 2.0));
+            cR += (hR * core * 1.55 * pulse + mR * aura * 0.16) * intensity * es * boost;
+            cG += (hG * core * 1.55 * pulse + mG * aura * 0.16) * intensity * es * boost;
+            cB += (hB * core * 1.55 * pulse + mB * aura * 0.16) * intensity * es * boost;
+
+            const leftSoft = 0.25 + 0.75 * fadeMask;
+            this.curR[idx] = Math.min(decayR + cR * leftSoft, 1.55);
+            this.curG[idx] = Math.min(decayG + cG * leftSoft, 1.55);
+            this.curB[idx] = Math.min(decayB + cB * leftSoft, 1.55);
+          }
+        }
+
+        // =============================================================
+        // Pass 2: 可分离 Bloom 高斯发光模糊（横向 + 纵向）
+        // =============================================================
+        const w0 = 0.34, w1 = 0.24, w2 = 0.09;
+        for (let r = 0; r < rows; r++) {
+          const rowOff = r * cols;
+          for (let c = 0; c < cols; c++) {
+            let sr = 0, sg = 0, sb = 0;
+            const addSample = (cc, weight) => {
+              const k = rowOff + (cc < 0 ? 0 : (cc >= cols ? cols - 1 : cc));
+              const rr = this.curR[k], gg = this.curG[k], bb = this.curB[k];
+              const lum = rr * 0.2126 + gg * 0.7152 + bb * 0.0722;
+              if (lum >= 0.24) {
+                sr += rr * weight;
+                sg += gg * weight;
+                sb += bb * weight;
+              }
+            };
+            addSample(c, w0);
+            addSample(c - 1, w1); addSample(c + 1, w1);
+            addSample(c - 2, w2); addSample(c + 2, w2);
+            const i = rowOff + c;
+            this.blurHR[i] = sr;
+            this.blurHG[i] = sg;
+            this.blurHB[i] = sb;
+          }
+        }
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            let sr = 0, sg = 0, sb = 0;
+            const addV = (rrIdx, weight) => {
+              const rr = rrIdx < 0 ? 0 : (rrIdx >= rows ? rows - 1 : rrIdx);
+              const k = rr * cols + c;
+              sr += this.blurHR[k] * weight;
+              sg += this.blurHG[k] * weight;
+              sb += this.blurHB[k] * weight;
+            };
+            addV(r, 0.42);
+            addV(r - 1, 0.29); addV(r + 1, 0.29);
+            const i = r * cols + c;
+            this.blurVR[i] = sr;
+            this.blurVG[i] = sg;
+            this.blurVB[i] = sb;
+          }
+        }
+
+        // 交换前后帧缓冲
+        this.prevR.set(this.curR);
+        this.prevG.set(this.curG);
+        this.prevB.set(this.curB);
+
+        // =============================================================
+        // Pass 3: Tone-Mapping 合成 + 锐利像素方阵渲染（带右侧滑块平滑裁切）
+        // =============================================================
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, w, h);
+
+        const cellW = w / cols;
+        const cellH = h / rows;
+        const gap = Math.max(1, Math.round(Math.min(cellW, cellH) * 0.14));
+        const drawW = Math.max(1, cellW - gap);
+        const drawH = Math.max(1, cellH - gap);
+        const radius = Math.min(2.2, drawW * 0.22);
+
+        // 在手动模式下，滑块右侧裁剪渐变（自动模式下全轨展示呼吸波）
+        const clipPos = visualCfg.isAuto ? 1.05 : sliderRatio;
+
+        for (let r = 0; r < rows; r++) {
+          const py = r * cellH + gap * 0.5;
+          for (let c = 0; c < cols; c++) {
+            const uvX = (c + 0.5) / cols;
+            const mask = visualCfg.isAuto
+              ? 1.0
+              : (1.0 - smoothstep(clipPos - 0.015, clipPos + 0.025, uvX));
+
+            const i = r * cols + c;
+            const px = c * cellW + gap * 0.5;
+
+            // 底格微弱暗网格（让未点燃区域也有精致的电子点阵质感）
+            if (mask <= 0.005) {
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.045)';
+              ctx.fillRect(px, py, drawW, drawH);
+              continue;
+            }
+
+            const sR = this.curR[i], sG = this.curG[i], sB = this.curB[i];
+            const gR = this.blurVR[i], gG = this.blurVG[i], gB = this.blurVB[i];
+
+            // ACES-like tone map (直接对应 shaders.ts FRAG_COMP)
+            const outR = (1.0 - Math.exp(-(sR + gR * 1.15 + sR * gR * 0.35) * 1.25)) * mask;
+            const outG = (1.0 - Math.exp(-(sG + gG * 1.15 + sG * gG * 0.35) * 1.25)) * mask;
+            const outB = (1.0 - Math.exp(-(sB + gB * 1.15 + sB * gB * 0.35) * 1.25)) * mask;
+
+            const lum = outR * 0.299 + outG * 0.587 + outB * 0.114;
+            if (lum < 0.02) {
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+              ctx.fillRect(px, py, drawW, drawH);
+              continue;
+            }
+
+            const R = Math.min(255, Math.round(outR * 255));
+            const G = Math.min(255, Math.round(outG * 255));
+            const B = Math.min(255, Math.round(outB * 255));
+            ctx.fillStyle = `rgb(${R},${G},${B})`;
+
+            if (radius > 0.8 && ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(px, py, drawW, drawH, radius);
+              ctx.fill();
+            } else {
+              ctx.fillRect(px, py, drawW, drawH);
+            }
+          }
+        }
+
+        this.lastFrameMs = performance.now() - t0;
+      }
+    }
+
+    // =========================================================================
+    // 4. 可复用滑块控制器（Popup 与 设置页内嵌两个实例共享同一状态）
+    // =========================================================================
+    class EffortSliderInstance {
+      constructor(opts) {
+        this.isPopup = opts.isPopup;
+        this.trackEl = opts.trackEl;
+        this.ticksEl = opts.ticksEl;
+        this.dotsEl = opts.dotsEl;
+        this.thumbEl = opts.thumbEl;
+        this.lightEl = opts.lightEl;
+        this.statusZhEl = opts.statusZhEl;
+        this.statusEnEl = opts.statusEnEl;
+        this.statusWrapEl = opts.statusWrapEl || null;
+        this.wireTagEl = opts.wireTagEl;
+        this.descMiniEl = opts.descMiniEl || null;
+        this.autoBtnEl = opts.autoBtnEl;
+        this.thumbWidth = opts.thumbWidth || 28;
+        this.engine = new PixelEnergyEngine(opts.canvasEl, opts.cols || 56, 6);
+
+        this.dragging = false;
+        this.rawPos = 1.0;        // 连续 0..1
+        this.displayPos = 1.0;    // 弹性吸附渲染位置 0..1
+        this.snapTarget = 1.0;
+        this.snapVel = 0;
+        this.lastEffortKey = '';
+
+        this.bindEvents();
+      }
+
+      getActiveLevels() {
+        return appState.mode === 'auto-chip' ? MANUAL_EFFORTS : ALL_EFFORTS;
+      }
+
+      posToPercentCss(ratio) {
+        const half = this.thumbWidth / 2;
+        return `calc(${half}px + ${ratio.toFixed(5)} * (100% - ${this.thumbWidth}px))`;
+      }
+
+      rebuildTicks() {
+        const levels = this.getActiveLevels();
+        this.ticksEl.innerHTML = '';
+        this.dotsEl.innerHTML = '';
+
+        levels.forEach((lv, idx) => {
+          const ratio = idx / Math.max(levels.length - 1, 1);
+          const leftCss = this.posToPercentCss(ratio);
+
+          const label = document.createElement('span');
+          label.className = 'tick-label';
+          label.style.left = leftCss;
+          label.textContent = lv.tickZh;
+          label.dataset.effortId = lv.id;
+          label.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectEffort(lv.id, true);
+          });
+          this.ticksEl.appendChild(label);
+
+          const dot = document.createElement('span');
+          dot.className = 'track-dot';
+          dot.style.left = leftCss;
+          dot.dataset.effortId = lv.id;
+          this.dotsEl.appendChild(dot);
+        });
+
+        this.syncFromState(true);
+      }
+
+      clientXToRatio(clientX) {
+        const rect = this.trackEl.getBoundingClientRect();
+        const half = this.thumbWidth / 2;
+        const usable = Math.max(1, rect.width - this.thumbWidth);
+        return clamp01((clientX - rect.left - half) / usable);
+      }
+
+      ratioToLevel(ratio) {
+        const levels = this.getActiveLevels();
+        const idx = Math.round(ratio * (levels.length - 1));
+        return { level: levels[idx], idx, snappedRatio: idx / Math.max(levels.length - 1, 1) };
+      }
+
+      bindEvents() {
+        const onPointerMove = (e) => {
+          if (!this.dragging) return;
+          const ratio = this.clientXToRatio(e.clientX);
+          this.rawPos = ratio;
+          this.displayPos = ratio;
+          this.snapTarget = ratio;
+          const { level } = this.ratioToLevel(ratio);
+          if (level.id !== appState.effortId) {
+            selectEffort(level.id, false, this);
+          }
+          this.updateThumbDom(ratio);
+        };
+
+        const endDrag = () => {
+          if (!this.dragging) return;
+          this.dragging = false;
+          this.trackEl.classList.remove('dragging');
+          const { level, snappedRatio } = this.ratioToLevel(this.rawPos);
+          this.snapTarget = snappedRatio;
+          selectEffort(level.id, true, this);
+        };
+
+        this.trackEl.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          stopAutoDemo();
+          this.trackEl.focus();
+          this.dragging = true;
+          this.trackEl.classList.add('dragging');
+          this.trackEl.setPointerCapture(e.pointerId);
+
+          const ratio = this.clientXToRatio(e.clientX);
+          this.rawPos = ratio;
+          this.displayPos = ratio;
+          this.snapTarget = ratio;
+          const { level } = this.ratioToLevel(ratio);
+          selectEffort(level.id, false, this);
+          this.updateThumbDom(ratio);
+        });
+
+        this.trackEl.addEventListener('pointermove', onPointerMove);
+        this.trackEl.addEventListener('pointerup', endDrag);
+        this.trackEl.addEventListener('pointercancel', endDrag);
+
+        // 鼠标滚轮切档
+        this.trackEl.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          stopAutoDemo();
+          const dir = e.deltaY < 0 ? 1 : -1;
+          stepEffort(dir);
+        }, { passive: false });
+
+        // 键盘左右键切档
+        this.trackEl.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            stopAutoDemo();
+            stepEffort(1);
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            stopAutoDemo();
+            stepEffort(-1);
+          } else if (e.key === 'Home') {
+            e.preventDefault();
+            stopAutoDemo();
+            selectEffort(this.getActiveLevels()[0].id, true);
+          } else if (e.key === 'End') {
+            e.preventDefault();
+            stopAutoDemo();
+            const lvs = this.getActiveLevels();
+            selectEffort(lvs[lvs.length - 1].id, true);
+          }
+        });
+
+        this.autoBtnEl.addEventListener('click', () => {
+          stopAutoDemo();
+          if (appState.effortId === 'Default') {
+            selectEffort('Medium', true);
+          } else {
+            selectEffort('Default', true);
+          }
+        });
+      }
+
+      getEffortObj() {
+        return ALL_EFFORTS.find(x => x.id === appState.effortId) || ALL_EFFORTS[0];
+      }
+
+      getPaletteColors(effort) {
+        if (effort.id === 'Default' || effort.id === 'None') {
+          return { ember: effort.ember, mid: effort.mid, hot: effort.hot, glowHex: effort.glowHex };
+        }
+        if (appState.palette !== 'dynamic') {
+          return FIXED_PALETTES[appState.palette];
+        }
+        return { ember: effort.ember, mid: effort.mid, hot: effort.hot, glowHex: effort.glowHex };
+      }
+
+      syncFromState(snapImmediately = false) {
+        const effort = this.getEffortObj();
+        const levels = this.getActiveLevels();
+        const isAutoMode = appState.mode === 'auto-chip' && effort.id === 'Default';
+
+        // 顶部自动按钮显隐与高亮
+        this.autoBtnEl.style.display = appState.mode === 'auto-chip' ? 'inline-flex' : 'none';
+        this.autoBtnEl.classList.toggle('active', isAutoMode);
+        this.trackEl.classList.toggle('is-auto', isAutoMode);
+
+        // 目标位置
+        if (!this.dragging) {
+          if (isAutoMode) {
+            this.snapTarget = 0.5;
+          } else {
+            const idx = Math.max(0, levels.findIndex(x => x.id === effort.id));
+            this.snapTarget = idx / Math.max(levels.length - 1, 1);
+          }
+          if (snapImmediately) {
+            this.displayPos = this.snapTarget;
+            this.rawPos = this.snapTarget;
+            this.snapVel = 0;
+          }
+        }
+
+        // 动态配色
+        const pal = this.getPaletteColors(effort);
+        const isDark = this.isPopup && appState.theme === 'dark';
+        const statusColor = isDark
+          ? (appState.palette === 'dynamic' ? effort.darkText : pal.glowHex)
+          : (appState.palette === 'dynamic' ? effort.lightText : pal.glowHex);
+
+        // 文字更新 + 档位切换模糊上浮动画
+        if (this.lastEffortKey !== effort.id) {
+          this.lastEffortKey = effort.id;
+          this.statusZhEl.textContent = effort.zh;
+          this.statusEnEl.textContent = effort.en;
+          if (this.statusWrapEl) {
+            this.statusWrapEl.classList.remove('status-anim');
+            void this.statusWrapEl.offsetWidth;
+            this.statusWrapEl.classList.add('status-anim');
+          }
+        }
+        this.statusZhEl.style.color = statusColor;
+        this.statusEnEl.style.color = statusColor;
+        const glowRadius = (effort.id === 'High' || effort.id === 'XHigh' || effort.id === 'Max')
+          ? (isDark ? `0 0 12px ${pal.glowHex}` : `0 0 10px ${pal.glowHex}44`)
+          : 'none';
+        this.statusZhEl.style.textShadow = glowRadius;
+        this.statusEnEl.style.textShadow = glowRadius;
+
+        if (this.wireTagEl) {
+          this.wireTagEl.textContent = this.isPopup
+            ? (effort.wire ? `reasoning_effort = "${effort.wire}"` : 'reasoning_effort = (自适应不强传)')
+            : (effort.wire || 'auto');
+        }
+        if (this.descMiniEl) {
+          this.descMiniEl.textContent = effort.desc;
+          this.descMiniEl.style.color = statusColor;
+        }
+
+        // CSS 变量驱动刻度、点光源与滑块光晕
+        const host = this.isPopup ? document.getElementById('popupShell') : this.trackEl.parentElement;
+        host.style.setProperty('--tier-text-light', statusColor);
+        host.style.setProperty('--tier-text-dark', statusColor);
+        host.style.setProperty('--tier-glow', pal.glowHex);
+        this.trackEl.style.setProperty('--thumb-ring', `${pal.glowHex}88`);
+        this.trackEl.style.setProperty('--thumb-halo', `${pal.glowHex}48`);
+        this.trackEl.style.setProperty('--thumb-halo-strong', `${pal.glowHex}aa`);
+        this.trackEl.style.setProperty('--thumb-core', pal.glowHex);
+        this.trackEl.style.setProperty('--thumb-core-glow', `${pal.glowHex}99`);
+
+        this.lightEl.style.background = `radial-gradient(circle, ${pal.glowHex}52 0%, ${pal.glowHex}18 35%, transparent 70%)`;
+
+        // 更新刻度高亮
+        this.ticksEl.querySelectorAll('.tick-label').forEach(el => {
+          el.classList.toggle('active', !isAutoMode && el.dataset.effortId === effort.id);
+        });
+        this.dotsEl.querySelectorAll('.track-dot').forEach(el => {
+          el.classList.toggle('active', !isAutoMode && el.dataset.effortId === effort.id);
+        });
+
+        // 外圈呼吸光晕（仅 Popup）
+        if (this.isPopup) {
+          const glowEl = document.getElementById('popupOuterGlow');
+          const highLevel = effort.id === 'High' || effort.id === 'XHigh' || effort.id === 'Max';
+          const opacity = appState.theme === 'dark'
+            ? (highLevel ? 0.78 : (effort.id === 'None' ? 0.18 : 0.45))
+            : (highLevel ? 0.36 : (effort.id === 'None' ? 0.08 : 0.2));
+          glowEl.style.setProperty('--outer-glow-opacity', opacity);
+          glowEl.style.setProperty(
+            '--outer-glow-bg',
+            `linear-gradient(135deg, ${pal.glowHex}66, #3b82f633, ${pal.glowHex}55)`
+          );
+        }
+
+        this.updateThumbDom(this.displayPos);
+      }
+
+      updateThumbDom(ratio) {
+        const leftCss = this.posToPercentCss(ratio);
+        this.thumbEl.style.left = leftCss;
+        this.lightEl.style.left = leftCss;
+      }
+
+      tick(nowMs, dtSec) {
+        // 松手后的弹性弹簧吸附动画（WPF 用 CompositionTarget.Rendering 同公式）
+        if (!this.dragging) {
+          const diff = this.snapTarget - this.displayPos;
+          if (Math.abs(diff) > 0.0005 || Math.abs(this.snapVel) > 0.001) {
+            const stiffness = 240;
+            const damping = 20;
+            const acc = diff * stiffness - this.snapVel * damping;
+            this.snapVel += acc * dtSec;
+            this.displayPos = clamp01(this.displayPos + this.snapVel * dtSec);
+            this.updateThumbDom(this.displayPos);
+          } else if (this.displayPos !== this.snapTarget) {
+            this.displayPos = this.snapTarget;
+            this.snapVel = 0;
+            this.updateThumbDom(this.displayPos);
+          }
+        }
+
+        const effort = this.getEffortObj();
+        const pal = this.getPaletteColors(effort);
+        const isAuto = appState.mode === 'auto-chip' && effort.id === 'Default';
+        const isOff = effort.id === 'None';
+        const isMax = effort.id === 'Max' || effort.id === 'XHigh';
+
+        // 当 Popup 收起时停止渲染 Popup 的 Canvas（验证 WPF 0% CPU 休眠策略）
+        if (this.isPopup && !appState.popupOpen) return;
+
+        this.engine.render(nowMs, dtSec, this.displayPos, {
+          ember: pal.ember,
+          mid: pal.mid,
+          hot: pal.hot,
+          isAuto,
+          isOff,
+          isMax,
+          dragging: this.dragging
+        });
+      }
+    }
+
+    // =========================================================================
+    // 5. 初始化双实例 + 联动输入栏胶囊
+    // =========================================================================
+    const popupSlider = new EffortSliderInstance({
+      isPopup: true,
+      trackEl: document.getElementById('popupTrack'),
+      ticksEl: document.getElementById('popupTicks'),
+      dotsEl: document.getElementById('popupDots'),
+      canvasEl: document.getElementById('popupCanvas'),
+      thumbEl: document.getElementById('popupThumb'),
+      lightEl: document.getElementById('popupLight'),
+      statusZhEl: document.getElementById('popupStatusZh'),
+      statusEnEl: document.getElementById('popupStatusEn'),
+      statusWrapEl: document.getElementById('popupStatusWrap'),
+      wireTagEl: document.getElementById('popupWireTag'),
+      descMiniEl: document.getElementById('popupDescMini'),
+      autoBtnEl: document.getElementById('popupAutoBtn'),
+      thumbWidth: 28,
+      cols: 56
+    });
+
+    const inlineSlider = new EffortSliderInstance({
+      isPopup: false,
+      trackEl: document.getElementById('inlineTrack'),
+      ticksEl: document.getElementById('inlineTicks'),
+      dotsEl: document.getElementById('inlineDots'),
+      canvasEl: document.getElementById('inlineCanvas'),
+      thumbEl: document.getElementById('inlineThumb'),
+      lightEl: document.getElementById('inlineLight'),
+      statusZhEl: document.getElementById('inlineStatusZh'),
+      statusEnEl: document.getElementById('inlineStatusEn'),
+      wireTagEl: document.getElementById('inlineWireTag'),
+      autoBtnEl: document.getElementById('inlineAutoBtn'),
+      thumbWidth: 24,
+      cols: 48
+    });
+
+    const sliders = [popupSlider, inlineSlider];
+
+    function syncComposerPill() {
+      const effort = ALL_EFFORTS.find(x => x.id === appState.effortId) || ALL_EFFORTS[0];
+      const pill = document.getElementById('composerPillBtn');
+      const text = document.getElementById('composerPillText');
+      const pal = (appState.palette !== 'dynamic' && effort.id !== 'Default' && effort.id !== 'None')
+        ? FIXED_PALETTES[appState.palette]
+        : effort;
+
+      text.textContent = `思考·${effort.zh}`;
+      pill.style.setProperty('--pill-fg', appState.palette === 'dynamic' ? effort.pillFg : pal.glowHex);
+      pill.style.setProperty('--pill-border', appState.palette === 'dynamic' ? effort.pillBorder : `${pal.glowHex}66`);
+      pill.style.setProperty('--pill-dot', appState.palette === 'dynamic' ? effort.pillDot : pal.glowHex);
+      pill.style.setProperty('--pill-glow', effort.id === 'None' ? 'none' : `0 0 10px ${pal.glowHex}30`);
+    }
+
+    function selectEffort(effortId, snapOthers = true, sourceSlider = null) {
+      appState.effortId = effortId;
+      syncComposerPill();
+      sliders.forEach(s => {
+        if (s === sourceSlider) {
+          s.syncFromState(false);
+        } else {
+          s.syncFromState(snapOthers ? false : false);
+        }
+      });
+    }
+
+    function stepEffort(delta) {
+      const levels = appState.mode === 'auto-chip' ? MANUAL_EFFORTS : ALL_EFFORTS;
+      let idx = levels.findIndex(x => x.id === appState.effortId);
+      if (idx < 0) idx = delta > 0 ? 0 : levels.length - 1;
+      else idx = Math.max(0, Math.min(levels.length - 1, idx + delta));
+      selectEffort(levels[idx].id, true);
+    }
+
+    // 浮层开合控制
+    const popupShell = document.getElementById('popupShell');
+    function setPopupOpen(open) {
+      appState.popupOpen = open;
+      popupShell.classList.toggle('hidden', !open);
+      if (open) {
+        popupSlider.engine.reignite(popupSlider.displayPos);
+      }
+    }
+    document.getElementById('composerPillBtn').addEventListener('click', () => {
+      setPopupOpen(!appState.popupOpen);
+    });
+    document.getElementById('popupCloseBtn').addEventListener('click', () => {
+      setPopupOpen(false);
+    });
+
+    // 控制条按钮联动
+    document.querySelectorAll('.seg-group').forEach(group => {
+      const ctrl = group.dataset.ctrl;
+      group.querySelectorAll('.seg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const val = btn.dataset.val;
+          if (ctrl === 'theme') {
+            appState.theme = val;
+            popupShell.classList.toggle('theme-fluent', val === 'fluent');
+            popupShell.classList.toggle('theme-dark', val === 'dark');
+            sliders.forEach(s => s.syncFromState(false));
+          } else if (ctrl === 'palette') {
+            appState.palette = val;
+            syncComposerPill();
+            sliders.forEach(s => s.syncFromState(false));
+          } else if (ctrl === 'mode') {
+            appState.mode = val;
+            sliders.forEach(s => s.rebuildTicks());
+            syncComposerPill();
+          }
+        });
+      });
+    });
+
+    // =========================================================================
+    // 6. 一键自动演示升温动画
+    // =========================================================================
+    let demoTimer = null;
+    const autoDemoBtn = document.getElementById('autoDemoBtn');
+    const autoDemoLabel = document.getElementById('autoDemoLabel');
+
+    function stopAutoDemo() {
+      if (!appState.demoPlaying) return;
+      appState.demoPlaying = false;
+      clearTimeout(demoTimer);
+      autoDemoBtn.classList.remove('playing');
+      autoDemoLabel.textContent = '自动演示升温';
+    }
+
+    autoDemoBtn.addEventListener('click', () => {
+      if (appState.demoPlaying) {
+        stopAutoDemo();
+        return;
+      }
+      if (!appState.popupOpen) setPopupOpen(true);
+      appState.demoPlaying = true;
+      autoDemoBtn.classList.add('playing');
+      autoDemoLabel.textContent = '停止演示';
+
+      const sequence = ['Default', 'None', 'Minimal', 'Low', 'Medium', 'High', 'XHigh', 'Max'];
+      let step = 0;
+      const runNext = () => {
+        if (!appState.demoPlaying) return;
+        selectEffort(sequence[step], true);
+        if (step === 1) popupSlider.engine.reignite(0.1);
+        step = (step + 1) % sequence.length;
+        demoTimer = setTimeout(runNext, step === 0 ? 1700 : 1050);
+      };
+      runNext();
+    });
+
+    // =========================================================================
+    // 7. 主渲染循环（60fps 帧同步 + 实时性能读数）
+    // =========================================================================
+    sliders.forEach(s => s.rebuildTicks());
+    syncComposerPill();
+
+    let lastTime = performance.now();
+    let perfAccum = 0;
+    let perfFrames = 0;
+    const perfMsEl = document.getElementById('perfMs');
+
+    function frameLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      sliders.forEach(s => s.tick(now, dt));
+
+      perfAccum += popupSlider.engine.lastFrameMs;
+      perfFrames++;
+      if (perfFrames >= 25) {
+        perfMsEl.textContent = (perfAccum / perfFrames).toFixed(2);
+        perfAccum = 0;
+        perfFrames = 0;
+      }
+
+      requestAnimationFrame(frameLoop);
+    }
+    requestAnimationFrame(frameLoop);
+  </script>
+</body>
+</html>

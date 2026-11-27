@@ -4,105 +4,70 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="使用说明 - 目录迁移工具"
-        Icon="pack://application:,,,/Resources/app-icon.ico"
-        Height="650" Width="900"
-        WindowStartupLocation="CenterScreen"
-        Background="White"
+        Title="{StaticResource GuideWindowTitle}"
+        AutomationProperties.AutomationId="UserGuideWindow"
+        Icon="pack://application:,,,/目录迁移工具;component/Resources/app-icon.ico"
+        Height="680" Width="980"
+        MinHeight="540" MinWidth="780"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource FluentCanvasBrush}"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         UseLayoutRounding="True"
-        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei">
+        FontFamily="Microsoft YaHei UI, Segoe UI, Microsoft YaHei"
+        PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
-        <!-- 现代化 TabItem 样式 - 优化版 -->
-        <Style TargetType="TabItem">
-            <Setter Property="FontSize" Value="14"/>
+        <!-- 左侧目录导览按钮样式（严格对齐 FluentTheme 视觉令牌，不继承 App.xaml 默认动画） -->
+        <Style x:Key="GuideNavButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12.5"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Padding" Value="20,12"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Height" Value="Auto"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border"
-                                Background="Transparent"
-                                BorderThickness="0,0,0,3"
-                                BorderBrush="Transparent"
-                                CornerRadius="8,8,0,0"
-                                Margin="{TemplateBinding Margin}"
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="navBd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter x:Name="ContentSite"
-                                            ContentSource="Header"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            TextElement.Foreground="#6B7280"/>
+                            <Grid>
+                                <Border x:Name="accentBar"
+                                        Width="3" Height="16"
+                                        CornerRadius="1.5"
+                                        Background="{StaticResource FluentPrimaryBrush}"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="-6,0,0,0"
+                                        Visibility="Collapsed"/>
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <!-- 未选中时的悬停效果 - 添加动画 -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="Border"
-                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                          To="#F3F4F6" Duration="0:0:0.2"/>
-                                            <ColorAnimation Storyboard.TargetName="ContentSite"
-                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                          To="#374151" Duration="0:0:0.2"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="Border"
-                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                          To="Transparent" Duration="0:0:0.2"/>
-                                            <ColorAnimation Storyboard.TargetName="ContentSite"
-                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                          To="#6B7280" Duration="0:0:0.2"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
+                                <Setter TargetName="navBd" Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#0F172A"/>
                             </Trigger>
-                            <!-- 选中状态 - 添加平滑过渡 -->
-                            <Trigger Property="IsSelected" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="Border"
-                                                          Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
-                                                          To="#0078D4" Duration="0:0:0.3">
-                                                <ColorAnimation.EasingFunction>
-                                                    <QuadraticEase EasingMode="EaseOut"/>
-                                                </ColorAnimation.EasingFunction>
-                                            </ColorAnimation>
-                                            <ColorAnimation Storyboard.TargetName="ContentSite"
-                                                          Storyboard.TargetProperty="(TextElement.Foreground).(SolidColorBrush.Color)"
-                                                          To="#0078D4" Duration="0:0:0.3">
-                                                <ColorAnimation.EasingFunction>
-                                                    <QuadraticEase EasingMode="EaseOut"/>
-                                                </ColorAnimation.EasingFunction>
-                                            </ColorAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Setter TargetName="Border" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#FFFFFF" Offset="0"/>
-                                            <GradientStop Color="#FAFAFA" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter TargetName="Border" Property="BorderBrush" Value="#0078D4"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="#0078D4"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.FontWeight" Value="SemiBold"/>
-                            </Trigger>
-                            <!-- 禁用状态 -->
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="#D1D5DB"/>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="navBd" Property="Background" Value="#EBF5FF"/>
+                                <Setter TargetName="navBd" Property="BorderBrush" Value="#BFDBFE"/>
+                                <Setter TargetName="accentBar" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="#0078D4"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -110,95 +75,103 @@
             </Setter>
         </Style>
 
-        <!-- 现代化 TabControl 样式 - 优化版 -->
-        <Style TargetType="TabControl">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabControl">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Tab标签栏 - 优化配色 -->
-                            <Border Grid.Row="0"
-                                    BorderBrush="#E5E7EB"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,8,10,0">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#FAFBFC" Offset="0"/>
-                                        <GradientStop Color="#F5F6F7" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <TabPanel x:Name="HeaderPanel"
-                                        IsItemsHost="True"
-                                        Background="Transparent"/>
-                            </Border>
-
-                            <!-- 内容区域 -->
-                            <Border Grid.Row="1"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="0"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter x:Name="PART_SelectedContentHost"
-                                                ContentSource="SelectedContent"/>
-                            </Border>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="TextBlock" x:Key="TitleStyle">
-            <Setter Property="FontSize" Value="16"/>
+        <!-- 章节头部标题与副标题 -->
+        <Style x:Key="SectionHeadingStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#0078D4"/>
-            <Setter Property="Margin" Value="0,10,0,8"/>
+            <Setter Property="Foreground" Value="{StaticResource FluentInkBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
         </Style>
 
-        <Style TargetType="TextBlock" x:Key="SubTitleStyle">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,8,0,5"/>
-        </Style>
-
-        <Style TargetType="TextBlock" x:Key="ContentStyle">
-            <Setter Property="FontSize" Value="13"/>
+        <Style x:Key="SectionSummaryStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource FluentMutedBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="LineHeight" Value="22"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="LineHeight" Value="19"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
         </Style>
 
-        <Style TargetType="Border" x:Key="SectionBorder">
-            <Setter Property="Background" Value="#F8F9FA"/>
-            <Setter Property="Padding" Value="15"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Margin" Value="0,5,0,10"/>
+        <!-- 通用白色卡片 -->
+        <Style x:Key="GuideCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FluentSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FluentBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="Margin" Value="0,0,0,11"/>
         </Style>
 
-        <Style TargetType="Border" x:Key="WarningBorder">
-            <Setter Property="Background" Value="#FFF4E5"/>
-            <Setter Property="BorderBrush" Value="#FF8C00"/>
-            <Setter Property="BorderThickness" Value="0,0,0,3"/>
-            <Setter Property="Padding" Value="15"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Margin" Value="0,5,0,10"/>
+        <!-- 语义提示卡片（信息蓝 / 安全绿 / 警示琥珀 / 红线红） -->
+        <Style x:Key="GuideInfoCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FluentPrimarySoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FluentPrimaryBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="15,13"/>
+            <Setter Property="Margin" Value="0,0,0,11"/>
         </Style>
 
-        <Style TargetType="Border" x:Key="TipBorder">
-            <Setter Property="Background" Value="#E3F2FD"/>
-            <Setter Property="BorderBrush" Value="#0078D4"/>
-            <Setter Property="BorderThickness" Value="0,0,0,3"/>
-            <Setter Property="Padding" Value="15"/>
+        <Style x:Key="GuideSafeCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FluentGreenSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FluentGreenBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="15,13"/>
+            <Setter Property="Margin" Value="0,0,0,11"/>
+        </Style>
+
+        <Style x:Key="GuideWarnCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FluentAmberSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FluentAmberBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="15,13"/>
+            <Setter Property="Margin" Value="0,0,0,11"/>
+        </Style>
+
+        <Style x:Key="GuideSubCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FluentSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource FluentBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Margin" Value="0,5,0,10"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+
+        <!-- 卡片内标题与正文排版 -->
+        <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource FluentInkBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="BodyTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource FluentBodyBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="21"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+
+        <Style x:Key="BodyTextLastStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextStyle}">
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+
+        <Style x:Key="MonoPillStyle" TargetType="Border">
+            <Setter Property="Background" Value="#F1F5F9"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="7,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="FaqQuestionStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource FluentInkBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
         </Style>
     </Window.Resources>
 
@@ -209,364 +182,1027 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header - 现代化渐变设计 -->
-        <Border Grid.Row="0" Padding="20,15">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.5">
-                    <GradientStop Color="#0078D4" Offset="0"/>
-                    <GradientStop Color="#005A9E" Offset="1"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Border.Effect>
-                <DropShadowEffect Color="#0078D4" Opacity="0.3" BlurRadius="12" ShadowDepth="3" Direction="270"/>
-            </Border.Effect>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Image Source="{StaticResource AppIconDrawingImage}"
-                       Width="42" Height="42"
-                       Margin="0,0,12,0"
-                       VerticalAlignment="Center"
-                       RenderOptions.BitmapScalingMode="HighQuality"/>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="目录迁移工具 - 使用说明" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                    <TextBlock Text="使用符号链接技术实现无感迁移大型目录" FontSize="13" Foreground="White" Opacity="0.9" Margin="0,5,0,0"/>
+        <!-- 顶部标题栏：轻量白色表面 + 1px 底边框（严格对齐 MainWindow TopNavBar） -->
+        <Border Grid.Row="0"
+                Background="{StaticResource FluentSurfaceBrush}"
+                BorderBrush="{StaticResource FluentBorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="20,13">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="{StaticResource AppIconDrawingImage}"
+                           Width="36" Height="36"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{StaticResource GuideHeaderTitle}"
+                                   FontSize="16.5" FontWeight="Bold"
+                                   Foreground="{StaticResource FluentInkBrush}"/>
+                        <TextBlock Text="{StaticResource GuideHeaderSubtitle}"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource FluentMutedBrush}"
+                                   Margin="0,2,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Border Background="{StaticResource FluentGreenSoftBrush}"
+                            BorderBrush="{StaticResource FluentGreenBorderBrush}"
+                            BorderThickness="1" CornerRadius="11"
+                            Padding="9,3.5" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconShieldCheck}" Width="12" Height="12" Stretch="Uniform"
+                                  Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{StaticResource GuideSafetyPillText}"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource FluentGreenBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{StaticResource FluentPrimarySoftBrush}"
+                            BorderBrush="{StaticResource FluentPrimaryBorderBrush}"
+                            BorderThickness="1" CornerRadius="11"
+                            Padding="9,3.5" VerticalAlignment="Center">
+                        <TextBlock x:Name="VersionBadgeText"
+                                   Text="v1.1.7"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource FluentPrimaryBrush}"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- Content -->
-        <TabControl Grid.Row="1" Margin="20,5,20,10" BorderThickness="0">
-            <!-- 软件概述 -->
-            <TabItem Header="📖 软件概述">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource WhatIsThisTool}" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Text="{StaticResource ToolIntroduction}" Style="{StaticResource ContentStyle}"/>
+        <!-- 主体区域：左侧目录导览 + 右侧卡片内容 -->
+        <Grid Grid.Row="1" Margin="16,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="216"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-                        <Border Style="{StaticResource TipBorder}">
+            <!-- 左侧导览栏 -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource FluentSurfaceBrush}"
+                    BorderBrush="{StaticResource FluentBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="10">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="目录导览"
+                               FontSize="11.5" FontWeight="SemiBold"
+                               Foreground="{StaticResource FluentMutedBrush}"
+                               Margin="6,2,0,8"/>
+
+                    <!-- 底部快捷提示 -->
+                    <Border DockPanel.Dock="Bottom"
+                            Background="{StaticResource FluentSubtleBrush}"
+                            BorderBrush="{StaticResource FluentBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10,8"
+                            Margin="0,8,0,0">
+                        <StackPanel>
+                            <TextBlock x:Name="NavProgressText"
+                                       Text="第 1 / 8 节"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource FluentPrimaryBrush}"/>
+                            <TextBlock Text="按 Esc 键可随时关闭窗口"
+                                       FontSize="11"
+                                       Foreground="{StaticResource FluentMutedBrush}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 导航项列表 -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Button x:Name="NavButton0" Tag="Active" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="0"
+                                    AutomationProperties.AutomationId="UserGuideNavOverview">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconBookOpen}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="软件概述" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton1" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="1"
+                                    AutomationProperties.AutomationId="UserGuideNavManual">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconFolderInput}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="手动 / 还原 / 修复" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton2" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="2"
+                                    AutomationProperties.AutomationId="UserGuideNavQuickMigrate">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconZap}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="一键迁移" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton3" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="3"
+                                    AutomationProperties.AutomationId="UserGuideNavDiskScan">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconRadar}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="磁盘扫描" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton4" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="4"
+                                    AutomationProperties.AutomationId="UserGuideNavCleanup">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconSparkles}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="安全垃圾清理" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton5" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="5"
+                                    AutomationProperties.AutomationId="UserGuideNavAi">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconBot}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="AI 助手" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton6" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="6"
+                                    AutomationProperties.AutomationId="UserGuideNavSafety">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconArchive}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="备份与安全机制" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="NavButton7" Style="{StaticResource GuideNavButtonStyle}"
+                                    Click="NavButton_Click" CommandParameter="7"
+                                    AutomationProperties.AutomationId="UserGuideNavFaq">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconInfo}" Width="14" Height="14" Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                          Margin="2,0,9,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="注意事项与 FAQ" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- 右侧滚动内容区 -->
+            <ScrollViewer x:Name="ContentScrollViewer"
+                          Grid.Column="2"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="0,0,6,4">
+                <Grid>
+                    <!-- ==================== 节 0：软件概述 ==================== -->
+                    <StackPanel x:Name="Section0" Visibility="Visible">
+                        <TextBlock Text="{StaticResource OverviewTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource OverviewSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
                             <StackPanel>
-                                <TextBlock Text="{StaticResource CoreAdvantageTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource CoreAdvantage1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource CoreAdvantage2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource CoreAdvantage3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource CoreAdvantage4}" Style="{StaticResource ContentStyle}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconBookOpen}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource WhatIsThisTool}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource ToolIntroduction}" Style="{StaticResource BodyTextLastStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="{StaticResource UseCasesTitle}" Style="{StaticResource TitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
+                        <!-- 六大模块 2x3 网格 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
                             <StackPanel>
-                                <TextBlock Text="{StaticResource UseCase0}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource UseCase1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource UseCase2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource UseCase3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource UseCase4}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource UseCase5}" Style="{StaticResource ContentStyle}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconLayers}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource ModulesOverviewTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+
+                                <UniformGrid Columns="2">
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,5,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconFolderInput}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleManualTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleManualDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="5,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconZap}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleQuickTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleQuickDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,5,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconRadar}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleScanTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleScanDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="5,0,0,8">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleCleanupTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleCleanupDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,5,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconBot}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleAiTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleAiDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GuideSubCardStyle}" Margin="5,0,0,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <Path Data="{StaticResource IconArchive}" Width="13" Height="13" Stretch="Uniform"
+                                                      Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="1.9" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{StaticResource ModuleBackupTitle}" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{StaticResource ModuleBackupDesc}" FontSize="12" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="18"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="{StaticResource TechnicalPrincipleTitle}" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Text="{StaticResource TechnicalPrinciple}" Style="{StaticResource ContentStyle}"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 手动模式 -->
-            <TabItem Header="🛠️ 手动模式">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource ManualModeTitle}" Style="{StaticResource TitleStyle}"/>
-
-                        <TextBlock Text="{StaticResource Step1Title}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="{StaticResource Step1SourceLabel}"/>
-                                    <Run Text="{StaticResource Step1SourceExample}" FontFamily="Consolas"/>
-                                </TextBlock>
-                                <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="{StaticResource Step1TargetLabel}"/>
-                                    <Run Text="{StaticResource Step1TargetExample}" FontFamily="Consolas"/>
-                                </TextBlock>
-                                <TextBlock Text="{StaticResource Step1Action1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step1Action2}" Style="{StaticResource ContentStyle}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Path Data="{StaticResource IconShieldCheck}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource CoreAdvantageTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource CoreAdvantage1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource CoreAdvantage4}" Style="{StaticResource BodyTextLastStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="{StaticResource Step2Title}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
+                        <Border Style="{StaticResource GuideCardStyle}">
                             <StackPanel>
-                                <TextBlock Text="{StaticResource Step2Description}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step2Action1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step2Action2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step2Action3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step2Action4}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource UseCasesTitle}" Style="{StaticResource CardTitleStyle}" Margin="0,0,0,8"/>
+                                <TextBlock Text="{StaticResource UseCase0}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource UseCase3}" Style="{StaticResource BodyTextLastStyle}"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="{StaticResource Step3Title}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
+                        <Border Style="{StaticResource GuideCardStyle}">
                             <StackPanel>
-                                <TextBlock Text="{StaticResource Step3Description}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase4}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase5}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Phase6}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource WarningBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource Step3WarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource Step3Warning1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Warning2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Warning3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step3Warning4}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource Step4Title}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource Step4Description}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step4Result1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step4Result2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource Step4Result3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 一键迁移模式 -->
-            <TabItem Header="⚡ 一键迁移">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource QuickMigrateTitle}" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Text="{StaticResource QuickMigrateDescription}" Style="{StaticResource ContentStyle}"/>
-
-                        <Border Style="{StaticResource TipBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource QuickStartTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource QuickStart1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource QuickStart2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource QuickStart3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource QuickStart4}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource ConfigFileTitle}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource ContentStyle}">
-                                    <Run Text="{StaticResource ConfigFileLocation}"/>
-                                    <Run Text="{StaticResource ConfigFileName}" FontFamily="Consolas" FontWeight="Bold"/>
-                                </TextBlock>
-                                <TextBlock Text="{StaticResource ConfigTypes}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource ConfigType1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource ConfigType2}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource AdvancedFeaturesTitle}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource AdvancedFeature1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource AdvancedFeature2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource AdvancedFeature3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource AdvancedFeature4}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 特殊模式 -->
-            <TabItem Header="🔧 特殊模式">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource RestoreModeGuideTitle}" Style="{StaticResource TitleStyle}"/>
-                        <TextBlock Text="{StaticResource RestoreModeGuideDescription}" Style="{StaticResource ContentStyle}"/>
-
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource RestoreTriggerTitle}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreTrigger1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreTrigger2}" Style="{StaticResource ContentStyle}"/>
-
-                                <TextBlock Text="{StaticResource RestoreProcessTitle}" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
-                                <TextBlock Text="{StaticResource RestoreProcess1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreProcess2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreProcess3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreProcess4}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource WarningBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource RestoreWarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource RestoreWarning1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreWarning2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RestoreWarning3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource RepairModeTitle}" Style="{StaticResource TitleStyle}" Margin="0,20,0,8"/>
-                        <TextBlock Text="{StaticResource RepairModeDescription}" Style="{StaticResource ContentStyle}"/>
-
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource RepairScenariosTitle}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RepairScenario1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RepairScenario2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RepairScenario3}" Style="{StaticResource ContentStyle}"/>
-
-                                <TextBlock Text="{StaticResource RepairMethodTitle}" Style="{StaticResource ContentStyle}" Margin="0,10,0,5"/>
-                                <TextBlock Text="{StaticResource RepairMethod1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RepairMethod2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource RepairMethod3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource TipBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource SmartDetectionTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource SmartDetection}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource SmartDetection1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource SmartDetection2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource SmartDetection3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 注意事项 -->
-            <TabItem Header="⚠️ 注意事项">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource ImportantNoticesTitle}" Style="{StaticResource TitleStyle}"/>
-
-                        <Border Style="{StaticResource WarningBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource PermissionWarningTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource PermissionWarning}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource PermissionMethod1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource PermissionMethod2}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource WarningBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource DataSafetyTitle}" FontWeight="Bold" FontSize="14" Foreground="#FF8C00" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource DataSafety1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource DataSafety2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource DataSafety3}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource DataSafety4}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource DiskSpaceTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource DiskSpace1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource DiskSpace2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource DiskSpace3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource FileOccupationTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource FileOccupation1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource FileOccupation2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource FileOccupation3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Style="{StaticResource SectionBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource SpecialCasesTitle}" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource SpecialCase1}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource SpecialCase2}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource SpecialCase3}" Style="{StaticResource ContentStyle}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- 常见问题 -->
-            <TabItem Header="❓ 常见问题">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="{StaticResource FAQTitle}" Style="{StaticResource TitleStyle}"/>
-
-                        <TextBlock Text="{StaticResource FAQ1Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ1A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ2Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ2A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ3Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ3A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ4Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ4A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ5Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ5A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ6Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ6A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ7Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ7A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <TextBlock Text="{StaticResource FAQ8Q}" Style="{StaticResource SubTitleStyle}"/>
-                        <Border Style="{StaticResource SectionBorder}">
-                            <TextBlock Text="{StaticResource FAQ8A}" Style="{StaticResource ContentStyle}"/>
-                        </Border>
-
-                        <Border Style="{StaticResource TipBorder}">
-                            <StackPanel>
-                                <TextBlock Text="{StaticResource NeedHelpTitle}" FontWeight="Bold" FontSize="14" Foreground="#0078D4" Margin="0,0,0,8"/>
-                                <TextBlock Text="{StaticResource NeedHelpDescription}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource AuthorInfo}" Style="{StaticResource ContentStyle}"/>
-                                <TextBlock Text="{StaticResource ProjectInfo}" Style="{StaticResource ContentStyle}"/>
+                                <TextBlock Text="{StaticResource TechnicalPrincipleTitle}" Style="{StaticResource CardTitleStyle}" Margin="0,0,0,6"/>
+                                <TextBlock Text="{StaticResource TechnicalPrinciple}" Style="{StaticResource BodyTextLastStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-        </TabControl>
 
-        <!-- Footer -->
-        <Border Grid.Row="2" Background="#F8F8F8" Padding="15" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0">
-            <Grid>
-                <TextBlock Text="© 2025 诏无言 | 玲珑星核" Foreground="Gray" FontSize="11" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                <Button Content="关闭"
-                        HorizontalAlignment="Right"
-                        VerticalContentAlignment="Center"
-                        Width="100"
-                        Height="32"
-                        Click="CloseButton_Click"/>
-            </Grid>
+                    <!-- ==================== 节 1：手动 / 还原 / 修复 ==================== -->
+                    <StackPanel x:Name="Section1" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource ManualSectionTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource ManualSectionSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconFolderInput}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource ManualModeTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+
+                                <!-- Step 1 -->
+                                <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource Step1Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentInkBrush}" Margin="0,0,0,6"/>
+                                        <TextBlock Style="{StaticResource BodyTextStyle}">
+                                            <Run Text="{StaticResource Step1SourceLabel}" FontWeight="SemiBold"/>
+                                            <Run Text="{StaticResource Step1SourceExample}" FontFamily="Consolas"/>
+                                        </TextBlock>
+                                        <TextBlock Style="{StaticResource BodyTextStyle}">
+                                            <Run Text="{StaticResource Step1TargetLabel}" FontWeight="SemiBold"/>
+                                            <Run Text="{StaticResource Step1TargetExample}" FontFamily="Consolas"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{StaticResource Step1Action1}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step1Action2}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Step 2 -->
+                                <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource Step2Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentInkBrush}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{StaticResource Step2Description}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step2Action1}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step2Action2}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step2Action3}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Step 3 -->
+                                <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource Step3Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentInkBrush}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{StaticResource Step3Description}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step3Phase1}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step3Phase2}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step3Phase3}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step3Phase4}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step3Phase5}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Step 4 -->
+                                <Border Style="{StaticResource GuideSubCardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource Step4Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentInkBrush}" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{StaticResource Step4Description}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step4Result1}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step4Result2}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource Step4Result3}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideWarnCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconTriangleAlert}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource Step3WarningTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentAmberBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource Step3Warning1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Warning2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource Step3Warning3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 还原模式 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentAmberSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconRotateCcw}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource RestoreModeGuideTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource RestoreModeGuideDescription}" Style="{StaticResource BodyTextStyle}"/>
+                                <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,4,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource RestoreProcess1}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource RestoreProcess2}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource RestoreProcess3}" Style="{StaticResource BodyTextStyle}"/>
+                                        <TextBlock Text="{StaticResource RestoreProcess4}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 修复模式 -->
+                        <Border Style="{StaticResource GuideSafeCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Path Data="{StaticResource IconCheckCircle}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource RepairModeTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentGreenBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource RepairModeDescription}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenariosTitle}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource FluentInkBrush}" Margin="0,4,0,4"/>
+                                <TextBlock Text="{StaticResource RepairScenario1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenario2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource RepairScenario3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource RepairMethodNote}" Style="{StaticResource BodyTextLastStyle}" FontWeight="Medium" Foreground="{StaticResource FluentGreenBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 2：一键迁移 ==================== -->
+                    <StackPanel x:Name="Section2" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource QuickMigrateTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource QuickMigrateSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Path Data="{StaticResource IconZap}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource QuickStartTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource QuickStart1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource QuickStart4}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconSettings}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource ConfigFileTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                                    <TextBlock Text="{StaticResource ConfigFileLocation}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Border Style="{StaticResource MonoPillStyle}">
+                                        <TextBlock Text="{StaticResource ConfigFileName}" FontFamily="Consolas" FontSize="12" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource ConfigType1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource ConfigType2}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentGreenSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconListChecks}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource AdvancedFeaturesTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource AdvancedFeature1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AdvancedFeature4}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 3：磁盘扫描 ==================== -->
+                    <StackPanel x:Name="Section3" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource DiskScanSectionTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource DiskScanSectionSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentGreenSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconRadar}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource DiskScanEngineTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource DiskScanEngine1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanEngine2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanEngine3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanEngine4}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconHardDrive}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource DiskScanViewsTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource DiskScanViews1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanViews2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanViews3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideWarnCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconShieldAlert}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource DiskScanHardlinkTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentAmberBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource DiskScanHardlink1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanHardlink2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanHardlink3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconListChecks}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource DiskScanQueueTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource DiskScanQueue1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanQueue2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskScanQueue3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 4：安全垃圾清理 ==================== -->
+                    <StackPanel x:Name="Section4" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource CleanupSectionTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource CleanupSectionSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <!-- 三档建议度可视化卡片 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentGreenSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconSparkles}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource CleanupTiersTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+
+                                <Border Background="{StaticResource FluentGreenSoftBrush}" BorderBrush="{StaticResource FluentGreenBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="92"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentGreenBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource CleanupTier1Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentGreenBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource CleanupTier1Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Background="{StaticResource FluentPrimarySoftBrush}" BorderBrush="{StaticResource FluentPrimaryBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="92"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentPrimaryBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource CleanupTier2Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource CleanupTier2Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Background="{StaticResource FluentAmberSoftBrush}" BorderBrush="{StaticResource FluentAmberBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="92"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentAmberBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource CleanupTier3Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentAmberBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource CleanupTier3Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 双通道对比 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconShield}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource CleanupChannelsTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+
+                                <Border Style="{StaticResource GuideSubCardStyle}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource CleanupChannelATitle}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{StaticResource CleanupChannelADesc}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="{StaticResource FluentAmberSoftBrush}" BorderBrush="{StaticResource FluentAmberBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="12,10">
+                                    <StackPanel>
+                                        <TextBlock Text="{StaticResource CleanupChannelBTitle}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource FluentAmberBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{StaticResource CleanupChannelBDesc}" Style="{StaticResource BodyTextLastStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- AI 疑似残留与永久排除 -->
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconBot}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource CleanupAiResidualTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource CleanupAiResidual1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource CleanupAiResidual2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource CleanupAiResidual3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 5：AI 助手 ==================== -->
+                    <StackPanel x:Name="Section5" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource AiSectionTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource AiSectionSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentPrimarySoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconBot}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource AiEntryTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource AiEntry1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiEntry2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiEntry3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentSubtleBrush}" BorderBrush="{StaticResource FluentBorderBrush}" BorderThickness="1" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconKeyRound}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentInkBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource AiModelTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource AiModel1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiModel2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiModel3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideSafeCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconShieldCheck}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentGreenBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource AiPrivacyTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentGreenBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource AiPrivacy1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiPrivacy2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiPrivacy3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AiPrivacy4}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 6：备份与安全机制 ==================== -->
+                    <StackPanel x:Name="Section6" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource SafetySectionTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource SafetySectionSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <!-- L0-L3 四级安全准入卡片 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentRedSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconShieldBan}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentRedBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource SafetyPolicyTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+
+                                <!-- L0 -->
+                                <Border Background="{StaticResource FluentRedSoftBrush}" BorderBrush="{StaticResource FluentRedBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="98"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentRedBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource SafetyL0Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentRedBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource SafetyL0Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- L1 -->
+                                <Border Background="{StaticResource FluentGreenSoftBrush}" BorderBrush="{StaticResource FluentGreenBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="98"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentGreenBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource SafetyL1Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentGreenBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource SafetyL1Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- L2 -->
+                                <Border Background="{StaticResource FluentAmberSoftBrush}" BorderBrush="{StaticResource FluentAmberBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9" Margin="0,0,0,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="98"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentAmberBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource SafetyL2Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentAmberBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource SafetyL2Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- L3 -->
+                                <Border Background="{StaticResource FluentPrimarySoftBrush}" BorderBrush="{StaticResource FluentPrimaryBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="11,9">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="98"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="{StaticResource FluentPrimaryBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <TextBlock Text="{StaticResource SafetyL3Badge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{StaticResource SafetyL3Desc}" FontSize="12.5" Foreground="{StaticResource FluentBodyBrush}" TextWrapping="Wrap" LineHeight="19"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 全局备份中心 -->
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Width="26" Height="26" CornerRadius="6" Background="{StaticResource FluentAmberSoftBrush}" Margin="0,0,9,0">
+                                        <Path Data="{StaticResource IconArchive}" Width="13" Height="13" Stretch="Uniform"
+                                              Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="1.9"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{StaticResource BackupCenterTitle}" Style="{StaticResource CardTitleStyle}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource BackupCenter1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource BackupCenter2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource BackupCenter3}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource BackupCenter4}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ACL 与回滚 -->
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconLock}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource AclAndRollbackTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource AclAndRollback1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AclAndRollback2}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ==================== 节 7：注意事项与 FAQ ==================== -->
+                    <StackPanel x:Name="Section7" Visibility="Collapsed">
+                        <TextBlock Text="{StaticResource NoticesFaqTitle}" Style="{StaticResource SectionHeadingStyle}"/>
+                        <TextBlock Text="{StaticResource NoticesFaqSubtitle}" Style="{StaticResource SectionSummaryStyle}"/>
+
+                        <!-- 注意事项 -->
+                        <Border Style="{StaticResource GuideWarnCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconTriangleAlert}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentAmberBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource PermissionWarningTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentAmberBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource PermissionWarning}" Style="{StaticResource BodyTextStyle}" FontWeight="Medium"/>
+                                <TextBlock Text="{StaticResource PermissionMethod1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource PermissionMethod2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource PermissionMethod3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource DiskSpaceTitle}" Style="{StaticResource CardTitleStyle}" Margin="0,0,0,7"/>
+                                <TextBlock Text="{StaticResource DiskSpace1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskSpace2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DiskSpace3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FileOccupationTitle}" Style="{StaticResource CardTitleStyle}" Margin="0,0,0,7"/>
+                                <TextBlock Text="{StaticResource FileOccupation1}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource FileOccupation2}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource FileOccupation3}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 常见问题 -->
+                        <TextBlock Text="{StaticResource FAQTitle}" FontSize="15.5" FontWeight="Bold" Foreground="{StaticResource FluentInkBrush}" Margin="0,6,0,9"/>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ1Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ1A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ2Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ2A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ3Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ3A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ4Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ4A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ5Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ5A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ6Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ6A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource GuideCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{StaticResource FAQ7Q}" Style="{StaticResource FaqQuestionStyle}"/>
+                                <TextBlock Text="{StaticResource FAQ7A}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 关于与支持 -->
+                        <Border Style="{StaticResource GuideInfoCardStyle}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,7">
+                                    <Path Data="{StaticResource IconInfo}" Width="15" Height="15" Stretch="Uniform"
+                                          Stroke="{StaticResource FluentPrimaryBrush}" StrokeThickness="2" Margin="0,0,7,0"/>
+                                    <TextBlock Text="{StaticResource NeedHelpTitle}" FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource FluentPrimaryBrush}"/>
+                                </StackPanel>
+                                <TextBlock Text="{StaticResource NeedHelpDescription}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource AuthorInfo}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource ProjectInfo}" Style="{StaticResource BodyTextStyle}"/>
+                                <TextBlock Text="{StaticResource DisclaimerInfo}" Style="{StaticResource BodyTextLastStyle}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- 底部操作栏：与顶栏呼应的轻量白底 + 章节翻页 + 关闭 -->
+        <Border Grid.Row="2"
+                Background="{StaticResource FluentSurfaceBrush}"
+                BorderBrush="{StaticResource FluentBorderBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,11">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="PrevSectionButton"
+                            Click="PrevSectionButton_Click"
+                            Style="{StaticResource FluentSecondaryButtonStyle}"
+                            Height="32" MinWidth="78" Padding="11,0" Margin="0,0,8,0"
+                            AutomationProperties.AutomationId="UserGuidePrevButton">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="{StaticResource IconArrowLeft}" Width="12" Height="12" Stretch="Uniform"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.9" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="上一节" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NextSectionButton"
+                            Click="NextSectionButton_Click"
+                            Style="{StaticResource FluentSecondaryButtonStyle}"
+                            Height="32" MinWidth="78" Padding="11,0" Margin="0,0,12,0"
+                            AutomationProperties.AutomationId="UserGuideNextButton">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="下一节" VerticalAlignment="Center"/>
+                            <Path Data="{StaticResource IconArrowRight}" Width="12" Height="12" Stretch="Uniform"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.9" Margin="5,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Content="关闭"
+                            IsCancel="True"
+                            IsDefault="True"
+                            Style="{StaticResource FluentPrimaryButtonStyle}"
+                            Height="32" MinWidth="84" Padding="18,0"
+                            Click="CloseButton_Click"
+                            AutomationProperties.AutomationId="UserGuideCloseButton"/>
+                </StackPanel>
+
+                <TextBlock x:Name="FooterVersionText"
+                           Text="© 2025–2026 诏无言 · 目录迁移工具"
+                           Foreground="{StaticResource FluentMutedBrush}"
+                           FontSize="11.5"
+                           VerticalAlignment="Center"/>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

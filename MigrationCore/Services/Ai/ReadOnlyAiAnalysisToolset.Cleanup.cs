@@ -155,10 +155,10 @@ public sealed partial class ReadOnlyAiAnalysisToolset
                 $"策略版本不匹配（请求：{normalized.PolicyVersion}，当前：{MigrationSafetyPolicy.CurrentPolicyVersion}）。");
         }
 
-        if (normalized.Items.Length == 0 || normalized.Items.Length > MaxProposalItems)
+        if (normalized.Items.Length == 0 || normalized.Items.Length > MaxCleanupProposalItems)
         {
             return BuildCleanupRejectedEnvelope(clientRequestId, request.ScanId, request.CleanupScanId,
-                $"清理建议条目数必须在 1～{MaxProposalItems} 之间（当前：{normalized.Items.Length}）。");
+                $"清理建议条目数必须在 1～{MaxCleanupProposalItems} 之间（当前：{normalized.Items.Length}）。");
         }
 
         ScanSnapshot? diskSnapshot = null;
@@ -352,7 +352,7 @@ public sealed partial class ReadOnlyAiAnalysisToolset
                     Verdict: AiCleanupProposalItemVerdict.AcceptedResidualQuarantineOnly,
                     ExclusionReasonCode: null,
                     ExclusionCategoryTitle: null,
-                    VerdictMessage: "已通过永久排除区核验并转入「AI 疑似残留」独立分组（默认未勾选；仅限通道 A 同卷隔离且须独立免责二次确认）。"));
+                    VerdictMessage: "已通过永久排除区核验，待用户在建议审阅弹框确认后加入「AI 疑似残留」列表（默认未勾选；仅限通道 A 同卷隔离且须独立免责二次确认）。"));
             }
         }
 

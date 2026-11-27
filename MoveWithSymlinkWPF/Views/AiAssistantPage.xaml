@@ -101,8 +101,9 @@
                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding SpaceMetaText}" FontSize="10.5" Foreground="#475569" VerticalAlignment="Center"/>
                                                     <TextBlock Text="{Binding TitleText}" FontSize="11.5" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                 </DockPanel>
-                                                <ProgressBar Value="{Binding UsedPercent}" Maximum="100" Height="4"
-                                                             Foreground="{Binding BarColor}" Background="#E2E8F0" BorderThickness="0"/>
+                                                <ProgressBar Value="{Binding UsedPercent, Mode=OneWay}" Maximum="100" Height="4"
+                                                             Foreground="{Binding BarColor}" Background="#E2E8F0"
+                                                             Style="{StaticResource FluentProgressBarStyle}"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -203,6 +204,12 @@
 
                             <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="9,6">
                                 <DockPanel>
+                                    <Button DockPanel.Dock="Right" Command="{Binding OpenAllProposalsReviewCommand}"
+                                            Style="{StaticResource FluentLinkButtonStyle}" FontSize="10.5" FontWeight="SemiBold"
+                                            Foreground="#0078D4" Margin="8,0,0,0" VerticalAlignment="Center"
+                                            Visibility="{Binding HasAnyProposalSummary, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock Text="统一审阅 ↗"/>
+                                    </Button>
                                     <TextBlock DockPanel.Dock="Left" Text="建议收件箱：" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding ProposalInboxSummaryText}" FontSize="10.5" FontWeight="SemiBold" Foreground="#0078D4" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 </DockPanel>
@@ -414,6 +421,164 @@
                                     </Button>
                                     <TextBlock Text="引导 AI 思考、过程说明与结论使用所选语言" FontSize="10.5" Foreground="#64748B" VerticalAlignment="Center"/>
                                 </WrapPanel>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="78"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="思考等级" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="Default" Tag="{Binding ReasoningDefaultTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="默认"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="None" Tag="{Binding ReasoningNoneTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="关闭"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="Minimal" Tag="{Binding ReasoningMinimalTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="极低"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="Low" Tag="{Binding ReasoningLowTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="低"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="Medium" Tag="{Binding ReasoningMediumTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="中"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="High" Tag="{Binding ReasoningHighTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="高"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="XHigh" Tag="{Binding ReasoningXHighTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="超高"/>
+                                    </Button>
+                                    <Button Command="{Binding SelectReasoningEffortCommand}" CommandParameter="Max" Tag="{Binding ReasoningMaxTag}"
+                                            Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                            Height="25" MinWidth="0" Padding="8,0" FontSize="10.5" Margin="0,0,5,4">
+                                        <TextBlock Text="极限"/>
+                                    </Button>
+                                </WrapPanel>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="78"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="上下文窗口" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                                <StackPanel Grid.Column="1">
+                                    <WrapPanel VerticalAlignment="Center">
+                                        <TextBox Text="{Binding ContextWindowTokens, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.AutomationId="AiContextWindowInput"
+                                                 ToolTip="模型上下文上限（tokens）：填 0 表示自动（优先从 API 自动获取，回退型号估算）；也可手动填写 2048 ~ 2097152"
+                                                 Style="{StaticResource FluentCompactTextBoxStyle}"
+                                                 Background="#F8FAFC" Width="76" Height="26" FontSize="11"
+                                                 HorizontalContentAlignment="Center" Margin="0,0,6,4"/>
+                                        <Button Command="{Binding ProbeContextWindowCommand}"
+                                                AutomationProperties.AutomationId="AiProbeContextWindowButton"
+                                                IsEnabled="{Binding IsProbingContextWindow, Converter={StaticResource InverseBoolConverter}}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                Background="#EBF5FF" BorderBrush="#BFDBFE" Foreground="#0078D4"
+                                                Height="26" MinWidth="0" Padding="9,0" FontSize="10.5" Margin="0,0,6,4"
+                                                ToolTip="向当前端点只读查询真实上下文上限（兼容 Halogen / LM Studio / Ollama / llama.cpp / vLLM / OpenRouter 等，不消耗对话 Token）">
+                                            <TextBlock Text="从 API 自动获取"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="Auto" Tag="{Binding ContextAutoChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="自动"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="32K" Tag="{Binding Context32kChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="32K"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="64K" Tag="{Binding Context64kChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="64K"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="128K" Tag="{Binding Context128kChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="128K"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="256K" Tag="{Binding Context256kChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="256K"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectContextWindowPresetCommand}" CommandParameter="1M" Tag="{Binding Context1mChipTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,0,4">
+                                            <TextBlock Text="1M"/>
+                                        </Button>
+                                    </WrapPanel>
+                                    <TextBlock FontSize="10.5" Foreground="#64748B" Margin="0,2,0,0" TextWrapping="Wrap">
+                                        <Run Text="当前生效："/>
+                                        <Run Text="{Binding ContextWindowSummaryText, Mode=OneWay}" FontWeight="SemiBold" Foreground="#334155"/>
+                                        <Run Text=" · 填 0 表示自动探测（测试连接或首次对话时也会自动尝试获取）"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="78"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="总耗时上限" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                                <StackPanel Grid.Column="1">
+                                    <WrapPanel VerticalAlignment="Center">
+                                        <TextBox Text="{Binding OverallTimeoutMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.AutomationId="AiOverallTimeoutMinutesInput"
+                                                 ToolTip="单次分析整体安全兜底上限（单位：分钟，范围 2~120 分钟，默认 20 分钟）"
+                                                 Style="{StaticResource FluentCompactTextBoxStyle}"
+                                                 Background="#F8FAFC" Width="56" Height="26" FontSize="11"
+                                                 HorizontalContentAlignment="Center" Margin="0,0,5,4"/>
+                                        <TextBlock Text="分钟" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,8,4"/>
+                                        <Button Command="{Binding SelectOverallTimeoutPresetCommand}" CommandParameter="10" Tag="{Binding OverallTimeout10mTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="10分"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectOverallTimeoutPresetCommand}" CommandParameter="20" Tag="{Binding OverallTimeout20mTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="20分(默认)"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectOverallTimeoutPresetCommand}" CommandParameter="30" Tag="{Binding OverallTimeout30mTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="30分"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectOverallTimeoutPresetCommand}" CommandParameter="60" Tag="{Binding OverallTimeout60mTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,4,4">
+                                            <TextBlock Text="60分"/>
+                                        </Button>
+                                        <Button Command="{Binding SelectOverallTimeoutPresetCommand}" CommandParameter="120" Tag="{Binding OverallTimeout120mTag}"
+                                                Style="{StaticResource FluentSecondaryButtonStyle}" Background="#F8FAFC" BorderBrush="#E2E8F0"
+                                                Height="25" MinWidth="0" Padding="7,0" FontSize="10" Margin="0,0,0,4">
+                                            <TextBlock Text="120分"/>
+                                        </Button>
+                                    </WrapPanel>
+                                    <TextBlock Text="单次分析整体兜底安全上限（范围 2~120 分钟，默认 20 分钟；超时将强制中止防止任务挂起）"
+                                               FontSize="10.5" Foreground="#64748B" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </Grid>
                         </StackPanel>
                     </ScrollViewer>

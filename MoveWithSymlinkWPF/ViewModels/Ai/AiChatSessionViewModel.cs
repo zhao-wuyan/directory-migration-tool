@@ -1,4 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MigrationCore.Models.Ai;
@@ -23,6 +26,10 @@ public partial class AiChatSessionViewModel : ObservableObject
 {
     private readonly AiAssistantViewModel _host;
     private CancellationTokenSource? _analysisCts;
+    private AiOverallTimeoutController? _activeTimeoutController;
+    private AiConversationTurnItem? _activeAnalysisTurn;
+    private DispatcherTimer? _timeoutCountdownTimer;
+    private DateTimeOffset _timeoutWarningDeadlineUtc;
 
     public AiAssistantViewModel Host => _host;
     public AiChatScene Scene { get; }
@@ -37,9 +44,203 @@ public partial class AiChatSessionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SessionTabBadgeText))]
     private bool _isAnalyzing;
 
+    // ---- 单次分析接近总耗时上限时的底部延长限时询问提示 ----
+    [ObservableProperty]
+    private bool _showTimeoutExtensionPrompt;
+
+    [ObservableProperty]
+    private string _timeoutCountdownBadgeText = string.Empty;
+
+    [ObservableProperty]
+    private string _timeoutPromptDescription = string.Empty;
+
+    // ---- 本会话上下文占用圆环与调用统计（点击输入框右侧圆环展开浮层卡） ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextUsagePercent))]
+    [NotifyPropertyChangedFor(nameof(ContextUsagePercentText))]
+    [NotifyPropertyChangedFor(nameof(ContextUsageSummaryText))]
+    [NotifyPropertyChangedFor(nameof(ContextRingStrokeColor))]
+    [NotifyPropertyChangedFor(nameof(ContextRingArcData))]
+    [NotifyPropertyChangedFor(nameof(ContextRingArcGeometry))]
+    [NotifyPropertyChangedFor(nameof(ContextRingToolTip))]
+    private int _contextUsedTokens;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContextUsagePercent))]
+    [NotifyPropertyChangedFor(nameof(ContextUsagePercentText))]
+    [NotifyPropertyChangedFor(nameof(ContextUsageSummaryText))]
+    [NotifyPropertyChangedFor(nameof(ContextRingStrokeColor))]
+    [NotifyPropertyChangedFor(nameof(ContextRingArcData))]
+    [NotifyPropertyChangedFor(nameof(ContextRingArcGeometry))]
+    [NotifyPropertyChangedFor(nameof(ContextRingToolTip))]
+    private int _contextWindowTokens = 65_536;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeText))]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeFg))]
+    private bool _contextUsageIsExact;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeText))]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeBg))]
+    [NotifyPropertyChangedFor(nameof(UsageSourceBadgeFg))]
+    [NotifyPropertyChangedFor(nameof(ContextRingToolTip))]
+    [NotifyPropertyChangedFor(nameof(SessionCumulativeSummaryText))]
+    [NotifyPropertyChangedFor(nameof(LastSpeedText))]
+    [NotifyPropertyChangedFor(nameof(FirstTokenLatencyText))]
+    [NotifyPropertyChangedFor(nameof(LastDurationText))]
+    [NotifyPropertyChangedFor(nameof(SpeedCardLabel))]
+    [NotifyPropertyChangedFor(nameof(SpeedCardToolTip))]
+    private bool _hasTelemetry;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpeedCardLabel))]
+    [NotifyPropertyChangedFor(nameof(SpeedCardToolTip))]
+    private bool _isTelemetryStreaming;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpeedCardToolTip))]
+    private double _lastAverageTokensPerSecond;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SessionCumulativeSummaryText))]
+    private int _sessionTotalInputTokens;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SessionCumulativeSummaryText))]
+    private int _sessionTotalOutputTokens;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SessionCumulativeSummaryText))]
+    private int _sessionRequestCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SessionCumulativeSummaryText))]
+    private int _sessionToolCallCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastSpeedText))]
+    private double _lastTokensPerSecond;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FirstTokenLatencyText))]
+    private long _lastFirstTokenMs;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastDurationText))]
+    private long _lastElapsedMs;
+
+    private int _baselineSessionInputTokens;
+    private int _baselineSessionOutputTokens;
+    private int _baselineSessionRequests;
+    private int _baselineSessionToolCalls;
+
+    public double ContextUsagePercent => ContextWindowTokens > 0
+        ? Math.Clamp(Math.Round(ContextUsedTokens * 100.0 / ContextWindowTokens, 1), 0, 100)
+        : 0;
+
+    public string ContextUsagePercentText => $"{ContextUsagePercent:0.#}%";
+
+    public string ContextUsageSummaryText => HasTelemetry
+        ? $"{FormatTokenCount(ContextUsedTokens)} / {FormatTokenCount(ContextWindowTokens)} tokens"
+        : $"0 / {FormatTokenCount(ContextWindowTokens)} tokens";
+
+    public string UsageSourceBadgeText => !HasTelemetry
+        ? "暂无调用"
+        : ContextUsageIsExact ? "API 实测" : "本地估算";
+
+    public string UsageSourceBadgeBg => !HasTelemetry ? "#F1F5F9"
+        : ContextUsageIsExact ? "#ECFDF5" : "#FFFBEB";
+
+    public string UsageSourceBadgeFg => !HasTelemetry ? "#64748B"
+        : ContextUsageIsExact ? "#0F7B4B" : "#B45309";
+
+    public string ContextRingStrokeColor => !HasTelemetry || ContextUsedTokens <= 0 ? "#CBD5E1"
+        : ContextUsagePercent >= 85 ? "#C42B1C"
+        : ContextUsagePercent >= 65 ? "#D97706"
+        : "#0078D4";
+
+    public string ContextRingArcData => BuildContextRingArcGeometry(ContextUsagePercent);
+
+    public Geometry ContextRingArcGeometry
+    {
+        get
+        {
+            string data = ContextRingArcData;
+            if (string.IsNullOrEmpty(data)) return Geometry.Empty;
+            Geometry parsed = Geometry.Parse(data);
+            if (parsed.CanFreeze) parsed.Freeze();
+            return parsed;
+        }
+    }
+
+    public string ContextRingToolTip => !HasTelemetry
+        ? "上下文占用：0% · 点击查看 AI 调用统计"
+        : $"上下文占用 {ContextUsagePercent:0.#}%（{FormatTokenCount(ContextUsedTokens)} / {FormatTokenCount(ContextWindowTokens)}）· 速度 {LastSpeedText} · 点击查看详细统计";
+
+    public string SpeedCardLabel => IsTelemetryStreaming ? "实时速度" : "生成速度";
+
+    public string SpeedCardToolTip
+    {
+        get
+        {
+            if (!HasTelemetry || LastTokensPerSecond <= 0)
+            {
+                return "流式生成期间按最近 2 秒滑动窗口实时刷新（不含首字等待与工具执行耗时）";
+            }
+            string avgPart = LastAverageTokensPerSecond > 0
+                ? $" · 本次累计均速 {LastAverageTokensPerSecond:F1} tok/s"
+                : string.Empty;
+            return IsTelemetryStreaming
+                ? $"当前流式实时解码速度（最近 2 秒滑动窗口，不含首字等待）{avgPart}"
+                : $"最近一轮纯解码生成速度（不含首字等待与工具耗时）{avgPart}";
+        }
+    }
+
+    public string LastSpeedText => HasTelemetry && LastTokensPerSecond > 0
+        ? $"{LastTokensPerSecond:F1} tok/s"
+        : "—";
+
+    public string FirstTokenLatencyText => HasTelemetry && LastFirstTokenMs > 0
+        ? (LastFirstTokenMs >= 1000 ? $"{LastFirstTokenMs / 1000.0:F2} s" : $"{LastFirstTokenMs} ms")
+        : "—";
+
+    public string LastDurationText => HasTelemetry && LastElapsedMs > 0
+        ? (LastElapsedMs >= 1000 ? $"{LastElapsedMs / 1000.0:F1} s" : $"{LastElapsedMs} ms")
+        : "—";
+
+    public string SessionCumulativeSummaryText => HasTelemetry
+        ? $"输入 {FormatTokenCount(SessionTotalInputTokens)} · 输出 {FormatTokenCount(SessionTotalOutputTokens)} · {SessionRequestCount} 次请求 · {SessionToolCallCount} 次工具"
+        : "本会话尚未发起模型调用";
+
+    public string ContextWindowSourceText => _host.ContextWindowSourceText;
+
+    internal void ApplyContextWindowTokens(int tokens)
+    {
+        if (tokens >= AiProviderSettings.MinContextWindowTokens)
+        {
+            ContextWindowTokens = tokens;
+        }
+        OnPropertyChanged(nameof(ContextWindowSourceText));
+    }
+
     public bool CanSendPrompt => !IsAnalyzing;
     public bool HasConversationTurns => ConversationTurns.Count > 0;
     public string DisclaimerText => _host.DisclaimerText;
+
+    // ---- 本会话固定吸底「建议汇总与统一审阅弹窗」快捷条（长回复未滚到底部也能一键打开弹窗） ----
+    public int SessionProposalCount => ConversationTurns.Sum(t => t.ProposalTotalCount);
+    public int SessionPendingProposalCount => ConversationTurns.Sum(t => t.PendingActionableProposalCount);
+    public bool HasSessionProposalCards => SessionProposalCount > 0;
+
+    public string SessionProposalStickySummaryText => SessionPendingProposalCount > 0
+        ? $"已生成 {SessionProposalCount} 条 AI 建议 · {SessionPendingProposalCount} 项待审阅添加"
+        : $"已生成 {SessionProposalCount} 条 AI 建议 · 点击可统一查看详情";
+
+    public string SessionProposalStickyButtonText => SessionPendingProposalCount > 0
+        ? "统一查看与添加 ↗"
+        : "统一查看 ↗";
 
     // ---- 按入口场景定制的界面文案与 3 个快捷推荐胶囊 ----
     public string SceneLabel => Scene switch
@@ -146,12 +347,60 @@ public partial class AiChatSessionViewModel : ObservableObject
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         Scene = scene;
-        ConversationTurns.CollectionChanged += (_, _) =>
+        ConversationTurns.CollectionChanged += OnConversationTurnsCollectionChanged;
+    }
+
+    private void OnConversationTurnsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
         {
-            OnPropertyChanged(nameof(HasConversationTurns));
-            OnPropertyChanged(nameof(SessionTabBadgeText));
-            _host.NotifySessionActivityChanged(this);
-        };
+            foreach (AiConversationTurnItem oldTurn in e.OldItems)
+            {
+                oldTurn.PropertyChanged -= OnTurnPropertyChanged;
+            }
+        }
+        if (e.NewItems is not null)
+        {
+            foreach (AiConversationTurnItem newTurn in e.NewItems)
+            {
+                newTurn.PropertyChanged += OnTurnPropertyChanged;
+            }
+        }
+        OnPropertyChanged(nameof(HasConversationTurns));
+        OnPropertyChanged(nameof(SessionTabBadgeText));
+        NotifySessionProposalSummaryChanged();
+        _host.NotifySessionActivityChanged(this);
+    }
+
+    private void OnTurnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AiConversationTurnItem.HasProposalCards)
+            or nameof(AiConversationTurnItem.ProposalTotalCount)
+            or nameof(AiConversationTurnItem.PendingActionableProposalCount))
+        {
+            NotifySessionProposalSummaryChanged();
+        }
+    }
+
+    internal void NotifySessionProposalSummaryChanged()
+    {
+        OnPropertyChanged(nameof(SessionProposalCount));
+        OnPropertyChanged(nameof(SessionPendingProposalCount));
+        OnPropertyChanged(nameof(HasSessionProposalCards));
+        OnPropertyChanged(nameof(SessionProposalStickySummaryText));
+        OnPropertyChanged(nameof(SessionProposalStickyButtonText));
+    }
+
+    [RelayCommand]
+    private void OpenSessionProposalsReview()
+    {
+        List<AiProposalCardItem> cards = ConversationTurns.SelectMany(t => t.ProposalCards).ToList();
+        if (cards.Count == 0) return;
+
+        _host.OpenProposalsReviewForCards(
+            cards,
+            $"{SceneLabel} · AI 建议统一审阅与添加",
+            $"本会话共汇总 {cards.Count} 条 AI 结构化建议，请核实路径与理由后勾选加入对应清单（绝不立即执行）。");
     }
 
     [RelayCommand]
@@ -344,6 +593,16 @@ public partial class AiChatSessionViewModel : ObservableObject
         _analysisCts?.Dispose();
         _analysisCts = new CancellationTokenSource();
 
+        var timeoutController = new AiOverallTimeoutController();
+        _activeTimeoutController = timeoutController;
+        _activeAnalysisTurn = turnItem;
+        HideTimeoutExtensionPrompt();
+
+        _baselineSessionInputTokens = SessionTotalInputTokens;
+        _baselineSessionOutputTokens = SessionTotalOutputTokens;
+        _baselineSessionRequests = SessionRequestCount;
+        _baselineSessionToolCalls = SessionToolCallCount;
+
         var progress = new InlineProgress<AiAgentRunEvent>(ev => HandleAgentRunEvent(turnItem, ev));
 
         try
@@ -358,12 +617,18 @@ public partial class AiChatSessionViewModel : ObservableObject
                     History: history,
                     ActiveCleanupScanId: _host.ActiveCleanupScanId,
                     Scene: Scene,
-                    AuthorizedScanIds: authorizedIds),
+                    AuthorizedScanIds: authorizedIds,
+                    OverallTimeoutController: timeoutController),
                 progress,
                 _analysisCts.Token);
 
             _host.DispatchToUi(() =>
             {
+                if (result.Telemetry is not null)
+                {
+                    ApplyTelemetryUpdate(result.Telemetry);
+                }
+
                 FinalizeActiveTimelineSteps(turnItem, result.WasCancelled ? "已停止" : "已中断");
                 turnItem.StepsUsed = result.StepsUsed;
                 if (!string.IsNullOrWhiteSpace(result.AssistantMessage))
@@ -371,6 +636,33 @@ public partial class AiChatSessionViewModel : ObservableObject
                     turnItem.AssistantText = result.AssistantMessage;
                     SyncFinalAssistantMessageToTimeline(turnItem, result.AssistantMessage);
                 }
+
+                // 兜底补齐：确保工具返回的所有迁移与清理建议均已写入本轮摘要卡（按 ProposalId 去重，避免重复追加）
+                if (result.Proposals.Length > 0)
+                {
+                    var existingIds = turnItem.ProposalCards.Select(c => c.ProposalId).ToHashSet();
+                    foreach (AiMigrationProposalReceipt prop in result.Proposals)
+                    {
+                        if (!existingIds.Contains(prop.ProposalId))
+                        {
+                            _host.AppendProposalCards(turnItem, prop);
+                            existingIds.Add(prop.ProposalId);
+                        }
+                    }
+                }
+                if (result.CleanupProposals is { Length: > 0 })
+                {
+                    var existingIds = turnItem.ProposalCards.Select(c => c.ProposalId).ToHashSet();
+                    foreach (AiCleanupProposalReceipt cprop in result.CleanupProposals)
+                    {
+                        if (!existingIds.Contains(cprop.ProposalId))
+                        {
+                            _host.AppendCleanupProposalCards(turnItem, cprop);
+                            existingIds.Add(cprop.ProposalId);
+                        }
+                    }
+                }
+                NotifySessionProposalSummaryChanged();
 
                 if (result.WasCancelled)
                 {
@@ -402,10 +694,117 @@ public partial class AiChatSessionViewModel : ObservableObject
         {
             _host.DispatchToUi(() =>
             {
+                HideTimeoutExtensionPrompt();
+                _activeTimeoutController = null;
+                _activeAnalysisTurn = null;
+                IsTelemetryStreaming = false;
                 IsAnalyzing = false;
                 _host.NotifySessionActivityChanged(this);
             });
         }
+    }
+
+    [RelayCommand]
+    private void ExtendAnalysisTimeout(string? minutesParam)
+    {
+        if (!int.TryParse(minutesParam?.Trim(), out int minutes) || minutes <= 0)
+        {
+            minutes = 10;
+        }
+
+        AiOverallTimeoutController? controller = _activeTimeoutController;
+        if (controller is null)
+        {
+            HideTimeoutExtensionPrompt();
+            return;
+        }
+
+        if (controller.TryExtend(TimeSpan.FromMinutes(minutes), out _, out TimeSpan newBudget))
+        {
+            HideTimeoutExtensionPrompt();
+            string budgetLabel = newBudget.TotalMinutes >= 1
+                ? $"{Math.Round(newBudget.TotalMinutes):0} 分钟"
+                : $"{Math.Round(newBudget.TotalSeconds):0} 秒";
+            _activeAnalysisTurn?.TimelineItems.Add(new AiNoticeStepItem
+            {
+                Prefix = "⏱",
+                Message = $"已将本次分析总耗时上限延长 +{minutes} 分钟（当前上限约 {budgetLabel}），继续分析中…",
+                Foreground = "#0078D4"
+            });
+        }
+        else
+        {
+            HideTimeoutExtensionPrompt();
+        }
+    }
+
+    [RelayCommand]
+    private void DismissTimeoutExtensionPrompt()
+    {
+        HideTimeoutExtensionPrompt();
+    }
+
+    internal void ShowTimeoutApproachingPrompt(AiTimeoutApproachingInfo info, AiOverallTimeoutController? overrideController = null, AiConversationTurnItem? overrideTurn = null)
+    {
+        if (overrideController is not null) _activeTimeoutController = overrideController;
+        if (overrideTurn is not null) _activeAnalysisTurn = overrideTurn;
+
+        _timeoutWarningDeadlineUtc = info.DeadlineUtc;
+        string budgetLabel = info.CurrentTotalBudget.TotalMinutes >= 1
+            ? $"{Math.Round(info.CurrentTotalBudget.TotalMinutes):0} 分钟"
+            : $"{Math.Round(info.CurrentTotalBudget.TotalSeconds):0} 秒";
+
+        TimeoutPromptDescription = $"当前单次分析限时 {budgetLabel} 即将到达，到期将自动收敛或安全中止。是否需要延长本次限时？";
+        UpdateTimeoutCountdownBadge();
+        ShowTimeoutExtensionPrompt = true;
+
+        if (Application.Current?.Dispatcher is not null)
+        {
+            _timeoutCountdownTimer ??= new DispatcherTimer(DispatcherPriority.Normal, Application.Current.Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _timeoutCountdownTimer.Tick -= OnTimeoutCountdownTick;
+            _timeoutCountdownTimer.Tick += OnTimeoutCountdownTick;
+            _timeoutCountdownTimer.Start();
+        }
+    }
+
+    private void HideTimeoutExtensionPrompt()
+    {
+        ShowTimeoutExtensionPrompt = false;
+        TimeoutCountdownBadgeText = string.Empty;
+        TimeoutPromptDescription = string.Empty;
+        if (_timeoutCountdownTimer is not null)
+        {
+            _timeoutCountdownTimer.Stop();
+            _timeoutCountdownTimer.Tick -= OnTimeoutCountdownTick;
+        }
+    }
+
+    private void OnTimeoutCountdownTick(object? sender, EventArgs e)
+    {
+        if (!ShowTimeoutExtensionPrompt)
+        {
+            _timeoutCountdownTimer?.Stop();
+            return;
+        }
+        UpdateTimeoutCountdownBadge();
+    }
+
+    private void UpdateTimeoutCountdownBadge()
+    {
+        TimeSpan rem = _timeoutWarningDeadlineUtc - DateTimeOffset.UtcNow;
+        if (rem <= TimeSpan.Zero)
+        {
+            TimeoutCountdownBadgeText = "即将到期";
+            return;
+        }
+
+        int totalSeconds = (int)Math.Ceiling(rem.TotalSeconds);
+        int mins = totalSeconds / 60;
+        int secs = totalSeconds % 60;
+        TimeoutCountdownBadgeText = $"剩余 {mins:00}:{secs:00}";
     }
 
     [RelayCommand]
@@ -420,6 +819,7 @@ public partial class AiChatSessionViewModel : ObservableObject
         if (IsAnalyzing) return;
         foreach (AiConversationTurnItem turn in ConversationTurns)
         {
+            turn.PropertyChanged -= OnTurnPropertyChanged;
             foreach (AiScanActionCardItem card in turn.ScanActionCards)
             {
                 card.ActiveScanCts?.Cancel();
@@ -428,6 +828,83 @@ public partial class AiChatSessionViewModel : ObservableObject
             }
         }
         ConversationTurns.Clear();
+        HideTimeoutExtensionPrompt();
+        NotifySessionProposalSummaryChanged();
+        ResetTelemetry();
+    }
+
+    private void ResetTelemetry()
+    {
+        ContextUsedTokens = 0;
+        ContextUsageIsExact = false;
+        HasTelemetry = false;
+        SessionTotalInputTokens = 0;
+        SessionTotalOutputTokens = 0;
+        SessionRequestCount = 0;
+        SessionToolCallCount = 0;
+        LastTokensPerSecond = 0;
+        LastAverageTokensPerSecond = 0;
+        IsTelemetryStreaming = false;
+        LastFirstTokenMs = 0;
+        LastElapsedMs = 0;
+        _baselineSessionInputTokens = 0;
+        _baselineSessionOutputTokens = 0;
+        _baselineSessionRequests = 0;
+        _baselineSessionToolCalls = 0;
+    }
+
+    private void ApplyTelemetryUpdate(AiCallTelemetry telemetry)
+    {
+        HasTelemetry = true;
+        ContextUsedTokens = telemetry.LastTotalTokens;
+        if (telemetry.EstimatedContextWindowTokens > 0)
+        {
+            ContextWindowTokens = telemetry.EstimatedContextWindowTokens;
+        }
+        OnPropertyChanged(nameof(ContextWindowSourceText));
+        ContextUsageIsExact = telemetry.IsExactUsageFromApi;
+        SessionTotalInputTokens = _baselineSessionInputTokens + telemetry.TotalInputTokensThisRun;
+        SessionTotalOutputTokens = _baselineSessionOutputTokens + telemetry.TotalOutputTokensThisRun;
+        SessionRequestCount = _baselineSessionRequests + telemetry.ModelRequestCount;
+        SessionToolCallCount = _baselineSessionToolCalls + telemetry.ToolCallCount;
+        IsTelemetryStreaming = telemetry.IsStreaming;
+        LastAverageTokensPerSecond = telemetry.AverageTokensPerSecond;
+        LastTokensPerSecond = telemetry.TokensPerSecond;
+        LastFirstTokenMs = telemetry.FirstTokenMilliseconds;
+        LastElapsedMs = telemetry.ElapsedMilliseconds;
+    }
+
+    public static string BuildContextRingArcGeometry(double percent)
+    {
+        double clamped = Math.Clamp(percent, 0, 100);
+        if (clamped <= 0.1) return string.Empty;
+
+        const double cx = 9.0;
+        const double cy = 9.0;
+        const double r = 6.8;
+
+        // 接近 100% 时用两段半圆闭合避免 SVG 起点=终点退化
+        if (clamped >= 99.5)
+        {
+            return FormattableString.Invariant(
+                $"M {cx:0.##},{cy - r:0.##} A {r:0.##},{r:0.##} 0 1 1 {cx:0.##},{cy + r:0.##} A {r:0.##},{r:0.##} 0 1 1 {cx:0.##},{cy - r:0.##}");
+        }
+
+        double angleRad = (clamped / 100.0 * 360.0 - 90.0) * Math.PI / 180.0;
+        double endX = cx + r * Math.Cos(angleRad);
+        double endY = cy + r * Math.Sin(angleRad);
+        int largeArc = clamped > 50.0 ? 1 : 0;
+
+        return FormattableString.Invariant(
+            $"M {cx:0.##},{cy - r:0.##} A {r:0.##},{r:0.##} 0 {largeArc} 1 {endX:0.##},{endY:0.##}");
+    }
+
+    internal static string FormatTokenCount(int tokens)
+    {
+        if (tokens >= 1_000_000) return $"{tokens / 1_000_000.0:F2}M";
+        if (tokens >= 10_000) return $"{tokens / 1_000.0:F1}K";
+        if (tokens >= 1_000) return $"{tokens / 1_000.0:F2}K";
+        return tokens.ToString("N0");
     }
 
     [RelayCommand]
@@ -441,11 +918,16 @@ public partial class AiChatSessionViewModel : ObservableObject
         // 仅复用已有新鲜快照（未勾新盘也未勾清理）
         if (!runCleanup && selectedDrives.Length == 0)
         {
-            bool reused = _host.AuthorizeFreshCachedSnapshots();
-            if (reused)
+            bool reusedDisk = card.ShowDrivePicker && _host.AuthorizeFreshCachedSnapshots();
+            bool reusedCleanup = card.ShowCleanupOption && _host.HasAuthorizedCleanupSnapshot;
+            if (reusedDisk || reusedCleanup)
             {
                 card.IsCompleted = true;
-                card.StatusMessage = "✓ 已复用内存中已有的新鲜磁盘扫描快照。";
+                card.StatusMessage = reusedDisk && reusedCleanup
+                    ? "✓ 已复用最新磁盘与垃圾清理扫描快照。"
+                    : reusedCleanup
+                        ? "✓ 已复用最新垃圾清理扫描快照。"
+                        : "✓ 已复用内存中已有的新鲜磁盘扫描快照。";
                 if (card.AutoContinueAfterScan)
                 {
                     await ContinueAfterScanCardAsync(card);
@@ -479,11 +961,16 @@ public partial class AiChatSessionViewModel : ObservableObject
             {
                 currentStep++;
                 card.StatusMessage = $"({currentStep}/{totalSteps}) 正在执行垃圾清理规则扫描…";
-                card.ProgressIsIndeterminate = true;
+                card.ProgressIsIndeterminate = false;
+                card.ProgressPercent = 2;
 
                 CleanupScanSnapshot? cleanupSnap = await _host.ExecuteCleanupScanForCardAsync(
-                    new Progress<string>(msg => _host.DispatchToUi(() =>
-                        card.StatusMessage = $"({currentStep}/{totalSteps}) {msg}")),
+                    new Progress<(double Percent, string Message)>(p => _host.DispatchToUi(() =>
+                    {
+                        card.ProgressIsIndeterminate = false;
+                        card.ProgressPercent = Math.Clamp(p.Percent, 2, 100);
+                        card.StatusMessage = $"({currentStep}/{totalSteps}) {p.Message}";
+                    })),
                     ct);
 
                 if (cleanupSnap is not null)
@@ -551,7 +1038,60 @@ public partial class AiChatSessionViewModel : ObservableObject
     [RelayCommand]
     private void CancelScanCard(AiScanActionCardItem? card)
     {
-        card?.ActiveScanCts?.Cancel();
+        if (card is null) return;
+        if (card.IsScanning)
+        {
+            card.ActiveScanCts?.Cancel();
+            return;
+        }
+        if (card.IsExternalScanRunning)
+        {
+            _host.CancelExternalScanForCard(card);
+        }
+    }
+
+    internal void SyncExternalCleanupScanState(bool isScanning, double percent, string message)
+    {
+        foreach (AiConversationTurnItem turn in ConversationTurns)
+        {
+            foreach (AiScanActionCardItem card in turn.ScanActionCards)
+            {
+                card.ApplyExternalCleanupScanState(isScanning, percent, message);
+            }
+        }
+    }
+
+    internal void SyncExternalDiskScanState(string driveRoot, bool isScanning, double percent, string message)
+    {
+        foreach (AiConversationTurnItem turn in ConversationTurns)
+        {
+            foreach (AiScanActionCardItem card in turn.ScanActionCards)
+            {
+                card.ApplyExternalDiskScanState(driveRoot, isScanning, percent, message);
+            }
+        }
+    }
+
+    internal void SyncExternalCleanupSnapshot(CleanupScanSnapshot snapshot)
+    {
+        foreach (AiConversationTurnItem turn in ConversationTurns)
+        {
+            foreach (AiScanActionCardItem card in turn.ScanActionCards)
+            {
+                card.ApplyExternalCleanupSnapshot(snapshot);
+            }
+        }
+    }
+
+    internal void SyncExternalDiskSnapshot(ScanSnapshot snapshot)
+    {
+        foreach (AiConversationTurnItem turn in ConversationTurns)
+        {
+            foreach (AiScanActionCardItem card in turn.ScanActionCards)
+            {
+                card.ApplyExternalDiskSnapshot(snapshot);
+            }
+        }
     }
 
     [RelayCommand]
@@ -582,6 +1122,34 @@ public partial class AiChatSessionViewModel : ObservableObject
         {
             foreach (AiProposalCardItem card in turn.ProposalCards)
             {
+                if (card.IsCleanupResidualProposal)
+                {
+                    AiCleanupCandidateStatus? residualStatus = _host.Toolset.Inbox.GetCleanupResidualCandidateStatus(
+                        card.CandidateId, card.ScanId, card.NodeId);
+                    if (residualStatus is AiCleanupCandidateStatus st)
+                    {
+                        switch (st)
+                        {
+                            case AiCleanupCandidateStatus.ProposedAwaitingAdoption:
+                                card.IsResidualAdopted = false;
+                                card.IsResidualQuarantined = false;
+                                break;
+                            case AiCleanupCandidateStatus.PendingManualReview:
+                                card.IsResidualAdopted = true;
+                                card.IsResidualQuarantined = false;
+                                break;
+                            case AiCleanupCandidateStatus.Quarantined:
+                                card.IsResidualAdopted = true;
+                                card.IsResidualQuarantined = true;
+                                break;
+                            case AiCleanupCandidateStatus.Invalidated:
+                                card.IsInvalidated = true;
+                                break;
+                        }
+                    }
+                    continue;
+                }
+
                 AiProposalStatusResponse? status = _host.Toolset.Inbox.GetStatus(card.ProposalId);
                 if (status is not null && status.Status == AiProposalStatus.Invalidated)
                 {
@@ -720,6 +1288,14 @@ public partial class AiChatSessionViewModel : ObservableObject
 
                 case AiAgentEventKind.ScanActionRequested when ev.ScanActionProposal is not null:
                     turn.ScanActionCards.Add(_host.CreateScanActionCard(ev.ScanActionProposal, turn.UserPrompt));
+                    break;
+
+                case AiAgentEventKind.TelemetryUpdated when ev.Telemetry is not null:
+                    ApplyTelemetryUpdate(ev.Telemetry);
+                    break;
+
+                case AiAgentEventKind.TimeoutApproaching when ev.TimeoutApproaching is not null:
+                    ShowTimeoutApproachingPrompt(ev.TimeoutApproaching);
                     break;
 
                 case AiAgentEventKind.Warning when !string.IsNullOrWhiteSpace(ev.Message):

@@ -401,14 +401,15 @@ public sealed record CleanupExclusionVerdict(
     string? Message);
 
 /// <summary>
-/// AI 疑似残留候选的裁决状态（对齐画板 11：通过硬拦截的仅允许通道 A 同卷隔离；命中永久排除区的直接展示红色已硬拦截卡）。
+/// AI 疑似残留候选的裁决状态（对齐画板 11：AI 提交后先停留在审阅弹框待采纳，用户确认加入后才进入「AI 疑似残留」复核列表；命中永久排除区的直接展示红色已硬拦截卡）。
 /// </summary>
 public enum AiCleanupCandidateStatus
 {
     PendingManualReview = 0,
     HardBlockedByExclusion = 1,
     Quarantined = 2,
-    Invalidated = 3
+    Invalidated = 3,
+    ProposedAwaitingAdoption = 4
 }
 
 /// <summary>

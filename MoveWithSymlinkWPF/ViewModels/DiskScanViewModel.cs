@@ -32,6 +32,11 @@ public partial class DiskScanViewModel : ObservableObject
 
     private ScanSnapshot? _snapshot;
     private FrozenMigrationPlan? _frozenPlan;
+    private readonly object _diskScanSync = new();
+    private Task<ScanSnapshot>? _activeDiskScanTask;
+    private string? _activeDiskScanDriveRoot;
+    private readonly List<Action<(double Percent, string Message)>> _externalDiskScanProgressListeners = [];
+    private (double Percent, string Message)? _lastDiskScanProgressBroadcast;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _batchCts;
 

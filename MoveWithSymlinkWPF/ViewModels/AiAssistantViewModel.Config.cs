@@ -41,6 +41,185 @@ public partial class AiAssistantViewModel
     }
 
     [RelayCommand]
+    private void SelectReasoningEffort(string? effortKey)
+    {
+        AiReasoningEffort parsed = Enum.TryParse(effortKey?.Trim(), ignoreCase: true, out AiReasoningEffort val)
+            ? val
+            : AiReasoningEffort.Default;
+        ReasoningEffort = parsed;
+        try
+        {
+            _savedSettings = _configStore.Save(_savedSettings with { ReasoningEffort = parsed }, plainApiKey: null);
+        }
+        catch
+        {
+        }
+    }
+
+    [RelayCommand]
+    private void SelectContextWindowPreset(string? presetKey)
+    {
+        string normalized = (presetKey ?? string.Empty).Trim().ToUpperInvariant();
+        int target = normalized switch
+        {
+            "" or "0" or "AUTO" => 0,
+            "32K" => 32_768,
+            "64K" => 65_536,
+            "128K" => 131_072,
+            "256K" => 262_144,
+            "1M" => 1_048_576,
+            _ => int.TryParse(normalized, out int custom) && custom > 0
+                ? Math.Clamp(custom, AiProviderSettings.MinContextWindowTokens, AiProviderSettings.MaxContextWindowTokens)
+                : 0
+        };
+
+        ContextWindowTokens = target;
+        ContextProbeStatusMessage = target == 0
+            ? $"已切换为自动模式：{ContextWindowSummaryText}"
+            : $"已设为手动上限：{AiChatSessionViewModel.FormatTokenCount(target)} tokens";
+        try
+        {
+            _savedSettings = _configStore.Save(_savedSettings with { ContextWindowTokens = target }, plainApiKey: null);
+        }
+        catch
+        {
+        }
+        NotifyContextWindowMetadataChanged();
+    }
+
+    [RelayCommand]
+    private void SelectOverallTimeoutPreset(string? minutesKey)
+    {
+        int parsed = int.TryParse(minutesKey?.Trim(), out int val) && val > 0
+            ? Math.Clamp(val, AiProviderSettings.MinOverallTimeoutMinutes, AiProviderSettings.MaxOverallTimeoutMinutes)
+            : AiProviderSettings.DefaultOverallTimeoutMinutes;
+
+        OverallTimeoutMinutes = parsed;
+        int overallSeconds = Math.Max(parsed * 60, Math.Clamp(TimeoutSeconds, 15, AiProviderSettings.HardMaxTimeoutSeconds));
+        try
+        {
+            _savedSettings = _configStore.Save(_savedSettings with { OverallTimeoutSeconds = overallSeconds }, plainApiKey: null);
+        }
+        catch
+        {
+        }
+        ConfigFeedbackMessage = $"已将单次分析总耗时安全上限设为 {parsed} 分钟。";
+    }
+
+    [RelayCommand]
+    private async Task ProbeContextWindowAsync()
+    {
+        if (IsProbingContextWindow) return;
+
+        string? validationError = ValidateDraftConfig(out AiProviderSettings draft, out string? plainKey);
+        if (validationError is not null)
+        {
+            ContextProbeStatusMessage = validationError;
+            ConfigFeedbackMessage = validationError;
+            return;
+        }
+
+        if (!EnsureCloudPrivacyAcknowledged(draft, out bool acknowledgedNow))
+        {
+            return;
+        }
+        if (acknowledgedNow)
+        {
+            draft = draft with { CloudPrivacyAcknowledged = true };
+        }
+
+        IsProbingContextWindow = true;
+        ContextProbeStatusMessage = $"正在从 API 获取 {draft.ModelName} 上下文大小…";
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var client = new OpenAiCompatibleChatClient(draft.Endpoint, draft.ModelName, plainKey, TimeSpan.FromSeconds(10));
+            AiModelContextProbeResult probe = await client.ProbeModelContextWindowAsync(cts.Token);
+
+            if (probe is { Found: true, ContextWindowTokens: int detectedTokens })
+            {
+                string targetKey = draft.BuildModelTargetKey();
+                BuiltInAiAgentService.RememberProbedContextWindow(targetKey, detectedTokens, probe.SourceEndpoint);
+
+                _savedSettings = _configStore.Save(
+                    _savedSettings with
+                    {
+                        CloudPrivacyAcknowledged = draft.CloudPrivacyAcknowledged,
+                        ContextWindowTokens = 0,
+                        DetectedContextWindowTokens = detectedTokens,
+                        DetectedContextWindowSource = probe.SourceEndpoint,
+                        DetectedContextWindowTargetKey = targetKey
+                    },
+                    plainApiKey: null);
+
+                ContextWindowTokens = 0;
+                NotifyContextWindowMetadataChanged();
+                ContextProbeStatusMessage = probe.DetailMessage;
+                ConfigFeedbackMessage = probe.DetailMessage;
+            }
+            else
+            {
+                ContextProbeStatusMessage = probe.DetailMessage;
+                ConfigFeedbackMessage = probe.DetailMessage;
+            }
+        }
+        catch (Exception ex)
+        {
+            string safeErr = AiPathSanitizer.RedactSecret(ex.Message, plainKey);
+            ContextProbeStatusMessage = $"获取失败：{safeErr}";
+            ConfigFeedbackMessage = ContextProbeStatusMessage;
+        }
+        finally
+        {
+            IsProbingContextWindow = false;
+        }
+    }
+
+    [RelayCommand]
+    private void DecreaseChatFontSize()
+    {
+        ApplyAndPersistChatFontSize(ChatFontSize - 1.0);
+    }
+
+    [RelayCommand]
+    private void IncreaseChatFontSize()
+    {
+        ApplyAndPersistChatFontSize(ChatFontSize + 1.0);
+    }
+
+    [RelayCommand]
+    private void SetChatFontSize(string? presetKey)
+    {
+        double target = presetKey?.Trim() switch
+        {
+            "Small" => 10.5,
+            "Large" => 13.0,
+            "ExtraLarge" => 14.5,
+            _ => AiProviderSettings.DefaultChatFontSize
+        };
+        ApplyAndPersistChatFontSize(target);
+    }
+
+    private void ApplyAndPersistChatFontSize(double rawSize)
+    {
+        double clamped = Math.Clamp(
+            Math.Round(rawSize * 2.0) / 2.0,
+            AiProviderSettings.MinChatFontSize,
+            AiProviderSettings.MaxChatFontSize);
+
+        ChatFontSize = clamped;
+        try
+        {
+            _savedSettings = _configStore.Save(_savedSettings with { ChatFontSize = clamped }, plainApiKey: null);
+        }
+        catch
+        {
+            // 仅持久化失败时仍保留当前会话字号生效
+        }
+    }
+
+    [RelayCommand]
     private void ClearSavedApiKey()
     {
         _savedSettings = _configStore.Save(_savedSettings, plainApiKey: string.Empty);
@@ -101,14 +280,29 @@ public partial class AiAssistantViewModel
             }
 
             ConfigFeedbackMessage = result.DetailMessage;
+            string? detectedTargetKey = result.DetectedContextWindowTokens.HasValue
+                ? draft.BuildModelTargetKey()
+                : _savedSettings.DetectedContextWindowTargetKey;
+            if (result.DetectedContextWindowTokens is int detectedCtx)
+            {
+                BuiltInAiAgentService.RememberProbedContextWindow(
+                    draft.BuildModelTargetKey(),
+                    detectedCtx,
+                    result.DetectedContextWindowSource);
+            }
+
             _savedSettings = _savedSettings with
             {
                 CloudPrivacyAcknowledged = draft.CloudPrivacyAcknowledged,
                 LastConnectionTestedUtc = DateTimeOffset.UtcNow,
                 LastConnectionSucceeded = result.Success,
                 LastConnectionSupportsToolCalling = result.SupportsToolCalling,
-                LastConnectionSummary = result.StatusBadgeText
+                LastConnectionSummary = result.StatusBadgeText,
+                DetectedContextWindowTokens = result.DetectedContextWindowTokens ?? _savedSettings.DetectedContextWindowTokens,
+                DetectedContextWindowSource = result.DetectedContextWindowSource ?? _savedSettings.DetectedContextWindowSource,
+                DetectedContextWindowTargetKey = detectedTargetKey
             };
+            NotifyContextWindowMetadataChanged();
         }
         catch (Exception ex)
         {
@@ -164,8 +358,13 @@ public partial class AiAssistantViewModel
         ModelName = settings.ModelName;
         MaxToolSteps = settings.EffectiveMaxToolSteps;
         TimeoutSeconds = settings.EffectiveTimeoutSeconds;
+        OverallTimeoutMinutes = settings.EffectiveOverallTimeoutMinutes;
+        ContextWindowTokens = settings.EffectiveConfiguredContextWindowTokens;
         ResponseLanguage = settings.ResponseLanguage;
+        ReasoningEffort = settings.ReasoningEffort;
+        ChatFontSize = settings.EffectiveChatFontSize;
         MaskedApiKeyPreview = settings.MaskedApiKeyPreview ?? string.Empty;
+        NotifyContextWindowMetadataChanged();
 
         if (settings.LastConnectionTestedUtc.HasValue)
         {
@@ -196,16 +395,31 @@ public partial class AiAssistantViewModel
         }
     }
 
-    private AiProviderSettings BuildDraftSettings() =>
-        _savedSettings with
+    private AiProviderSettings BuildDraftSettings()
+    {
+        int clampedIdleSeconds = Math.Clamp(TimeoutSeconds, 15, AiProviderSettings.HardMaxTimeoutSeconds);
+        int clampedOverallMinutes = OverallTimeoutMinutes <= 0
+            ? AiProviderSettings.DefaultOverallTimeoutMinutes
+            : Math.Clamp(OverallTimeoutMinutes, AiProviderSettings.MinOverallTimeoutMinutes, AiProviderSettings.MaxOverallTimeoutMinutes);
+        int overallSeconds = Math.Clamp(
+            clampedOverallMinutes * 60,
+            Math.Max(AiProviderSettings.MinOverallTimeoutMinutes * 60, clampedIdleSeconds),
+            AiProviderSettings.HardMaxOverallTimeoutSeconds);
+
+        return _savedSettings with
         {
             Preset = SelectedPreset,
             Endpoint = Endpoint.Trim(),
             ModelName = ModelName.Trim(),
             MaxToolSteps = MaxToolSteps <= 0 ? 0 : Math.Clamp(MaxToolSteps, 1, AiProviderSettings.HardMaxToolSteps),
-            TimeoutSeconds = Math.Clamp(TimeoutSeconds, 15, AiProviderSettings.HardMaxTimeoutSeconds),
-            ResponseLanguage = ResponseLanguage
+            TimeoutSeconds = clampedIdleSeconds,
+            OverallTimeoutSeconds = overallSeconds,
+            ContextWindowTokens = ContextWindowTokens <= 0 ? 0 : Math.Clamp(ContextWindowTokens, AiProviderSettings.MinContextWindowTokens, AiProviderSettings.MaxContextWindowTokens),
+            ResponseLanguage = ResponseLanguage,
+            ReasoningEffort = ReasoningEffort,
+            ChatFontSize = ChatFontSize
         };
+    }
 
     private string? ValidateDraftConfig(out AiProviderSettings draft, out string? resolvedApiKey)
     {

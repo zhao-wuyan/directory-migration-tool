@@ -476,3 +476,8 @@ MIT License
 - 双击 EXE 与运行 `run.ps1` 有何区别？功能相同，脚本提供额外提示与错误处理，直接双击更简便。
 - 磁盘扫描里有些目录为什么勾选不了？L0 目录禁止迁移；L2 目录建议用软件自带的迁移方式，点“详情弹窗”查看官方步骤；含外部硬链接或扫描不完整的目录也会被拦截，原因见弹出的提示。
 - AI 助手会动我的文件吗？不会。AI 只能通过只读工具读取脱敏后的目录元数据，不能执行迁移、清理或删除。它的建议要先经安全策略复核，再由你人工采纳。
+
+## 开源致谢
+
+- 内置 AI 助手抽屉中的**思考等级（`reasoning_effort`）像素点阵能量滑块**，其交互体验与三阶段像素火焰动效灵感参考自开源项目 [dsh-effort-slider](https://github.com/2768651338/dsh-effort-slider)（BSD-3-Clause）及其上游 [dsh-ui-web](https://github.com/CAPTAIN1275/dsh-ui-web) `aurora` 皮肤（BSD-3-Clause），在此谨表感谢！本项目采用纯 C# .NET 10 原生 WPF（`WriteableBitmap` + `CompositionTarget.Rendering`）独立重写，与上述项目无隶属关系。
+
