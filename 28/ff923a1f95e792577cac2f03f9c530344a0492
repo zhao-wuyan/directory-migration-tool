@@ -1,0 +1,100 @@
+MigrationCore/Models/Cleanup/CleanupModels.cs
+  h_867dc18f6ff205 45-46,54-57,149-160,370,379-380,428-429
+MigrationCore/Resources/Rules/directory-explanations.json
+  h_867dc18f6ff205 2,7,15,24,32,40,48,56,64,72,80,88,96,104,112,121,129,137,145,153,162,171,180,189,198,207,216,225,233,241,249,257,265,274,283,291,299,307,316,326,336,346,356,366,375,384,394,403,409-453,457,465-466,468,475,484,493,502,510-514,520,526-1538
+MigrationCore/Services/Cleanup/CleanupChannelAExecutor.cs
+  h_867dc18f6ff205 1,3,8,43,51,54,91-94,96,100-101,103-104,107-108,110-117,120-121,123-124,126-128,130,132-136,138,140,144-171,174-182,184-186,188-357,360-374,377-380,393,406,409-411,427,430,436,458-508,537,557,681-1000,1189-1320
+MigrationCore/Services/Cleanup/CleanupOfficialApiHandlers.cs
+  h_867dc18f6ff205 246
+MigrationCore/Services/Cleanup/CleanupService.cs
+  h_867dc18f6ff205 436,440,443,557,562-563
+MigrationCore/Services/Cleanup/FileLockInspector.cs
+  h_867dc18f6ff205 1-207
+MigrationCore/Services/Cleanup/QuarantineStore.cs
+  h_867dc18f6ff205 1,10,14-24,197-198,215-249,252-253,255,258,275-291,293,295,297-300,302-310,312-318,320-321,324-326,328-335,337-339,341-343,345-387,390-396,398-481,483-493,495-520,523-534,541-548,550-554,556-579,582-592,594,597,600,611-613,616,620-652,857-859,880-894,1109,1111-1123,1206-1209,1212-1214
+MigrationCore/Services/PathIdentityService.cs
+  h_867dc18f6ff205 76-140
+MigrationCore/Services/Safety/KnownDirectoryExplainer.cs
+  h_867dc18f6ff205 26-27,31,68-69,87-88,108-109,121-122,137-145,152-159,171-172,177-178,191,214,219-220,250-352,357-373,391-393,416-506,511,520-561
+MoveWithSymlinkWPF/Controls/HoldConfirmButton.xaml
+  h_867dc18f6ff205 1-45
+MoveWithSymlinkWPF/Controls/HoldConfirmButton.xaml.cs
+  h_867dc18f6ff205 1-492
+MoveWithSymlinkWPF/Helpers/ConfirmationPolicy.cs
+  h_867dc18f6ff205 1-185
+MoveWithSymlinkWPF/Helpers/ExplorerHelper.cs
+  h_867dc18f6ff205 1-115
+MoveWithSymlinkWPF/Helpers/TreeTableColumnLayoutState.cs
+  h_867dc18f6ff205 1-64
+MoveWithSymlinkWPF/MainWindow.xaml
+  h_867dc18f6ff205 109,992,1170
+MoveWithSymlinkWPF/Resources/UserGuideTexts.xaml
+  h_867dc18f6ff205 180,232
+MoveWithSymlinkWPF/ViewModels/Ai/AiChatSessionViewModel.cs
+  h_867dc18f6ff205 1153-1154,1174
+MoveWithSymlinkWPF/ViewModels/BackupConfirmationViewModel.cs
+  h_867dc18f6ff205 6,14-16,18,20-26,37-38,40-52,54-56,58-67,69-73
+MoveWithSymlinkWPF/ViewModels/Cleanup/CleanupExecutionReceiptViewModel.cs
+  h_867dc18f6ff205 1-690
+MoveWithSymlinkWPF/ViewModels/Cleanup/CleanupItemViewModels.cs
+  h_867dc18f6ff205 89-94,161-166,277-282,306-311,316,684-689
+MoveWithSymlinkWPF/ViewModels/Cleanup/QuarantineOperationResultViewModel.cs
+  h_867dc18f6ff205 1-614
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.AiResidual.cs
+  h_867dc18f6ff205 76-80
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.ExecutionAndQuarantine.cs
+  h_867dc18f6ff205 118,186,193-194,264,316,382-390,488
+MoveWithSymlinkWPF/ViewModels/CleanupViewModel.cs
+  h_867dc18f6ff205 204,207-218,266-267,295,298-299,650,728,766,805-809,930-939,1034,1321
+MoveWithSymlinkWPF/ViewModels/DiskScan/DiskScanItemViewModels.cs
+  h_867dc18f6ff205 176-177,207-212,216-222,228,305,308-324
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.BatchExecution.cs
+  h_867dc18f6ff205 124-132,205-209
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.TreeAndInspector.cs
+  h_867dc18f6ff205 339-340,361,363-375,470-471
+MoveWithSymlinkWPF/ViewModels/DiskScanViewModel.cs
+  h_867dc18f6ff205 184-185,188-190,232,235-236
+MoveWithSymlinkWPF/ViewModels/MainViewModel.cs
+  h_867dc18f6ff205 247,257-260,289-290,311,324,666-670
+MoveWithSymlinkWPF/Views/BackupConfirmationWindow.xaml
+  h_867dc18f6ff205 4,6,117,130-131,136-141,148-157
+MoveWithSymlinkWPF/Views/CleanupConfirmWindow.xaml
+  h_867dc18f6ff205 4,40,45,48-49,52-61,63,77-78,80,82-90,101-108
+MoveWithSymlinkWPF/Views/CleanupConfirmWindow.xaml.cs
+  h_867dc18f6ff205 4-5,12-21,24-28,30,34-37,52-65,73,75,77-80,82-150,154,156-157,162,167,169,173,177-183
+MoveWithSymlinkWPF/Views/CleanupExecutionReceiptWindow.xaml
+  h_867dc18f6ff205 1-419
+MoveWithSymlinkWPF/Views/CleanupExecutionReceiptWindow.xaml.cs
+  h_867dc18f6ff205 1-68
+MoveWithSymlinkWPF/Views/CleanupPage.xaml
+  h_867dc18f6ff205 148,232,250,572,656,740,810
+MoveWithSymlinkWPF/Views/DiskScan/DiskScanMigrationQueueView.xaml
+  h_867dc18f6ff205 62-63,74-79,115-116,160-161,168-193
+MoveWithSymlinkWPF/Views/DiskScanPage.xaml
+  h_867dc18f6ff205 7,23,198-199,206,211,249-253,271,300-308,310-324,404-421,424-425,431-432,440-448,484,487-488
+MoveWithSymlinkWPF/Views/DiskScanPage.xaml.cs
+  h_867dc18f6ff205 16,21,23-27,38-45
+MoveWithSymlinkWPF/Views/QuarantineDeleteConfirmWindow.xaml
+  h_867dc18f6ff205 4,70-78,80-85,93-101
+MoveWithSymlinkWPF/Views/QuarantineDeleteConfirmWindow.xaml.cs
+  h_867dc18f6ff205 5,12-13,15-17,39-40,74-98,102,104-105,110,115,117-118
+MoveWithSymlinkWPF/Views/QuarantineOperationResultWindow.xaml
+  h_867dc18f6ff205 1-331
+MoveWithSymlinkWPF/Views/QuarantineOperationResultWindow.xaml.cs
+  h_867dc18f6ff205 1-81
+test/Phase1UnitTests/Phase3CleanupCases.cs
+  h_867dc18f6ff205 3,14-15,1808-2746
+test/Phase1UnitTests/Program.cs
+  h_867dc18f6ff205 360-436,1408-1448,1457,1502-1560
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28ff923a1f95e792577cac2f03f9c530344a0492",
+  "prompts": {},
+  "humans": {
+    "h_867dc18f6ff205": {
+      "author": "zhao-wuyan <zhao-wuyan@users.noreply.github.com>"
+    }
+  }
+}
